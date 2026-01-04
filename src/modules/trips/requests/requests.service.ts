@@ -1,21 +1,127 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
-import { BookingStatus, RequestStatus, TripStatus } from '@prisma/client';
+import {
+  BookingStatus,
+  NegotiationSessionState,
+  NegotiationTurn,
+  OfferStatus,
+  Role,
+  RequestStatus,
+  TripStatus,
+} from '@prisma/client';
 import { OutboxService } from '../../../outbox/outbox.service';
 import { OutboxTopic } from '../../../outbox/outbox.topics';
+import { DriversService } from '../../drivers/drivers.service';
 
 @Injectable()
 export class RequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
+    private readonly drivers: DriversService,
   ) {}
+
+  async listMyRequests(passengerId: string) {
+    return this.prisma.tripRequest.findMany({
+      where: { passengerId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        trip: {
+          include: {
+            fromCity: true,
+            toCity: true,
+            driver: { select: { id: true, phone: true, profile: true } },
+          },
+        },
+        booking: true,
+        offers: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+  }
+
+  async listDriverRequests(driverId: string, role: Role) {
+    if (role === Role.driver) {
+      await this.drivers.assertVerifiedDriver(driverId);
+    }
+    return this.prisma.tripRequest.findMany({
+      where: { trip: { driverId } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        passenger: { select: { id: true, phone: true, profile: true } },
+        trip: { include: { fromCity: true, toCity: true } },
+        booking: true,
+        offers: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+  }
 
   async getMyRequest(passengerId: string, tripId: string) {
     return this.prisma.tripRequest.findUnique({
       where: { tripId_passengerId: { tripId, passengerId } },
       include: { booking: true },
     });
+  }
+
+  async getNegotiationSession(userId: string, role: Role, requestId: string) {
+    const request = await this.prisma.tripRequest.findUnique({
+      where: { id: requestId },
+      include: { trip: { select: { driverId: true } } },
+    });
+    if (!request) throw new NotFoundException('Trip request not found');
+
+    const isPassenger = request.passengerId === userId;
+    const isDriver = request.trip.driverId === userId;
+
+    if (!isPassenger && !isDriver) {
+      throw new ForbiddenException('Not allowed for this request');
+    }
+    if (role === Role.passenger && !isPassenger) {
+      throw new ForbiddenException('Passenger cannot access чужой request');
+    }
+    if (role === Role.driver && !isDriver) {
+      throw new ForbiddenException('Driver cannot access чужой request');
+    }
+
+    const session = await this.ensureNegotiationSession(requestId);
+    const lastOffer = session.lastOfferId
+      ? await this.prisma.offer.findUnique({ where: { id: session.lastOfferId } })
+      : null;
+
+    return {
+      requestId,
+      state: session.state,
+      nextTurn: session.nextTurn,
+      driverMovesLeft: session.driverMovesLeft,
+      passengerMovesLeft: session.passengerMovesLeft,
+      maxMovesPerSide: session.maxMovesPerSide,
+      lastOffer,
+      version: session.version,
+    };
+  }
+
+  private async ensureNegotiationSession(requestId: string) {
+    const existing = await this.prisma.negotiationSession.findUnique({ where: { requestId } });
+    if (existing) return existing;
+
+    try {
+      return await this.prisma.negotiationSession.create({
+        data: {
+          requestId,
+          state: NegotiationSessionState.active,
+          nextTurn: NegotiationTurn.driver,
+          driverMovesLeft: 3,
+          passengerMovesLeft: 3,
+          maxMovesPerSide: 3,
+          lastOfferId: null,
+          version: 0,
+        },
+      });
+    } catch (error: any) {
+      if (String(error?.code) === 'P2002') {
+        return this.prisma.negotiationSession.findUniqueOrThrow({ where: { requestId } });
+      }
+      throw error;
+    }
   }
 
   async createRequest(passengerId: string, tripId: string, dto: { seats: number; price: number; currency: string; message?: string }) {
@@ -41,6 +147,19 @@ export class RequestsService {
             currency: dto.currency,
             message: dto.message ?? null,
             status: RequestStatus.pending,
+          },
+        });
+
+        await tx.negotiationSession.create({
+          data: {
+            requestId: req.id,
+            state: NegotiationSessionState.active,
+            nextTurn: NegotiationTurn.driver,
+            driverMovesLeft: 3,
+            passengerMovesLeft: 3,
+            maxMovesPerSide: 3,
+            lastOfferId: null,
+            version: 0,
           },
         });
 
@@ -70,7 +189,10 @@ export class RequestsService {
    * - booking.create
    * - trip.seatsAvailable -= request.seats (атомарно)
    */
-  async acceptRequest(actorId: string, tripId: string, requestId: string) {
+  async acceptRequest(actorId: string, role: Role, tripId: string, requestId: string) {
+    if (role === Role.driver) {
+      await this.drivers.assertVerifiedDriver(actorId);
+    }
     return this.prisma.$transaction(async (tx) => {
       const trip = await tx.trip.findUnique({ where: { id: tripId } });
       if (!trip) throw new NotFoundException('Trip not found');
@@ -125,13 +247,18 @@ export class RequestsService {
       await tx.offer.updateMany({
         where: {
           requestId: updatedReq.id,
-          status: { in: ['pending'] as any },
+          status: OfferStatus.active,
         },
         data: {
-          status: 'canceled' as any,
+          status: OfferStatus.canceled,
           respondedAt: new Date(),
-          responseReason: 'Request accepted; pending offers canceled' as any,
+          responseReason: 'Request accepted; active offers canceled',
         },
+      });
+
+      await tx.negotiationSession.updateMany({
+        where: { requestId: updatedReq.id },
+        data: { state: NegotiationSessionState.accepted, lastOfferId: null },
       });
 
       await this.outbox.enqueueTx(tx, {
@@ -146,7 +273,10 @@ export class RequestsService {
     });
   }
 
-  async rejectRequest(actorId: string, tripId: string, requestId: string, reason?: string) {
+  async rejectRequest(actorId: string, role: Role, tripId: string, requestId: string, reason?: string) {
+    if (role === Role.driver) {
+      await this.drivers.assertVerifiedDriver(actorId);
+    }
     return this.prisma.$transaction(async (tx) => {
       const trip = await tx.trip.findUnique({ where: { id: tripId } });
       if (!trip) throw new NotFoundException('Trip not found');
@@ -169,12 +299,17 @@ export class RequestsService {
       });
 
       await tx.offer.updateMany({
-        where: { requestId: updated.id, status: { in: ['pending'] as any } },
+        where: { requestId: updated.id, status: OfferStatus.active },
         data: {
-          status: 'canceled' as any,
+          status: OfferStatus.canceled,
           respondedAt: new Date(),
-          responseReason: 'Request rejected; pending offers canceled' as any,
+          responseReason: 'Request rejected; active offers canceled',
         },
+      });
+
+      await tx.negotiationSession.updateMany({
+        where: { requestId: updated.id },
+        data: { state: NegotiationSessionState.canceled, lastOfferId: null },
       });
 
       await this.outbox.enqueueTx(tx, {
@@ -183,6 +318,59 @@ export class RequestsService {
         aggregateId: updated.id,
         payload: { tripId, requestId: updated.id, reason: updated.rejectionReason },
         idempotencyKey: `request.rejected:${updated.id}`,
+      });
+
+      return { ok: true, request: updated };
+    });
+  }
+
+  async cancelRequest(passengerId: string, requestId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const req = await tx.tripRequest.findUnique({
+        where: { id: requestId },
+      });
+      if (!req) throw new NotFoundException('Request not found');
+      if (req.passengerId !== passengerId) {
+        throw new ForbiddenException('Only request owner can cancel');
+      }
+
+      if (req.status !== RequestStatus.pending) {
+        throw new BadRequestException('Only pending request can be canceled');
+      }
+
+      const updated = await tx.tripRequest.update({
+        where: { id: requestId },
+        data: {
+          status: RequestStatus.canceled,
+          respondedAt: new Date(),
+          rejectionReason: null,
+        },
+      });
+
+      await tx.offer.updateMany({
+        where: { requestId: updated.id, status: OfferStatus.active },
+        data: {
+          status: OfferStatus.canceled,
+          respondedAt: new Date(),
+          responseReason: 'Request canceled by passenger',
+        },
+      });
+
+      await tx.negotiationSession.updateMany({
+        where: { requestId: updated.id },
+        data: { state: NegotiationSessionState.canceled, lastOfferId: null },
+      });
+
+      await this.outbox.enqueueTx(tx, {
+        topic: OutboxTopic.RequestCanceled,
+        aggregateType: 'TripRequest',
+        aggregateId: updated.id,
+        payload: {
+          requestId: updated.id,
+          tripId: updated.tripId,
+          passengerId: updated.passengerId,
+        },
+        idempotencyKey: `request.canceled:${updated.id}`,
       });
 
       return { ok: true, request: updated };

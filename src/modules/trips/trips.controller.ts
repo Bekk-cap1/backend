@@ -6,8 +6,6 @@ import { Public } from '../../common/decorators/public.decorator';
 
 import { CreateTripDto } from './dto/create-trip.dto';
 import { PublishTripDto } from './dto/publish-trip.dto';
-import { CreateTripRequestDto } from './dto/create-trip-request.dto';
-import { RejectRequestDto } from './dto/reject-request.dto';
 import { SearchTripsDto } from './dto/search-trips.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -36,42 +34,6 @@ export class TripsController {
   async publish(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: PublishTripDto) {
     const driverId = user.sub ?? user.id;
     return this.tripsService.publishTrip(driverId, id, dto.notes);
-  }
-
-  @Roles('passenger')
-  @Post(':id/requests')
-  async createRequest(
-    @CurrentUser() user: any,
-    @Param('id') tripId: string,
-    @Body() dto: CreateTripRequestDto,
-  ) {
-    const passengerId = user.sub ?? user.id;
-    return this.tripsService.createRequest(passengerId, tripId, dto);
-  }
-
-  @Roles('driver')
-  @Get(':id/requests')
-  async listRequests(@CurrentUser() user: any, @Param('id') tripId: string) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.listTripRequests(driverId, tripId);
-  }
-
-  @Roles('driver')
-  @Post('requests/:requestId/accept')
-  async accept(@CurrentUser() user: any, @Param('requestId') requestId: string) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.acceptRequest(driverId, requestId);
-  }
-
-  @Roles('driver')
-  @Post('requests/:requestId/reject')
-  async reject(
-    @CurrentUser() user: any,
-    @Param('requestId') requestId: string,
-    @Body() dto: RejectRequestDto,
-  ) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.rejectRequest(driverId, requestId, dto);
   }
 
   @Roles('driver')

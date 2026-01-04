@@ -24,21 +24,21 @@ export class CitiesController {
 
   // ADMIN: управление справочником
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'moderator')
   @Post('admin/cities')
   create(@Body() dto: CreateCityDto) {
     return this.cities.create(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'moderator')
   @Patch('admin/cities/:id')
   update(@Param('id') id: string, @Body() dto: UpdateCityDto) {
     return this.cities.update(id, dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'moderator')
   @Delete('admin/cities/:id')
   remove(@Param('id') id: string) {
     return this.cities.remove(id);

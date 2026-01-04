@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { OutboxStatus, type Prisma } from '@prisma/client';
 import type { OutboxTopicType } from './outbox.topics';
 
 type Tx = Prisma.TransactionClient;
@@ -28,8 +28,8 @@ export class OutboxService {
         aggregateType: input.aggregateType,
         aggregateId: input.aggregateId ?? null,
         payload: input.payload,
-        availableAt: input.availableAt ?? new Date(),
-        status: 'pending',
+        nextRetryAt: input.availableAt ?? null,
+        status: OutboxStatus.NEW,
       },
     });
   }

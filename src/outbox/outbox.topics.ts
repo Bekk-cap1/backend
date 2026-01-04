@@ -10,6 +10,7 @@ export const OutboxTopic = {
     RequestCreated: 'request.created',
     RequestAccepted: 'request.accepted',
     RequestRejected: 'request.rejected',
+    RequestCanceled: 'request.canceled',
 
     // Drivers / Users
     DriverVerified: 'driver.verified',

@@ -19,7 +19,7 @@ import { RejectDriverDto } from './dto/reject-driver.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
+@Roles('admin', 'moderator')
 @Controller('admin')
 export class AdminController {
   constructor(private readonly admin: AdminService) {}

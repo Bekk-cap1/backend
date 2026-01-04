@@ -39,7 +39,7 @@ export class VehiclesController {
 
   // ADMIN: список всех машин
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'moderator')
   @Get('admin/vehicles')
   listAll(@CurrentUser() user: any, @Query() dto: ListVehiclesDto) {
     return this.vehicles.listAll(user, dto);

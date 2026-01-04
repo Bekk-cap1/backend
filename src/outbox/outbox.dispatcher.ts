@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { OutboxStatus } from '@prisma/client';
 import { PrismaService } from '../infrastructure/prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
 
@@ -28,11 +29,11 @@ export class OutboxDispatcher {
     // 1) Сначала “освобождаем” протухшие локи (если воркер умер)
     await this.prisma.outboxEvent.updateMany({
       where: {
-        status: 'processing',
+        status: OutboxStatus.PROCESSING,
         lockedAt: { lt: staleBefore },
       },
       data: {
-        status: 'pending',
+        status: OutboxStatus.NEW,
         lockedAt: null,
         lockedBy: null,
       },
@@ -41,8 +42,8 @@ export class OutboxDispatcher {
     // 2) Берем кандидатов
     const candidates = await this.prisma.outboxEvent.findMany({
       where: {
-        status: 'pending',
-        availableAt: { lte: now },
+        status: OutboxStatus.NEW,
+        OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: now } }],
       },
       orderBy: { createdAt: 'asc' },
       take: batchSize,
@@ -60,15 +61,15 @@ export class OutboxDispatcher {
 
     const ids = candidates.map((c) => c.id);
 
-    // 3) Ставим лок атомарно: pending -> processing
+    // 3) Ставим лок атомарно: NEW -> PROCESSING
     const lockRes = await this.prisma.outboxEvent.updateMany({
       where: {
         id: { in: ids },
-        status: 'pending',
-        availableAt: { lte: now },
+        status: 'NEW',
+        OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: now } }],
       },
       data: {
-        status: 'processing',
+        status: OutboxStatus.PROCESSING,
         lockedAt: now,
         lockedBy: this.workerId,
       },
@@ -80,7 +81,7 @@ export class OutboxDispatcher {
     const locked = await this.prisma.outboxEvent.findMany({
       where: {
         id: { in: ids },
-        status: 'processing',
+        status: OutboxStatus.PROCESSING,
         lockedBy: this.workerId,
       },
       select: {
@@ -116,7 +117,7 @@ export class OutboxDispatcher {
         await this.prisma.outboxEvent.update({
           where: { id: e.id },
           data: {
-            status: 'sent',
+            status: OutboxStatus.DONE,
             sentAt: new Date(),
             lockedAt: null,
             lockedBy: null,
@@ -128,14 +129,14 @@ export class OutboxDispatcher {
 
         // Exponential backoff (capped)
         const delayMs = Math.min(5 * 60_000, 1_000 * 2 ** Math.min(10, attempts));
-        const availableAt = new Date(Date.now() + delayMs);
+        const nextRetryAt = new Date(Date.now() + delayMs);
 
         await this.prisma.outboxEvent.update({
           where: { id: e.id },
           data: {
-            status: attempts >= 25 ? 'failed' : 'pending',
+            status: attempts >= 25 ? OutboxStatus.FAILED : OutboxStatus.NEW,
             attempts,
-            availableAt,
+            nextRetryAt,
             lockedAt: null,
             lockedBy: null,
             lastError: (err?.message ?? String(err)).slice(0, 1000),

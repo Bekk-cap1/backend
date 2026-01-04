@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BookingStatus, Prisma, TripStatus, RequestStatus } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { BookingsQueryDto } from './dto/bookings-query.dto';
@@ -6,7 +7,16 @@ import { CancelBookingDto } from './dto/cancel-booking.dto';
 
 @Injectable()
 export class BookingsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly config: ConfigService,
+    ) { }
+
+    private getCancelFeePercent() {
+        const raw = Number(this.config.get('bookings.cancelFeePercent') ?? 10);
+        if (Number.isNaN(raw)) return 10;
+        return Math.min(100, Math.max(0, raw));
+    }
 
     // Пассажир: мои брони
     async myAsPassenger(userId: string, q: BookingsQueryDto) {
@@ -114,10 +124,16 @@ export class BookingsService {
                 throw new BadRequestException('Trip already started/completed');
             }
 
+            const cancelFeePercent = this.getCancelFeePercent();
+            const cancellationFeeAmount = Math.round((booking.price * cancelFeePercent) / 100);
+            const refundAmount = Math.max(0, booking.price - cancellationFeeAmount);
+
             const updated = await tx.booking.update({
                 where: { id: bookingId },
                 data: {
                     status: BookingStatus.canceled,
+                    canceledAt: new Date(),
+                    cancellationFeeAmount,
                     // если хочешь хранить reason — добавим поле cancelReason позже в схему
                 },
             });
@@ -134,7 +150,16 @@ export class BookingsService {
                 data: { status: RequestStatus.canceled, respondedAt: new Date(), rejectionReason: dto.reason ?? null },
             });
 
-            // платежи в будущем: тут будет триггер на refund/void
+            if (booking.status === BookingStatus.paid) {
+                await tx.payment.updateMany({
+                    where: { bookingId: booking.id, status: { in: ['paid', 'refunded'] as any } },
+                    data: {
+                        refundedAmount: refundAmount,
+                        refundedAt: refundAmount > 0 ? new Date() : undefined,
+                    },
+                });
+            }
+
             return updated;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     }
@@ -166,7 +191,7 @@ export class BookingsService {
 
             const updated = await tx.booking.update({
                 where: { id: bookingId },
-                data: { status: BookingStatus.canceled },
+                data: { status: BookingStatus.canceled, canceledAt: new Date(), cancellationFeeAmount: 0 },
             });
 
             await tx.trip.update({
@@ -212,7 +237,7 @@ export class BookingsService {
 
             return tx.booking.update({
                 where: { id: bookingId },
-                data: { status: BookingStatus.completed },
+                data: { status: BookingStatus.completed, completedAt: new Date() },
             });
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     }

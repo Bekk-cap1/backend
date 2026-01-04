@@ -18,7 +18,7 @@ export class BookingsController {
   }
 
   // driver
-  @Roles('driver', 'admin')
+  @Roles('driver', 'admin', 'moderator')
   @Get('driver')
   myDriver(@CurrentUser() user: any, @Query() q: BookingsQueryDto) {
     return this.bookings.myAsDriver(user.sub ?? user.id, q);
@@ -36,7 +36,7 @@ export class BookingsController {
   }
 
   // driver cancels
-  @Roles('driver', 'admin')
+  @Roles('driver', 'admin', 'moderator')
   @Post(':id/cancel-by-driver')
   cancelByDriver(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: CancelBookingDto) {
     return this.bookings.cancelAsDriver(id, user.sub ?? user.id, dto);
