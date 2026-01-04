@@ -475,7 +475,7 @@ model Offer {
 
   message String?
 
-  status OfferStatus @default(pending)
+  status OfferStatus @default(active)
 
   respondedAt     DateTime?
   responseNote    String?
