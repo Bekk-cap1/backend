@@ -21,6 +21,8 @@ export const OutboxTopic = {
     OfferRejected: 'offer.rejected',
     OfferCanceled: 'offer.canceled',
 
+    // Payments
+    PaymentPaid: 'payment.paid',
 
 } as const;
 

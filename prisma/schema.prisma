@@ -51,6 +51,7 @@ enum OfferStatus {
 
 enum BookingStatus {
   confirmed
+  paid
   canceled
   completed
 }
@@ -62,13 +63,11 @@ enum PaymentProvider {
 }
 
 enum PaymentStatus {
-  pending // создано, ожидаем
-  processing // редирект/3ds/ожидание
-  succeeded // оплачено
+  created // создано в системе
+  pending // создано у провайдера, ожидаем
+  paid // оплачено
   failed // ошибка
-  canceled // отменено пользователем/провайдером
   refunded // полностью возвращено
-  partially_refunded
 }
 
 model User {
@@ -315,7 +314,7 @@ model Payment {
   booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   provider PaymentProvider
-  status   PaymentStatus   @default(pending)
+  status   PaymentStatus   @default(created)
 
   amount   Int
   currency String @default("UZS")

@@ -52,7 +52,7 @@ export class PaymentsRepository {
         provider: params.provider,
         amount: params.amount,
         currency: params.currency,
-        status: 'pending',
+        status: { in: [PaymentStatus.created, PaymentStatus.pending] },
       },
       orderBy: { createdAt: 'desc' },
     });

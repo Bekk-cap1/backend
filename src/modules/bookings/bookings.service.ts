@@ -103,7 +103,7 @@ export class BookingsService {
             if (booking.passengerId !== userId) throw new ForbiddenException('Not your booking');
 
             if (booking.status === BookingStatus.canceled) return booking; // идемпотентно
-            if (booking.status !== BookingStatus.confirmed) {
+            if (![BookingStatus.confirmed, BookingStatus.paid].includes(booking.status)) {
                 throw new BadRequestException('Only confirmed booking can be canceled');
             }
 
@@ -154,7 +154,7 @@ export class BookingsService {
             if (booking.trip.driverId !== driverId) throw new ForbiddenException('Not your trip booking');
 
             if (booking.status === BookingStatus.canceled) return booking;
-            if (booking.status !== BookingStatus.confirmed) {
+            if (![BookingStatus.confirmed, BookingStatus.paid].includes(booking.status)) {
                 throw new BadRequestException('Only confirmed booking can be canceled');
             }
 
@@ -201,7 +201,7 @@ export class BookingsService {
             if (!isPassenger && !isDriver) throw new ForbiddenException('No access');
 
             if (booking.status === BookingStatus.completed) return booking;
-            if (booking.status !== BookingStatus.confirmed) {
+            if (![BookingStatus.confirmed, BookingStatus.paid].includes(booking.status)) {
                 throw new BadRequestException('Only confirmed booking can be completed');
             }
 

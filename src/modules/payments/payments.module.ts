@@ -7,8 +7,10 @@ import { ClickProvider } from './providers/click.provider';
 import { PaymeProvider } from './providers/payme.provider';
 import { StripeProvider } from './providers/stripe.provider';
 import { PaymentsWebhookController } from './webhooks/payments.webhook.controller';
+import { OutboxModule } from '../../outbox/outbox.module';
 
 @Module({
+  imports: [OutboxModule],
   controllers: [PaymentsController, PaymentsWebhookController],
   providers: [
     PaymentsService,

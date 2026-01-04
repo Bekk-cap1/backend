@@ -256,7 +256,7 @@ export class TripsService {
                 });
 
                 await tx.booking.updateMany({
-                    where: { tripId, status: BookingStatus.confirmed },
+                    where: { tripId, status: { in: [BookingStatus.confirmed, BookingStatus.paid] } },
                     data: { status: BookingStatus.completed },
                 });
 
@@ -339,7 +339,7 @@ export class TripsService {
                 });
 
                 const confirmedBookings = trip.bookings.filter(
-                    (b) => b.status === BookingStatus.confirmed,
+                    (b) => [BookingStatus.confirmed, BookingStatus.paid].includes(b.status),
                 );
 
                 for (const b of confirmedBookings) {

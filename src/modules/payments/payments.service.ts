@@ -1,10 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { PaymentProvider, PaymentStatus, Prisma } from '@prisma/client';
+import { BookingStatus, PaymentProvider, PaymentStatus, Prisma } from '@prisma/client';
+import { createHash } from 'crypto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { PaymentsRepository } from './payments.repository';
 import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { ListPaymentsDto } from './dto/list-payments.dto';
+import { OutboxService } from '../../outbox/outbox.service';
+import { OutboxTopic } from '../../outbox/outbox.topics';
+import type { WebhookResult } from './providers/payment-provider.interface';
 
 @Injectable()
 export class PaymentsService {
@@ -12,6 +16,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly repo: PaymentsRepository,
     private readonly registry: PaymentProviderRegistry,
+    private readonly outbox: OutboxService,
   ) {}
 
   async createIntent(userId: string, bookingId: string, dto: CreatePaymentIntentDto) {
@@ -23,7 +28,7 @@ export class PaymentsService {
     if (booking.passengerId !== userId) throw new ForbiddenException('Not your booking');
 
     // правило: платить можно только за confirmed
-    if (booking.status !== 'confirmed') throw new BadRequestException('Booking not payable');
+    if (booking.status !== BookingStatus.confirmed) throw new BadRequestException('Booking not payable');
 
     // идемпотентность (временный вариант без поля в БД)
     const existing = await this.repo.findIdempotent({
@@ -43,14 +48,18 @@ export class PaymentsService {
         customer: { userId: booking.passengerId, phone: booking.passenger.phone },
         metadata: { bookingId },
       });
-      return { payment: existing, intent };
+      const updatedExisting =
+        existing.status === PaymentStatus.created
+          ? await this.repo.updateStatus(existing.id, PaymentStatus.pending)
+          : existing;
+      return { payment: updatedExisting, intent };
     }
 
-    // создаем payment pending
+    // создаем payment created
     const payment = await this.repo.create({
       booking: { connect: { id: bookingId } },
       provider: dto.provider,
-      status: PaymentStatus.pending,
+      status: PaymentStatus.created,
       amount: booking.price,
       currency: booking.currency,
       payload: dto.idempotencyKey ? { idempotencyKey: dto.idempotencyKey } : undefined,
@@ -66,7 +75,9 @@ export class PaymentsService {
       metadata: { bookingId },
     });
 
-    return { payment, intent };
+    const updatedPayment = await this.repo.updateStatus(payment.id, PaymentStatus.pending);
+
+    return { payment: updatedPayment, intent };
   }
 
   async listMy(userId: string, q: ListPaymentsDto) {
@@ -107,20 +118,127 @@ export class PaymentsService {
       return { ok: true, orphan: true };
     }
 
-    // обновление статуса (приводим в enum Prisma)
-    const next =
-      parsed.status === 'succeeded' ? PaymentStatus.succeeded :
-      parsed.status === 'failed' ? PaymentStatus.failed :
-      parsed.status === 'canceled' ? PaymentStatus.canceled :
-      parsed.status === 'refunded' ? PaymentStatus.refunded :
-      PaymentStatus.pending;
+    const dedupeKey = this.buildDedupeKey(provider, parsed);
 
-    await this.repo.updateStatus(payment.id, next, parsed.raw ?? undefined, parsed.externalId);
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.paymentEvent.create({
+        data: {
+          paymentId: payment.id,
+          provider,
+          externalEventId: parsed.externalEventId ?? null,
+          dedupeKey,
+          type: parsed.status ?? 'unknown',
+          payload: parsed.raw ?? parsed,
+        },
+      }).catch((err) => {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          return null;
+        }
+        throw err;
+      });
 
-    // доменные эффекты добавим позже:
-    // - если succeeded: фиксируем “оплата принята”
-    // - если refunded: возврат и т.п.
+      if (!event) {
+        return { ok: true, duplicate: true };
+      }
 
-    return { ok: true };
+      const next = this.mapWebhookStatus(parsed);
+      if (!next) return { ok: true };
+
+      if (next === payment.status) {
+        return { ok: true };
+      }
+
+      if (!this.isValidTransition(payment.status, next)) {
+        return { ok: true, ignored: true };
+      }
+
+      const now = new Date();
+      const updateData: Prisma.PaymentUpdateInput = {
+        status: next,
+        payload: parsed.raw ?? undefined,
+        externalId: parsed.externalId ?? undefined,
+      };
+
+      if (next === PaymentStatus.paid) {
+        updateData.paidAt = payment.paidAt ?? now;
+      }
+
+      if (next === PaymentStatus.refunded) {
+        updateData.refundedAt = payment.refundedAt ?? now;
+      }
+
+      const updated = await tx.payment.update({
+        where: { id: payment.id },
+        data: updateData,
+      });
+
+      if (next === PaymentStatus.paid) {
+        await tx.booking.updateMany({
+          where: { id: payment.bookingId, status: BookingStatus.confirmed },
+          data: { status: BookingStatus.paid },
+        });
+
+        await this.outbox.enqueueTx(tx, {
+          topic: OutboxTopic.PaymentPaid,
+          aggregateType: 'payment',
+          aggregateId: payment.id,
+          idempotencyKey: `payment:${payment.id}:paid`,
+          payload: {
+            paymentId: payment.id,
+            bookingId: payment.bookingId,
+            provider: payment.provider,
+            amount: payment.amount,
+            currency: payment.currency,
+            paidAt: updated.paidAt,
+          },
+        });
+      }
+
+      return { ok: true };
+    });
+  }
+
+  private mapWebhookStatus(parsed: WebhookResult): PaymentStatus | null {
+    if (!parsed.status) return null;
+
+    if (parsed.status === 'succeeded') return PaymentStatus.paid;
+    if (parsed.status === 'canceled') return PaymentStatus.failed;
+
+    if (parsed.status === 'created') return PaymentStatus.created;
+    if (parsed.status === 'pending') return PaymentStatus.pending;
+    if (parsed.status === 'paid') return PaymentStatus.paid;
+    if (parsed.status === 'failed') return PaymentStatus.failed;
+    if (parsed.status === 'refunded') return PaymentStatus.refunded;
+
+    return null;
+  }
+
+  private isValidTransition(current: PaymentStatus, next: PaymentStatus) {
+    if (current === next) return true;
+
+    const allowed: Record<PaymentStatus, PaymentStatus[]> = {
+      [PaymentStatus.created]: [PaymentStatus.pending],
+      [PaymentStatus.pending]: [PaymentStatus.paid, PaymentStatus.failed],
+      [PaymentStatus.paid]: [PaymentStatus.refunded],
+      [PaymentStatus.failed]: [],
+      [PaymentStatus.refunded]: [],
+    };
+
+    return allowed[current]?.includes(next) ?? false;
+  }
+
+  private buildDedupeKey(provider: PaymentProvider, parsed: WebhookResult) {
+    if (parsed.externalEventId) {
+      return `${provider}:${parsed.externalEventId}`;
+    }
+
+    const base = JSON.stringify({
+      externalId: parsed.externalId ?? null,
+      status: parsed.status ?? null,
+      amount: parsed.amount ?? null,
+      currency: parsed.currency ?? null,
+    });
+    const digest = createHash('sha256').update(base).digest('hex');
+    return `${provider}:${parsed.externalId ?? 'unknown'}:${digest}`;
   }
 }
