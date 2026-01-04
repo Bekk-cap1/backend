@@ -4,7 +4,6 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { getQueueToken } from '@nestjs/bullmq';
 
-import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 import { RedisService } from '../src/infrastructure/redis/redis.service';
 import { OutboxDispatcher } from '../src/outbox/outbox.dispatcher';
@@ -15,7 +14,7 @@ const PASSWORD = 'test-password-123';
 
 describe('E2E flows', () => {
   let app: INestApplication<App>;
-  let prisma: PrismaService;
+  let prisma: PrismaService & Record<string, any>;
   let outboxDispatcher: OutboxDispatcher;
   let queueAdd: jest.Mock;
 
@@ -69,6 +68,8 @@ describe('E2E flows', () => {
       process.env.DATABASE_URL ??
       'postgresql://postgres:postgres@localhost:5432/postgres?schema=public';
     process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+
+    const { AppModule } = await import('../src/app.module');
 
     queueAdd = jest.fn().mockResolvedValue({});
 
@@ -124,7 +125,9 @@ describe('E2E flows', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('login -> /auth/me', async () => {

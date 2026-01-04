@@ -251,6 +251,7 @@ export class OffersService {
             requestId,
             proposerId: userId,
             proposerRole: role,
+            seats: dto.seats,
             price: dto.price,
             currency: req.currency,
             message: dto.message ?? null,
