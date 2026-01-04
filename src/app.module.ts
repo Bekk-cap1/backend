@@ -36,6 +36,7 @@ import { RequestContextModule } from './infrastructure/request-context/request-c
 import { ScheduleModule } from '@nestjs/schedule';
 import { OutboxModule } from './outbox/outbox.module';
 import { RequestsModule } from './modules/trips/requests/requests.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { RequestsModule } from './modules/trips/requests/requests.module';
     AuditModule,
     OutboxModule,
     RequestContextModule,
+    RealtimeModule,
     
 
 
