@@ -10,7 +10,8 @@ export type CreateIntentResult = {
 export type WebhookResult = {
   // что произошло с платежом
   externalId?: string;
-  status?: 'succeeded' | 'failed' | 'canceled' | 'refunded' | 'pending';
+  externalEventId?: string;
+  status?: 'created' | 'pending' | 'paid' | 'failed' | 'refunded' | 'succeeded' | 'canceled';
   amount?: number;
   currency?: string;
   raw?: any;
