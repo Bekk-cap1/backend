@@ -29,7 +29,7 @@ export class AuthStrategiesService {
   }
 
   private refreshTtlSec() {
-    return Number(process.env.JWT_REFRESH_TTL ?? 2592000);
+    return Number(process.env.JWT_REFRESH_TTL ?? 2_592_000);
   }
 
   private refreshSecret() {

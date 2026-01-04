@@ -23,7 +23,7 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
           cfg.get<string>('JWT_SECRET') ??
           'dev_access_secret';
 
-        const ttl = Number(cfg.get<string>('JWT_ACCESS_TTL') ?? 900);
+        const ttl = cfg.get<number>('JWT_ACCESS_TTL', 900);
 
         return {
           secret,
