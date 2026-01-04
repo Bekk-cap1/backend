@@ -1,0 +1,490 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // NOTE (Prisma v7): connection URLs are configured in prisma.config.ts
+}
+
+enum Role {
+  passenger
+  driver
+  admin
+}
+
+enum DriverStatus {
+  draft
+  pending
+  verified
+  rejected
+}
+
+enum TripStatus {
+  draft
+  published
+  started
+  completed
+  canceled
+}
+
+enum RequestStatus {
+  pending
+  accepted
+  rejected
+  canceled
+}
+
+enum OfferCreatedBy {
+  passenger
+  driver
+}
+
+enum OfferStatus {
+  active
+  accepted
+  rejected
+  canceled
+}
+
+enum BookingStatus {
+  confirmed
+  canceled
+  completed
+}
+
+enum PaymentProvider {
+  click
+  payme
+  stripe
+}
+
+enum PaymentStatus {
+  pending // создано, ожидаем
+  processing // редирект/3ds/ожидание
+  succeeded // оплачено
+  failed // ошибка
+  canceled // отменено пользователем/провайдером
+  refunded // полностью возвращено
+  partially_refunded
+}
+
+model User {
+  id           String @id @default(uuid())
+  phone        String @unique
+  passwordHash String
+  role         Role   @default(passenger)
+
+  sessions UserSession[]
+  profile  UserProfile?
+  devices  Device[]
+
+  driverProfile DriverProfile?
+  vehicles      Vehicle[]
+
+  tripsAsDriver           Trip[]        @relation("UserTripsAsDriver")
+  tripRequestsAsPassenger TripRequest[] @relation("UserTripRequestsAsPassenger")
+  bookingsAsPassenger     Booking[]     @relation("UserBookingsAsPassenger")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  offersProposed Offer[]  @relation("UserOffersAsProposer")
+}
+
+model UserSession {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshJti       String
+  refreshTokenHash String
+
+  userAgent  String?
+  ip         String?
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  expiresAt  DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, refreshJti])
+}
+
+model UserProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName  String?
+  avatarUrl String?
+  language  String? @default("ru")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Device {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform   String? // ios/android/web
+  token      String? // push token
+  model      String?
+  lastSeenAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model DriverProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status DriverStatus @default(draft)
+
+  fullName   String?
+  licenseNo  String?
+  passportNo String?
+
+  docs Json? // ссылки на файлы/доки (позже можно вынести в storage)
+
+  verifiedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Vehicle {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  make    String
+  model   String
+  plateNo String  @unique
+  color   String?
+  seats   Int     @default(4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  trips     Trip[]
+
+  @@index([userId])
+}
+
+model City {
+  id          String  @id @default(uuid())
+  name        String
+  countryCode String  @default("UZ")
+  region      String?
+  timezone    String? // "Asia/Tashkent"
+
+  // координаты города (центр)
+  location Unsupported("geography(Point,4326)")?
+
+  tripsFrom Trip[] @relation("TripFromCity")
+  tripsTo   Trip[] @relation("TripToCity")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, countryCode], name: "name_countryCode")
+  @@index([name])
+  @@index([countryCode])
+}
+
+model Trip {
+  id String @id @default(uuid())
+
+  driverId String
+  driver   User   @relation("UserTripsAsDriver", fields: [driverId], references: [id], onDelete: Cascade)
+
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id])
+
+  fromCityId String
+  fromCity   City   @relation("TripFromCity", fields: [fromCityId], references: [id])
+
+  toCityId String
+  toCity   City   @relation("TripToCity", fields: [toCityId], references: [id])
+
+  fromPoint Unsupported("geography(Point,4326)")?
+  toPoint   Unsupported("geography(Point,4326)")?
+
+  departureAt DateTime
+  arriveAt    DateTime?
+
+  seatsTotal     Int @default(4)
+  seatsAvailable Int @default(4)
+
+  price    Int
+  currency String @default("UZS")
+
+  distanceKm Int?
+  notes      String?
+
+  status TripStatus @default(draft)
+
+  requests TripRequest[]
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  startedAt    DateTime?
+  completedAt  DateTime?
+  canceledAt   DateTime?
+  cancelReason String?
+
+  @@index([driverId])
+  @@index([vehicleId])
+  @@index([fromCityId, toCityId])
+  @@index([departureAt])
+  @@index([status])
+}
+
+model TripRequest {
+  id String @id @default(uuid())
+
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  passengerId String
+  passenger   User   @relation("UserTripRequestsAsPassenger", fields: [passengerId], references: [id], onDelete: Cascade)
+
+  seats    Int
+  price    Int
+  currency String @default("UZS")
+
+  message String?
+
+  status          RequestStatus @default(pending)
+  respondedAt     DateTime?
+  rejectionReason String?
+
+  offers  Offer[]
+  booking Booking?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tripId, passengerId])
+  @@index([tripId])
+  @@index([passengerId])
+  @@index([status])
+}
+
+model Booking {
+  id String @id @default(uuid())
+
+  requestId String      @unique
+  request   TripRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  passengerId String
+  passenger   User   @relation("UserBookingsAsPassenger", fields: [passengerId], references: [id], onDelete: Cascade)
+
+  seats    Int
+  price    Int
+  currency String @default("UZS")
+
+  status BookingStatus @default(confirmed)
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId])
+  @@index([passengerId])
+  @@index([status])
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  provider PaymentProvider
+  status   PaymentStatus   @default(pending)
+
+  amount   Int
+  currency String @default("UZS")
+
+  // Идемпотентность на уровне нашего API:
+  idempotencyKey String? @unique
+
+  // Идентификаторы провайдера:
+  externalId  String? @unique // invoice/transaction id у провайдера
+  externalRef String? // например, merchant_trans_id, order_id и т.п.
+  payload     Json?
+
+  // Важные таймстемпы
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  paidAt     DateTime?
+  canceledAt DateTime?
+  refundedAt DateTime?
+
+  // Денормализация возвратов
+  refundedAmount Int @default(0)
+
+  // “сырой” payload/metadata (не злоупотребляй)
+  meta Json?
+
+  attempts PaymentAttempt[]
+  events   PaymentEvent[]
+
+  @@index([bookingId])
+  @@index([status])
+  @@index([provider])
+  @@index([createdAt])
+}
+
+model PaymentAttempt {
+  id String @id @default(uuid())
+
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  // номер попытки: 1..n
+  seq Int
+
+  status PaymentStatus @default(pending)
+
+  // куда отправляли/откуда пришли данные
+  requestPayload  Json?
+  responsePayload Json?
+
+  // эквайринг/редирект/3ds
+  checkoutUrl String?
+  failReason  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([paymentId, seq])
+  @@index([paymentId])
+  @@index([status])
+}
+
+model PaymentEvent {
+  id String @id @default(uuid())
+
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  provider PaymentProvider
+
+  externalEventId String?
+  dedupeKey       String  @unique
+
+  type    String
+  payload Json
+
+  receivedAt DateTime @default(now())
+
+  @@index([paymentId])
+  @@index([provider])
+  @@index([receivedAt])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // actor
+  actorId   String?
+  actorRole String?
+  actorType String? // user | system | admin_service
+
+  // action
+  action     String
+  entityType String
+  entityId   String?
+  severity   String? // info | warning | critical
+
+  // request context
+  requestId String?
+  ip        String?
+  userAgent String?
+
+  // payload
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([requestId])
+}
+
+model OutboxEvent {
+  id String @id @default(cuid())
+
+  // idempotency: одно и то же событие не должно создаваться дважды
+  idempotencyKey String? @unique
+
+  // routing
+  topic         String // e.g. trip.published, request.accepted, driver.verified
+  aggregateType String // trip | tripRequest | booking | driverProfile | user
+  aggregateId   String? // entity id
+
+  // payload
+  payload Json
+
+  // state machine
+  status      String    @default("pending") // pending | processing | sent | failed
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?
+  lastError   String?
+
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@index([topic, createdAt])
+}
+
+model Offer {
+  id String @id @default(uuid())
+
+  requestId String
+  request   TripRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  proposerId   String
+  proposer     User   @relation("UserOffersAsProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  proposerRole Role
+
+  seats    Int
+  price    Int
+  currency String @default("UZS")
+
+  message String?
+
+  status OfferStatus @default(pending)
+
+  respondedAt     DateTime?
+  responseNote    String?
+  responseReason  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([proposerId])
+  @@index([status])
+}

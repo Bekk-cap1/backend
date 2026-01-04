@@ -1,0 +1,20 @@
+-- Baseline migration: align Prisma migration history with actual DB state
+
+ALTER TABLE "UserSession"
+ADD COLUMN IF NOT EXISTS "refreshJti" TEXT,
+ADD COLUMN IF NOT EXISTS "refreshTokenHash" TEXT;
+
+-- If columns exist but values were not backfilled
+UPDATE "UserSession"
+SET
+  "revokedAt" = COALESCE("revokedAt", NOW()),
+  "refreshJti" = COALESCE("refreshJti", md5(random()::text || clock_timestamp()::text)),
+  "refreshTokenHash" = COALESCE("refreshTokenHash", md5(random()::text || clock_timestamp()::text))
+WHERE "refreshJti" IS NULL OR "refreshTokenHash" IS NULL;
+
+ALTER TABLE "UserSession"
+ALTER COLUMN "refreshJti" SET NOT NULL,
+ALTER COLUMN "refreshTokenHash" SET NOT NULL;
+
+CREATE INDEX IF NOT EXISTS "UserSession_userId_refreshJti_idx"
+ON "UserSession" ("userId", "refreshJti");
