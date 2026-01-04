@@ -91,7 +91,7 @@ export class CitiesService {
     try {
       await this.prisma.city.delete({ where: { id } });
       return { ok: true };
-    } catch (e: any) {
+    } catch {
       // foreign key fail
       throw new BadRequestException('City is used in trips and cannot be deleted');
     }
