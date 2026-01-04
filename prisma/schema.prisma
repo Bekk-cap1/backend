@@ -49,6 +49,18 @@ enum OfferStatus {
   canceled
 }
 
+enum NegotiationTurn {
+  passenger
+  driver
+}
+
+enum NegotiationFinalStatus {
+  in_progress
+  accepted
+  failed
+  expired
+}
+
 enum BookingStatus {
   confirmed
   canceled
@@ -267,6 +279,12 @@ model TripRequest {
   status          RequestStatus @default(pending)
   respondedAt     DateTime?
   rejectionReason String?
+
+  negotiationTurn           NegotiationTurn?
+  negotiationDriverAttempts Int                    @default(0)
+  negotiationPassengerAttempts Int                 @default(0)
+  negotiationMaxAttempts    Int                    @default(3)
+  negotiationFinalStatus    NegotiationFinalStatus @default(in_progress)
 
   offers  Offer[]
   booking Booking?
