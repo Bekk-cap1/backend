@@ -1,5 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { BookingStatus, OfferStatus, Prisma, RequestStatus, Role, TripStatus } from '@prisma/client';
+import {
+  BookingStatus,
+  NegotiationFinalStatus,
+  NegotiationTurn,
+  OfferStatus,
+  Prisma,
+  RequestStatus,
+  Role,
+  TripStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
@@ -56,112 +65,93 @@ export class OffersService {
   }
 
   async listForRequest(userId: string, role: any, requestId: string) {
-  this.assertRoleAllowed(role);
+    this.assertRoleAllowed(role);
 
-  const MAX_PER_SIDE = 3;
+    return this.prisma.$transaction(async (tx) => {
+      const req = await this.assertParticipant(tx, userId, role, requestId);
 
-  return this.prisma.$transaction(async (tx) => {
-    const req = await this.assertParticipant(tx, userId, role, requestId);
+      // все offers
+      const items = await tx.offer.findMany({
+        where: { requestId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          requestId: true,
+          proposerId: true,
+          proposerRole: true,
+          price: true,
+          currency: true,
+          message: true,
+          status: true,
+          respondedAt: true,
+          responseNote: true,
+          responseReason: true,
+          createdAt: true,
+        },
+      });
 
-    // все offers
-    const items = await tx.offer.findMany({
-      where: { requestId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        requestId: true,
-        proposerId: true,
-        proposerRole: true,
-        price: true,
-        currency: true,
-        message: true,
-        status: true,
-        respondedAt: true,
-        responseNote: true,
-        responseReason: true,
-        createdAt: true,
-      },
-    });
+      // принятый оффер (переговоры завершены)
+      const accepted = items.find((x) => x.status === OfferStatus.accepted) ?? null;
 
-    // принятый оффер (переговоры завершены)
-    const accepted = items.find((x) => x.status === OfferStatus.accepted) ?? null;
+      // активный оффер (текущий “ход” ожидает ответа)
+      const active = items.find((x) => x.status === OfferStatus.active) ?? null;
 
-    // активный оффер (текущий “ход” ожидает ответа)
-    const active = items.find((x) => x.status === OfferStatus.active) ?? null;
+      const driverAttemptsUsed = req.negotiationDriverAttempts;
+      const passengerAttemptsUsed = req.negotiationPassengerAttempts;
+      const maxPerSide = req.negotiationMaxAttempts;
 
-    // последний по времени оффер (любой статус)
-    const last = items[0] ?? null;
+      const myAttemptsUsed = role === Role.driver ? driverAttemptsUsed : passengerAttemptsUsed;
+      const myAttemptsLeft = Math.max(0, maxPerSide - myAttemptsUsed);
 
-    // попытки (3+3)
-    const driverAttemptsUsed = await tx.offer.count({
-      where: { requestId, proposerRole: Role.driver },
-    });
+      const nextTurnRole = req.negotiationTurn ?? null;
 
-    const passengerAttemptsUsed = await tx.offer.count({
-      where: { requestId, proposerRole: Role.passenger },
-    });
+      const negotiationOk =
+        req.status === RequestStatus.pending &&
+        req.trip.status === TripStatus.published &&
+        req.negotiationFinalStatus === NegotiationFinalStatus.in_progress &&
+        !accepted;
 
-    const myAttemptsUsed = role === Role.driver ? driverAttemptsUsed : passengerAttemptsUsed;
-    const myAttemptsLeft = Math.max(0, MAX_PER_SIDE - myAttemptsUsed);
+      let canPropose = false;
 
-    // чей следующий ход (строго по очереди)
-    // если еще не было офферов -> ход может быть любой стороны (null)
-    const nextTurnRole: Role | null = last
-      ? (last.proposerRole === Role.driver ? Role.passenger : Role.driver)
-      : null;
-
-    // можно ли текущему пользователю предложить цену сейчас
-    // правила такие же как в createOffer:
-    // - если есть accepted -> нельзя
-    // - если request не pending / trip не published -> нельзя
-    // - если active и он твой -> нельзя
-    // - если active от другой стороны -> можно (это counter-offer)
-    // - если нет active -> можно только если не твой ход подряд (то есть last.proposerRole !== role)
-    const negotiationOk =
-      req.status === RequestStatus.pending &&
-      req.trip.status === TripStatus.published &&
-      !accepted;
-
-    let canPropose = false;
-
-    if (negotiationOk && myAttemptsLeft > 0) {
-      if (active) {
-        canPropose = active.proposerId !== userId; // counter-offer
-      } else {
-        canPropose = !last || last.proposerRole !== role; // не два раза подряд
+      if (negotiationOk && myAttemptsLeft > 0) {
+        if (active) {
+          canPropose = active.proposerId !== userId; // counter-offer
+        } else {
+          canPropose = !nextTurnRole || nextTurnRole === role;
+        }
       }
-    }
 
-    // можно ли принять/отклонить активный оффер
-    const canAccept = Boolean(
-      negotiationOk &&
-      active &&
-      active.proposerId !== userId &&
-      active.proposerRole !== role, // противоположная сторона
-    );
+      // можно ли принять/отклонить активный оффер
+      const canAccept = Boolean(
+        negotiationOk &&
+        active &&
+        active.proposerId !== userId &&
+        active.proposerRole !== role, // противоположная сторона
+      );
 
-    const canReject = canAccept; // отклонение доступно только контрагенту на active
-    const canCancel = Boolean(negotiationOk && active && active.proposerId === userId);
+      const canReject = canAccept; // отклонение доступно только контрагенту на active
+      const canCancel = Boolean(negotiationOk && active && active.proposerId === userId);
 
-    const meta = {
-      maxPerSide: MAX_PER_SIDE,
-      driverAttemptsUsed,
-      passengerAttemptsUsed,
-      myAttemptsUsed,
-      myAttemptsLeft,
-      nextTurnRole, // null = любой может начать
-      acceptedOfferId: accepted?.id ?? null,
-      activeOfferId: active?.id ?? null,
-      activeOfferProposerRole: active?.proposerRole ?? null,
-      canPropose,
-      canAccept,
-      canReject,
-      canCancel,
-    };
+      const meta = {
+        maxPerSide,
+        driverAttemptsUsed,
+        passengerAttemptsUsed,
+        myAttemptsUsed,
+        myAttemptsLeft,
+        nextTurnRole, // null = любой может начать
+        acceptedOfferId: accepted?.id ?? null,
+        activeOfferId: active?.id ?? null,
+        activeOfferProposerRole: active?.proposerRole ?? null,
+        negotiationFinalStatus: req.negotiationFinalStatus,
+        canPropose,
+        canAccept,
+        canReject,
+        canCancel,
+      };
 
-    return { items, meta };
-  });
-}
+      return { items, meta };
+    });
+  }
 
 
   /**
@@ -179,17 +169,20 @@ export class OffersService {
       throw new BadRequestException('price must be > 0');
     }
 
-    const MAX_PER_SIDE = 3;
-
     return this.prisma.$transaction(
       async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "TripRequest" WHERE id = ${requestId} FOR UPDATE`;
         const req = await this.assertParticipant(tx, userId, role, requestId);
+        const maxPerSide = req.negotiationMaxAttempts;
 
         if (req.status !== RequestStatus.pending) {
           throw new BadRequestException('Only pending request can have offers');
         }
         if (req.trip.status !== TripStatus.published) {
           throw new BadRequestException('Trip is not published');
+        }
+        if (req.negotiationFinalStatus !== NegotiationFinalStatus.in_progress) {
+          throw new BadRequestException('Negotiation already finished');
         }
 
         // 0) если уже приняли — переговоры закрыты
@@ -226,23 +219,20 @@ export class OffersService {
           });
         }
 
-        // 2) проверка очередности (чередование):
-        // последний offer (любой статус) не должен быть от этой же роли
-        const last = await tx.offer.findFirst({
-          where: { requestId },
-          orderBy: { createdAt: 'desc' },
-          select: { proposerRole: true },
-        });
-        if (last && last.proposerRole === role) {
+        // 2) проверка очередности (чередование)
+        if (req.negotiationTurn && req.negotiationTurn !== role) {
           throw new BadRequestException('Not your turn. Counterparty must respond first');
         }
 
         // 3) лимит 3 предложения на сторону (role-based)
-        const myAttempts = await tx.offer.count({
-          where: { requestId, proposerRole: role },
-        });
-        if (myAttempts >= MAX_PER_SIDE) {
-          throw new BadRequestException(`This side can propose only ${MAX_PER_SIDE} times`);
+        const myAttempts =
+          role === Role.driver ? req.negotiationDriverAttempts : req.negotiationPassengerAttempts;
+        if (myAttempts >= maxPerSide) {
+          await tx.tripRequest.update({
+            where: { id: req.id },
+            data: { negotiationFinalStatus: NegotiationFinalStatus.expired },
+          });
+          throw new BadRequestException(`This side can propose only ${maxPerSide} times`);
         }
 
         // 4) создаём новый offer
@@ -255,6 +245,17 @@ export class OffersService {
             currency: req.currency,
             message: dto.message ?? null,
             status: OfferStatus.active,
+          },
+        });
+
+        await tx.tripRequest.update({
+          where: { id: req.id },
+          data: {
+            negotiationTurn: role === Role.driver ? NegotiationTurn.passenger : NegotiationTurn.driver,
+            negotiationDriverAttempts:
+              role === Role.driver ? { increment: 1 } : undefined,
+            negotiationPassengerAttempts:
+              role === Role.passenger ? { increment: 1 } : undefined,
           },
         });
 
@@ -320,6 +321,8 @@ export class OffersService {
         });
         if (!offer) throw new NotFoundException('Offer not found');
 
+        await tx.$queryRaw`SELECT id FROM "TripRequest" WHERE id = ${offer.requestId} FOR UPDATE`;
+
         // доступ только участникам request
         const req = await this.assertParticipant(tx, userId, role, offer.requestId);
 
@@ -332,6 +335,9 @@ export class OffersService {
         }
         if (req.trip.status !== TripStatus.published) {
           throw new BadRequestException('Trip is not published');
+        }
+        if (req.negotiationFinalStatus !== NegotiationFinalStatus.in_progress) {
+          throw new BadRequestException('Negotiation already finished');
         }
 
         // 2) принять может только контрагент
@@ -390,6 +396,8 @@ export class OffersService {
             status: RequestStatus.accepted,
             respondedAt: now,
             price: offer.price,
+            negotiationFinalStatus: NegotiationFinalStatus.accepted,
+            negotiationTurn: null,
             // currency оставляем как есть (req.currency)
           },
         });
@@ -476,6 +484,8 @@ export class OffersService {
         });
         if (!offer) throw new NotFoundException('Offer not found');
 
+        await tx.$queryRaw`SELECT id FROM "TripRequest" WHERE id = ${offer.requestId} FOR UPDATE`;
+
         await this.assertParticipant(tx, userId, role, offer.requestId);
 
         if (offer.status !== OfferStatus.active) {
@@ -500,6 +510,31 @@ export class OffersService {
         });
 
         if (upd.count !== 1) throw new BadRequestException('Offer already processed');
+
+        const req = await tx.tripRequest.findUnique({
+          where: { id: offer.requestId },
+          select: {
+            id: true,
+            negotiationDriverAttempts: true,
+            negotiationPassengerAttempts: true,
+            negotiationMaxAttempts: true,
+            negotiationFinalStatus: true,
+          },
+        });
+        if (!req) throw new NotFoundException('Trip request not found');
+
+        if (req.negotiationFinalStatus === NegotiationFinalStatus.in_progress) {
+          const rejectorAttempts =
+            role === Role.driver ? req.negotiationDriverAttempts : req.negotiationPassengerAttempts;
+          const shouldExpire = rejectorAttempts >= req.negotiationMaxAttempts;
+          await tx.tripRequest.update({
+            where: { id: req.id },
+            data: {
+              negotiationTurn: role as NegotiationTurn,
+              negotiationFinalStatus: shouldExpire ? NegotiationFinalStatus.expired : undefined,
+            },
+          });
+        }
 
         await this.audit.logTx(tx, {
           action: AuditAction.OfferReject,
@@ -548,6 +583,8 @@ export class OffersService {
         });
         if (!offer) throw new NotFoundException('Offer not found');
 
+        await tx.$queryRaw`SELECT id FROM "TripRequest" WHERE id = ${offer.requestId} FOR UPDATE`;
+
         await this.assertParticipant(tx, userId, role, offer.requestId);
 
         // cancel может только автор
@@ -571,6 +608,32 @@ export class OffersService {
         });
 
         if (upd.count !== 1) return { ok: true };
+
+        const req = await tx.tripRequest.findUnique({
+          where: { id: offer.requestId },
+          select: {
+            id: true,
+            negotiationDriverAttempts: true,
+            negotiationPassengerAttempts: true,
+            negotiationMaxAttempts: true,
+            negotiationFinalStatus: true,
+          },
+        });
+        if (!req) throw new NotFoundException('Trip request not found');
+
+        if (req.negotiationFinalStatus === NegotiationFinalStatus.in_progress) {
+          const nextTurn = offer.proposerRole === Role.driver ? NegotiationTurn.passenger : NegotiationTurn.driver;
+          const nextAttempts =
+            nextTurn === NegotiationTurn.driver ? req.negotiationDriverAttempts : req.negotiationPassengerAttempts;
+          const shouldExpire = nextAttempts >= req.negotiationMaxAttempts;
+          await tx.tripRequest.update({
+            where: { id: req.id },
+            data: {
+              negotiationTurn: nextTurn,
+              negotiationFinalStatus: shouldExpire ? NegotiationFinalStatus.expired : undefined,
+            },
+          });
+        }
 
         await this.audit.logTx(tx, {
           action: AuditAction.OfferCancel,
