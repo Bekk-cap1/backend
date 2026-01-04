@@ -1,17 +1,19 @@
 import { IsInt, IsOptional, IsString, Max, Min, MaxLength } from 'class-validator';
 
 export class CreateOfferDto {
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(8)
-  seats!: number;
+  seats?: number;
 
   @IsInt()
-  @Min(0)
+  @Min(1)
   price!: number;
 
+  @IsOptional()
   @IsString()
-  currency!: string;
+  currency?: string;
 
   @IsOptional()
   @IsString()

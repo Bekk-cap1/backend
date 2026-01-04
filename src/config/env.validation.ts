@@ -25,4 +25,6 @@ export const envValidationSchema = Joi.object({
 
   SWAGGER_ENABLED: Joi.boolean().default(false),
   REALTIME_ENABLED: Joi.boolean().default(false),
+
+  BOOKING_CANCEL_FEE_PERCENT: Joi.number().min(0).max(100).default(10),
 }).unknown(true);

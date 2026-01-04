@@ -15,11 +15,11 @@ export class VehiclesService {
   }
 
   private isAdmin(user: AuthUser) {
-    return user.role === 'admin';
+    return user.role === 'admin' || user.role === 'moderator';
   }
 
   private ensureDriverOrAdmin(user: AuthUser) {
-    if (user.role !== 'driver' && user.role !== 'admin') {
+    if (user.role !== 'driver' && !this.isAdmin(user)) {
       throw new ForbiddenException('Only drivers can manage vehicles');
     }
   }

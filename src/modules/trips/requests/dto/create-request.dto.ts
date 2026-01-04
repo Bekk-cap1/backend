@@ -7,7 +7,7 @@ export class CreateTripRequestDto {
   seats!: number;
 
   @IsInt()
-  @Min(0)
+  @Min(1)
   price!: number;
 
   @IsString()

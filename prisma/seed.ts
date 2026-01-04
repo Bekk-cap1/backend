@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient, Role, DriverStatus, TripStatus } from "@prisma/client";
+import { PrismaClient, Role, DriverStatus, TripStatus, NegotiationSessionState, NegotiationTurn } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import * as bcrypt from "bcrypt";
@@ -169,6 +169,41 @@ async function main() {
       price: trip.price,
       currency: trip.currency,
       message: "Seed request",
+    },
+  });
+
+  const request = await prisma.tripRequest.findUnique({
+    where: {
+      tripId_passengerId: {
+        tripId: trip.id,
+        passengerId: passenger.id,
+      },
+    },
+  });
+
+  if (!request) {
+    throw new Error("Seed request not found");
+  }
+
+  await prisma.negotiationSession.upsert({
+    where: { requestId: request.id },
+    update: {
+      state: NegotiationSessionState.active,
+      nextTurn: NegotiationTurn.driver,
+      driverMovesLeft: 3,
+      passengerMovesLeft: 3,
+      maxMovesPerSide: 3,
+      lastOfferId: null,
+    },
+    create: {
+      requestId: request.id,
+      state: NegotiationSessionState.active,
+      nextTurn: NegotiationTurn.driver,
+      driverMovesLeft: 3,
+      passengerMovesLeft: 3,
+      maxMovesPerSide: 3,
+      lastOfferId: null,
+      version: 0,
     },
   });
 }

@@ -91,6 +91,8 @@ export class DomainEventsProcessor extends WorkerHost {
         return this.notifyRequestDecision(payload, outboxId, topic, 'Заявка принята', 'Ваша заявка принята.');
       case OutboxTopic.RequestRejected:
         return this.notifyRequestDecision(payload, outboxId, topic, 'Заявка отклонена', 'Ваша заявка отклонена.');
+      case OutboxTopic.RequestCanceled:
+        return this.notifyRequestCanceled(payload, outboxId);
       case OutboxTopic.OfferCreated:
         return this.notifyOfferCreated(payload, outboxId);
       case OutboxTopic.OfferAccepted:
@@ -198,6 +200,28 @@ export class DomainEventsProcessor extends WorkerHost {
         type,
         title,
         message,
+        payload,
+        outboxId,
+      }),
+    ];
+  }
+
+  private async notifyRequestCanceled(payload: Record<string, unknown>, outboxId: string) {
+    const requestId = String(payload.requestId ?? '');
+    if (!requestId) return [];
+
+    const request = await this.prisma.tripRequest.findUnique({
+      where: { id: requestId },
+      include: { trip: { select: { driverId: true } } },
+    });
+    if (!request) return [];
+
+    return [
+      this.buildNotification({
+        userId: request.trip.driverId,
+        type: OutboxTopic.RequestCanceled,
+        title: 'Заявка отменена',
+        message: 'Пассажир отменил заявку на поездку.',
         payload,
         outboxId,
       }),

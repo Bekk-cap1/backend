@@ -28,23 +28,23 @@ export class RequestsController {
   }
 
   @Post(':requestId/accept')
-  @Roles(Role.driver, Role.admin)
+  @Roles(Role.driver, Role.admin, Role.moderator)
   accept(
     @Param('tripId') tripId: string,
     @Param('requestId') requestId: string,
     @CurrentUser() user: any,
   ) {
-    return this.service.acceptRequest(user.id, tripId, requestId);
+    return this.service.acceptRequest(user.id, user.role, tripId, requestId);
   }
 
   @Post(':requestId/reject')
-  @Roles(Role.driver, Role.admin)
+  @Roles(Role.driver, Role.admin, Role.moderator)
   reject(
     @Param('tripId') tripId: string,
     @Param('requestId') requestId: string,
     @CurrentUser() user: any,
     @Body() dto: RejectTripRequestDto,
   ) {
-    return this.service.rejectRequest(user.id, tripId, requestId, dto.reason);
+    return this.service.rejectRequest(user.id, user.role, tripId, requestId, dto.reason);
   }
 }

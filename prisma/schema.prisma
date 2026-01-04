@@ -13,6 +13,7 @@ enum Role {
   passenger
   driver
   admin
+  moderator
 }
 
 enum DriverStatus {
@@ -54,11 +55,11 @@ enum NegotiationTurn {
   driver
 }
 
-enum NegotiationFinalStatus {
-  in_progress
+enum NegotiationSessionState {
+  active
   accepted
-  failed
   expired
+  canceled
 }
 
 enum BookingStatus {
@@ -280,14 +281,9 @@ model TripRequest {
   respondedAt     DateTime?
   rejectionReason String?
 
-  negotiationTurn           NegotiationTurn?
-  negotiationDriverAttempts Int                    @default(0)
-  negotiationPassengerAttempts Int                 @default(0)
-  negotiationMaxAttempts    Int                    @default(3)
-  negotiationFinalStatus    NegotiationFinalStatus @default(in_progress)
-
   offers  Offer[]
   booking Booking?
+  negotiationSession NegotiationSession?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -296,6 +292,26 @@ model TripRequest {
   @@index([tripId])
   @@index([passengerId])
   @@index([status])
+}
+
+model NegotiationSession {
+  id String @id @default(uuid())
+
+  requestId String @unique
+  request   TripRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  state NegotiationSessionState @default(active)
+  nextTurn NegotiationTurn
+  driverMovesLeft Int
+  passengerMovesLeft Int
+  maxMovesPerSide Int @default(3)
+  lastOfferId String?
+  version Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([state])
 }
 
 model Booking {
@@ -320,6 +336,9 @@ model Booking {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  canceledAt DateTime?
+  completedAt DateTime?
+  cancellationFeeAmount Int @default(0)
 
   @@index([tripId])
   @@index([passengerId])
@@ -461,9 +480,9 @@ model OutboxEvent {
   payload Json
 
   // state machine
-  status      String    @default("pending") // pending | processing | sent | failed
+  status      OutboxStatus    @default(NEW) // NEW | PROCESSING | DONE | FAILED
   attempts    Int       @default(0)
-  availableAt DateTime  @default(now())
+  nextRetryAt DateTime?
   lockedAt    DateTime?
   lockedBy    String?
   lastError   String?
@@ -472,9 +491,16 @@ model OutboxEvent {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  @@index([status, availableAt])
+  @@index([status, nextRetryAt])
   @@index([aggregateType, aggregateId])
   @@index([topic, createdAt])
+}
+
+enum OutboxStatus {
+  NEW
+  PROCESSING
+  DONE
+  FAILED
 }
 
 model Notification {
@@ -510,10 +536,11 @@ model Offer {
   seats    Int
   price    Int
   currency String @default("UZS")
+  seq Int
 
   message String?
 
-  status OfferStatus @default(pending)
+  status OfferStatus @default(active)
 
   respondedAt     DateTime?
   responseNote    String?
@@ -525,4 +552,5 @@ model Offer {
   @@index([requestId])
   @@index([proposerId])
   @@index([status])
+  @@unique([requestId, seq])
 }
