@@ -36,7 +36,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
-      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres_shadow?schema=public
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test_access_secret_123456
       JWT_REFRESH_SECRET: test_refresh_secret_123456
@@ -57,6 +57,12 @@ jobs:
 
       - name: Prisma validate
         run: npx prisma validate
+
+      - name: Create shadow database
+        run: >-
+          psql postgresql://postgres:postgres@localhost:5432/postgres
+          -c "SELECT 'CREATE DATABASE postgres_shadow' WHERE NOT EXISTS
+          (SELECT FROM pg_database WHERE datname = 'postgres_shadow')\\gexec"
 
       - name: Prisma migrate deploy
         run: npx prisma migrate deploy
