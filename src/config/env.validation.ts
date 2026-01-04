@@ -24,4 +24,5 @@ export const envValidationSchema = Joi.object({
   LOG_LEVEL: Joi.string().valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent').default('info'),
 
   SWAGGER_ENABLED: Joi.boolean().default(false),
+  REALTIME_ENABLED: Joi.boolean().default(false),
 }).unknown(true);

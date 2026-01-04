@@ -76,9 +76,10 @@ model User {
   passwordHash String
   role         Role   @default(passenger)
 
-  sessions UserSession[]
-  profile  UserProfile?
-  devices  Device[]
+  sessions      UserSession[]
+  profile       UserProfile?
+  devices       Device[]
+  notifications Notification[]
 
   driverProfile DriverProfile?
   vehicles      Vehicle[]
@@ -456,6 +457,26 @@ model OutboxEvent {
   @@index([status, availableAt])
   @@index([aggregateType, aggregateId])
   @@index([topic, createdAt])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String
+  title   String?
+  message String?
+  payload Json?
+
+  idempotencyKey String? @unique
+
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
 }
 
 model Offer {
