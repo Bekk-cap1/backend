@@ -69,7 +69,7 @@ describe('E2E flows', () => {
       'postgresql://postgres:postgres@localhost:5432/postgres?schema=public';
     process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
-    const { AppModule } = await import('../src/app.module');
+    const { AppModule } = require('../src/app.module');
 
     queueAdd = jest.fn().mockResolvedValue({});
 

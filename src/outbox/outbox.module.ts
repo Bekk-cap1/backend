@@ -7,6 +7,12 @@ import { DomainEventsProcessor } from './domain-events.processor';
 
 import { BullModule } from '@nestjs/bullmq';
 
+const outboxProviders = [OutboxService, OutboxDispatcher, OutboxScheduler];
+
+if (process.env.NODE_ENV !== 'test') {
+  outboxProviders.push(DomainEventsProcessor);
+}
+
 @Module({
   imports: [
     PrismaModule,
@@ -14,12 +20,7 @@ import { BullModule } from '@nestjs/bullmq';
       name: 'domain-events',
     }),
   ],
-  providers: [
-    OutboxService,
-    OutboxDispatcher,
-    OutboxScheduler,
-    DomainEventsProcessor,
-  ],
+  providers: outboxProviders,
   exports: [OutboxService],
 })
 export class OutboxModule {}
