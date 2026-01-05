@@ -1,9 +1,20 @@
+process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
+process.env.JWT_ACCESS_SECRET =
+  process.env.JWT_ACCESS_SECRET ?? 'test_access_secret_123456';
+process.env.JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET ?? 'test_refresh_secret_123456';
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL ??
+  'postgresql://postgres:postgres@localhost:5432/postgres?schema=public';
+process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { getQueueToken } from '@nestjs/bullmq';
 
+import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 import { RedisService } from '../src/infrastructure/redis/redis.service';
 import { OutboxDispatcher } from '../src/outbox/outbox.dispatcher';
@@ -61,16 +72,6 @@ describe('E2E flows', () => {
   };
 
   beforeAll(async () => {
-    process.env.NODE_ENV = 'test';
-    process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? 'test_access_secret_123456';
-    process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET ?? 'test_refresh_secret_123456';
-    process.env.DATABASE_URL =
-      process.env.DATABASE_URL ??
-      'postgresql://postgres:postgres@localhost:5432/postgres?schema=public';
-    process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
-
-    const { AppModule } = require('../src/app.module');
-
     queueAdd = jest.fn().mockResolvedValue({});
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -90,8 +91,12 @@ describe('E2E flows', () => {
 
     await resetDb();
 
-    const fromCity = await prisma.city.create({ data: { name: 'Tashkent', countryCode: 'UZ' } });
-    const toCity = await prisma.city.create({ data: { name: 'Samarkand', countryCode: 'UZ' } });
+    const fromCity = await prisma.city.create({
+      data: { name: 'Tashkent', countryCode: 'UZ' },
+    });
+    const toCity = await prisma.city.create({
+      data: { name: 'Samarkand', countryCode: 'UZ' },
+    });
 
     fromCityId = fromCity.id;
     toCityId = toCity.id;
@@ -106,7 +111,9 @@ describe('E2E flows', () => {
       .send({ phone: PASSENGER_PHONE, password: PASSWORD })
       .expect(201);
 
-    const driver = await prisma.user.findUniqueOrThrow({ where: { phone: DRIVER_PHONE } });
+    const driver = await prisma.user.findUniqueOrThrow({
+      where: { phone: DRIVER_PHONE },
+    });
     await prisma.user.update({
       where: { id: driver.id },
       data: { role: 'driver' },
@@ -262,7 +269,9 @@ describe('E2E flows', () => {
   });
 
   it('outbox event dispatch', async () => {
-    const pending = await prisma.outboxEvent.findMany({ where: { status: 'pending' } });
+    const pending = await prisma.outboxEvent.findMany({
+      where: { status: 'pending' },
+    });
     expect(pending.length).toBeGreaterThan(0);
 
     const result = await outboxDispatcher.dispatchOnce();
@@ -270,7 +279,9 @@ describe('E2E flows', () => {
     expect(queueAdd).toHaveBeenCalled();
     expect(result.dispatched).toBeGreaterThan(0);
 
-    const sentCount = await prisma.outboxEvent.count({ where: { status: 'sent' } });
+    const sentCount = await prisma.outboxEvent.count({
+      where: { status: 'sent' },
+    });
     expect(sentCount).toBeGreaterThanOrEqual(result.dispatched);
   });
 });
