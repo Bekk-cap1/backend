@@ -9,6 +9,7 @@ import {
   RequestStatus,
   TripStatus,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { OutboxService } from '../../../outbox/outbox.service';
 import { OutboxTopic } from '../../../outbox/outbox.topics';
 import { DriversService } from '../../drivers/drivers.service';
@@ -19,7 +20,18 @@ export class RequestsService {
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
     private readonly drivers: DriversService,
+    private readonly config: ConfigService,
   ) {}
+
+  private getNegotiationLimits() {
+    const maxDriverOffers = this.config.get<number>('negotiation.maxDriverOffers') ?? 3;
+    const maxPassengerOffers = this.config.get<number>('negotiation.maxPassengerOffers') ?? 3;
+    return {
+      maxDriverOffers,
+      maxPassengerOffers,
+      maxPerSide: Math.max(maxDriverOffers, maxPassengerOffers),
+    };
+  }
 
   async listMyRequests(passengerId: string) {
     return this.prisma.tripRequest.findMany({
@@ -87,6 +99,15 @@ export class RequestsService {
       ? await this.prisma.offer.findUnique({ where: { id: session.lastOfferId } })
       : null;
 
+    const driverAttemptsUsed = await this.prisma.offer.count({
+      where: { requestId, proposerRole: Role.driver },
+    });
+    const passengerAttemptsUsed = await this.prisma.offer.count({
+      where: { requestId, proposerRole: Role.passenger },
+    });
+    const maxDriverOffers = driverAttemptsUsed + session.driverMovesLeft;
+    const maxPassengerOffers = passengerAttemptsUsed + session.passengerMovesLeft;
+
     return {
       requestId,
       state: session.state,
@@ -94,6 +115,8 @@ export class RequestsService {
       driverMovesLeft: session.driverMovesLeft,
       passengerMovesLeft: session.passengerMovesLeft,
       maxMovesPerSide: session.maxMovesPerSide,
+      maxDriverOffers,
+      maxPassengerOffers,
       lastOffer,
       version: session.version,
     };
@@ -103,15 +126,17 @@ export class RequestsService {
     const existing = await this.prisma.negotiationSession.findUnique({ where: { requestId } });
     if (existing) return existing;
 
+    const limits = this.getNegotiationLimits();
+
     try {
       return await this.prisma.negotiationSession.create({
         data: {
           requestId,
           state: NegotiationSessionState.active,
           nextTurn: NegotiationTurn.driver,
-          driverMovesLeft: 3,
-          passengerMovesLeft: 3,
-          maxMovesPerSide: 3,
+          driverMovesLeft: limits.maxDriverOffers,
+          passengerMovesLeft: limits.maxPassengerOffers,
+          maxMovesPerSide: limits.maxPerSide,
           lastOfferId: null,
           version: 0,
         },
@@ -138,6 +163,8 @@ export class RequestsService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const limits = this.getNegotiationLimits();
+
         const req = await tx.tripRequest.create({
           data: {
             tripId,
@@ -155,9 +182,9 @@ export class RequestsService {
             requestId: req.id,
             state: NegotiationSessionState.active,
             nextTurn: NegotiationTurn.driver,
-            driverMovesLeft: 3,
-            passengerMovesLeft: 3,
-            maxMovesPerSide: 3,
+            driverMovesLeft: limits.maxDriverOffers,
+            passengerMovesLeft: limits.maxPassengerOffers,
+            maxMovesPerSide: limits.maxPerSide,
             lastOfferId: null,
             version: 0,
           },

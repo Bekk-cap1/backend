@@ -19,7 +19,7 @@ export class RequestsController {
     @CurrentUser() user: any,
     @Body() dto: CreateTripRequestDto,
   ) {
-    return this.service.createRequest(user.id, tripId, dto);
+    return this.service.createRequest(user.sub ?? user.id, tripId, dto);
   }
 
   @Get('me')
@@ -34,7 +34,7 @@ export class RequestsController {
     @Param('requestId') requestId: string,
     @CurrentUser() user: any,
   ) {
-    return this.service.acceptRequest(user.id, user.role, tripId, requestId);
+    return this.service.acceptRequest(user.sub ?? user.id, user.role, tripId, requestId);
   }
 
   @Post(':requestId/reject')
@@ -45,6 +45,6 @@ export class RequestsController {
     @CurrentUser() user: any,
     @Body() dto: RejectTripRequestDto,
   ) {
-    return this.service.rejectRequest(user.id, user.role, tripId, requestId, dto.reason);
+    return this.service.rejectRequest(user.sub ?? user.id, user.role, tripId, requestId, dto.reason);
   }
 }

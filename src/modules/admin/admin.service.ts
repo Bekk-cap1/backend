@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { DriversService } from '../drivers/drivers.service';
 import { AdminDriversQueryDto } from './dto/admin-drivers-query.dto';
+import { AdminAuditQueryDto } from './dto/admin-audit-query.dto';
 import { Role, Prisma } from '@prisma/client';
 
 import { AuditService } from '../../audit/audit.service';
@@ -46,6 +47,31 @@ export class AdminService {
         },
       }),
       this.prisma.driverProfile.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize };
+  }
+
+  async listAudit(q: AdminAuditQueryDto) {
+    const page = q.page ?? 1;
+    const pageSize = q.pageSize ?? 50;
+
+    const where: Prisma.AuditLogWhereInput = {
+      ...(q.actorId ? { actorId: q.actorId } : {}),
+      ...(q.entityType ? { entityType: q.entityType } : {}),
+      ...(q.entityId ? { entityId: q.entityId } : {}),
+      ...(q.action ? { action: q.action } : {}),
+      ...(q.severity ? { severity: q.severity } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.auditLog.count({ where }),
     ]);
 
     return { items, total, page, pageSize };

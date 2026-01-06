@@ -17,6 +17,11 @@ export class BookingsController {
     return this.bookings.myAsPassenger(user.sub ?? user.id, q);
   }
 
+  @Get('my')
+  myAlias(@CurrentUser() user: any, @Query() q: BookingsQueryDto) {
+    return this.bookings.myAsPassenger(user.sub ?? user.id, q);
+  }
+
   // driver
   @Roles('driver', 'admin', 'moderator')
   @Get('driver')

@@ -4,11 +4,13 @@ import {
   NegotiationSessionState,
   NegotiationTurn,
   OfferStatus,
+  Offer,
   Prisma,
   RequestStatus,
   Role,
   TripStatus,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
@@ -21,6 +23,8 @@ import { CreateOfferDto } from './dto/create-offer.dto';
 import { AcceptOfferDto } from './dto/accept-offer.dto';
 import { RejectOfferDto } from './dto/reject-offer.dto';
 
+type CreateOfferResult = { expired: true; maxForRole: number } | Offer;
+
 @Injectable()
 export class OffersService {
   constructor(
@@ -28,7 +32,18 @@ export class OffersService {
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
     private readonly drivers: DriversService,
+    private readonly config: ConfigService,
   ) { }
+
+  private getNegotiationLimits() {
+    const maxDriverOffers = this.config.get<number>('negotiation.maxDriverOffers') ?? 3;
+    const maxPassengerOffers = this.config.get<number>('negotiation.maxPassengerOffers') ?? 3;
+    return {
+      maxDriverOffers,
+      maxPassengerOffers,
+      maxPerSide: Math.max(maxDriverOffers, maxPassengerOffers),
+    };
+  }
 
   private assertRoleAllowed(role: any): asserts role is Role {
     if (role !== Role.driver && role !== Role.passenger) {
@@ -70,15 +85,17 @@ export class OffersService {
     const existing = await tx.negotiationSession.findUnique({ where: { requestId } });
     if (existing) return existing;
 
+    const limits = this.getNegotiationLimits();
+
     try {
       return await tx.negotiationSession.create({
         data: {
           requestId,
           state: NegotiationSessionState.active,
           nextTurn: NegotiationTurn.driver,
-          driverMovesLeft: 3,
-          passengerMovesLeft: 3,
-          maxMovesPerSide: 3,
+          driverMovesLeft: limits.maxDriverOffers,
+          passengerMovesLeft: limits.maxPassengerOffers,
+          maxMovesPerSide: limits.maxPerSide,
           lastOfferId: null,
           version: 0,
         },
@@ -128,12 +145,15 @@ export class OffersService {
       // активный оффер (текущий “ход” ожидает ответа)
       const active = items.find((x) => x.status === OfferStatus.active) ?? null;
 
-      const driverAttemptsUsed = Math.max(0, session.maxMovesPerSide - session.driverMovesLeft);
-      const passengerAttemptsUsed = Math.max(0, session.maxMovesPerSide - session.passengerMovesLeft);
-      const maxPerSide = session.maxMovesPerSide;
+      const driverAttemptsUsed = items.filter((x) => x.proposerRole === Role.driver).length;
+      const passengerAttemptsUsed = items.filter((x) => x.proposerRole === Role.passenger).length;
+      const maxDriverOffers = driverAttemptsUsed + session.driverMovesLeft;
+      const maxPassengerOffers = passengerAttemptsUsed + session.passengerMovesLeft;
+      const maxPerSide = Math.max(maxDriverOffers, maxPassengerOffers);
 
       const myAttemptsUsed = role === Role.driver ? driverAttemptsUsed : passengerAttemptsUsed;
       const myAttemptsLeft = role === Role.driver ? session.driverMovesLeft : session.passengerMovesLeft;
+      const myMaxOffers = role === Role.driver ? maxDriverOffers : maxPassengerOffers;
 
       const nextTurnRole = session.nextTurn;
 
@@ -167,6 +187,9 @@ export class OffersService {
 
       const meta = {
         maxPerSide,
+        maxDriverOffers,
+        maxPassengerOffers,
+        myMaxOffers,
         driverAttemptsUsed,
         passengerAttemptsUsed,
         myAttemptsUsed,
@@ -205,14 +228,13 @@ export class OffersService {
       throw new BadRequestException('price must be > 0');
     }
 
-    return this.prisma.$transaction(
+    const result: CreateOfferResult = await this.prisma.$transaction(
       async (tx) => {
         const req = await this.assertParticipant(tx, userId, role, requestId);
         await tx.$queryRaw`SELECT id FROM "TripRequest" WHERE id = ${requestId} FOR UPDATE`;
         await tx.$queryRaw`SELECT id FROM "NegotiationSession" WHERE "requestId" = ${requestId} FOR UPDATE`;
 
         const session = await this.ensureSession(tx, requestId);
-        const maxPerSide = session.maxMovesPerSide;
 
         if (req.status !== RequestStatus.pending) {
           throw new BadRequestException('Only pending request can have offers');
@@ -275,13 +297,37 @@ export class OffersService {
         }
 
         // 3) лимит 3 предложения на сторону (role-based)
+        const attemptsUsed = await tx.offer.count({
+          where: { requestId, proposerRole: role },
+        });
+        const maxForRole =
+          role === Role.driver
+            ? session.driverMovesLeft + attemptsUsed
+            : session.passengerMovesLeft + attemptsUsed;
+
         const movesLeft = role === Role.driver ? session.driverMovesLeft : session.passengerMovesLeft;
         if (movesLeft <= 0) {
-          await tx.negotiationSession.update({
-            where: { id: session.id },
-            data: { state: NegotiationSessionState.expired },
+          const sessionUpdate = await tx.negotiationSession.updateMany({
+            where: { id: session.id, version: session.version },
+            data: {
+              state: NegotiationSessionState.expired,
+              version: { increment: 1 },
+            },
           });
-          throw new BadRequestException(`This side can propose only ${maxPerSide} times`);
+          if (sessionUpdate.count !== 1) {
+            throw new BadRequestException('Negotiation session changed, please retry');
+          }
+
+          await tx.tripRequest.updateMany({
+            where: { id: req.id, status: RequestStatus.pending },
+            data: {
+              status: RequestStatus.expired,
+              respondedAt: new Date(),
+              rejectionReason: 'Negotiation expired',
+            },
+          });
+
+          return { expired: true, maxForRole };
         }
 
         const seqData = await tx.offer.aggregate({
@@ -332,7 +378,7 @@ export class OffersService {
             proposerRole: role,
             price: created.price,
             currency: created.currency,
-            attemptNo: maxPerSide - movesLeft + 1, // 1..3 для этой стороны
+            attemptNo: attemptsUsed + 1,
           },
         });
 
@@ -349,7 +395,7 @@ export class OffersService {
             proposerRole: role,
             price: created.price,
             currency: created.currency,
-            attemptNo: maxPerSide - movesLeft + 1,
+            attemptNo: attemptsUsed + 1,
           },
         });
 
@@ -357,6 +403,13 @@ export class OffersService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    if ('expired' in result) {
+      const message = `This side can propose only ${result.maxForRole} times`;
+      throw new BadRequestException(message);
+    }
+
+    return result;
   }
 
 

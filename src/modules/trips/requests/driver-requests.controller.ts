@@ -13,6 +13,6 @@ export class DriverRequestsController {
   @Get()
   @Roles(Role.driver, Role.admin, Role.moderator)
   list(@CurrentUser() user: any) {
-    return this.service.listDriverRequests(user.id, user.role);
+    return this.service.listDriverRequests(user.sub ?? user.id, user.role);
   }
 }

@@ -20,6 +20,12 @@ export class VehiclesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('vehicles/my')
+  listMineAlias(@CurrentUser() user: any, @Query() dto: ListVehiclesDto) {
+    return this.vehicles.listMine(user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('vehicles')
   createMine(@CurrentUser() user: any, @Body() dto: CreateVehicleDto) {
     return this.vehicles.createMine(user, dto);

@@ -5,6 +5,7 @@ export { default as redisConfig } from './redis.config';
 export { default as jwtConfig } from './jwt.config';
 export { default as featureFlagsConfig } from './feature-flags.config';
 export { bookingsConfig } from './bookings.config';
+export { default as negotiationConfig } from './negotiation.config';
 
 // Если у тебя есть maps/payments — оставь свои файлы и добавь сюда экспорт.
 // export { default as mapsConfig } from './maps.config';

@@ -3,7 +3,7 @@ import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
 import { DriversModule } from '../drivers/drivers.module';
 import { AuditModule } from '../../audit/audit.module';
-import { OutboxModule } from 'src/outbox/outbox.module';
+import { OutboxModule } from '../../outbox/outbox.module';
 
 @Module({
   imports: [DriversModule, AuditModule, OutboxModule],

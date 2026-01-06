@@ -16,6 +16,7 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { DriversService } from '../drivers/drivers.service';
 
 import { CreateTripDto } from './dto/create-trip.dto';
+import { UpdateTripDto } from './dto/update-trip.dto';
 import { SearchTripsDto } from './dto/search-trips.dto';
 
 import { AuditService } from '../../audit/audit.service';
@@ -436,6 +437,81 @@ export class TripsService {
         ]);
 
         return { items, total, page, pageSize };
+    }
+
+    async getTripById(tripId: string) {
+        const trip = await this.prisma.trip.findUnique({
+            where: { id: tripId },
+            include: {
+                fromCity: true,
+                toCity: true,
+                driver: { select: { id: true, phone: true, profile: true } },
+                vehicle: true,
+            },
+        });
+        if (!trip) throw new NotFoundException('Trip not found');
+        return trip;
+    }
+
+    async updateTrip(driverId: string, tripId: string, dto: UpdateTripDto) {
+        await this.drivers.assertVerifiedDriver(driverId);
+
+        const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
+        if (!trip) throw new NotFoundException('Trip not found');
+        if (trip.driverId !== driverId) throw new ForbiddenException('Not your trip');
+        if (trip.status !== TripStatus.draft) {
+            throw new BadRequestException('Only draft trip can be updated');
+        }
+
+        if (dto.vehicleId) {
+            await this.assertVehicleOwnedByDriver(dto.vehicleId, driverId);
+        }
+
+        const data: Prisma.TripUpdateInput = {};
+
+        if (dto.fromCityId) data.fromCity = { connect: { id: dto.fromCityId } };
+        if (dto.toCityId) data.toCity = { connect: { id: dto.toCityId } };
+        if (dto.vehicleId !== undefined) {
+            data.vehicle = dto.vehicleId ? { connect: { id: dto.vehicleId } } : { disconnect: true };
+        }
+        if (dto.currency !== undefined) data.currency = dto.currency;
+        if (dto.notes !== undefined) data.notes = dto.notes;
+
+        if (dto.departureAt) {
+            const departureAt = new Date(dto.departureAt);
+            if (Number.isNaN(departureAt.getTime())) {
+                throw new BadRequestException('Invalid departureAt');
+            }
+            data.departureAt = departureAt;
+        }
+
+        if (dto.arriveAt !== undefined) {
+            const arriveAt = dto.arriveAt ? new Date(dto.arriveAt) : null;
+            if (dto.arriveAt && Number.isNaN(arriveAt!.getTime())) {
+                throw new BadRequestException('Invalid arriveAt');
+            }
+            data.arriveAt = arriveAt;
+        }
+
+        if (dto.seatsTotal !== undefined) {
+            if (dto.seatsTotal <= 0) {
+                throw new BadRequestException('seatsTotal must be > 0');
+            }
+            data.seatsTotal = dto.seatsTotal;
+            data.seatsAvailable = dto.seatsTotal;
+        }
+
+        if (dto.price !== undefined) {
+            if (dto.price <= 0) {
+                throw new BadRequestException('price must be > 0');
+            }
+            data.price = dto.price;
+        }
+
+        return this.prisma.trip.update({
+            where: { id: tripId },
+            data,
+        });
     }
 
 }

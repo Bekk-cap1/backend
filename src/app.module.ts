@@ -7,6 +7,7 @@ import {
   jwtConfig,
   featureFlagsConfig,
   bookingsConfig,
+  negotiationConfig,
 } from './config';
 
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
@@ -44,7 +45,14 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: envValidationSchema,
-      load: [databaseConfig, redisConfig, jwtConfig, featureFlagsConfig, bookingsConfig],
+      load: [
+        databaseConfig,
+        redisConfig,
+        jwtConfig,
+        featureFlagsConfig,
+        bookingsConfig,
+        negotiationConfig,
+      ],
       
     }),
 

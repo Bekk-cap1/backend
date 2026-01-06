@@ -4,6 +4,12 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import * as bcrypt from "bcrypt";
 
+function parsePositiveInt(value: string | undefined, fallback: number) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return Math.floor(num);
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL, // обязательно
 });
@@ -185,23 +191,27 @@ async function main() {
     throw new Error("Seed request not found");
   }
 
+  const maxDriverOffers = parsePositiveInt(process.env.OFFERS_MAX_DRIVER, 3);
+  const maxPassengerOffers = parsePositiveInt(process.env.OFFERS_MAX_PASSENGER, 3);
+  const maxPerSide = Math.max(maxDriverOffers, maxPassengerOffers);
+
   await prisma.negotiationSession.upsert({
     where: { requestId: request.id },
     update: {
       state: NegotiationSessionState.active,
       nextTurn: NegotiationTurn.driver,
-      driverMovesLeft: 3,
-      passengerMovesLeft: 3,
-      maxMovesPerSide: 3,
+      driverMovesLeft: maxDriverOffers,
+      passengerMovesLeft: maxPassengerOffers,
+      maxMovesPerSide: maxPerSide,
       lastOfferId: null,
     },
     create: {
       requestId: request.id,
       state: NegotiationSessionState.active,
       nextTurn: NegotiationTurn.driver,
-      driverMovesLeft: 3,
-      passengerMovesLeft: 3,
-      maxMovesPerSide: 3,
+      driverMovesLeft: maxDriverOffers,
+      passengerMovesLeft: maxPassengerOffers,
+      maxMovesPerSide: maxPerSide,
       lastOfferId: null,
       version: 0,
     },
