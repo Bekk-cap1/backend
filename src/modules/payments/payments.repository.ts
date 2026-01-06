@@ -43,9 +43,14 @@ export class PaymentsRepository {
   }
 
   findIdempotent(params: { bookingId: string; provider: PaymentProvider; amount: number; currency: string; key?: string }) {
-    // Сейчас без поля idempotencyKey в БД — fallback:
-    // 1) если key передали — позже добавим поле и unique индекс
-    // 2) пока возвращаем последний pending по booking+provider
+    // Idempotency:
+    // 1) если есть key — ищем по уникальному idempotencyKey
+    // 2) fallback: последний pending по booking+provider
+    if (params.key) {
+      return this.prisma.payment.findUnique({
+        where: { idempotencyKey: params.key },
+      });
+    }
     return this.prisma.payment.findFirst({
       where: {
         bookingId: params.bookingId,

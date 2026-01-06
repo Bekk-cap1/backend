@@ -1,7 +1,10 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { PaymentProvider } from '@prisma/client';
 
 export class CreatePaymentIntentDto {
+  @IsUUID()
+  bookingId!: string;
+
   @IsEnum(PaymentProvider)
   provider!: PaymentProvider;
 

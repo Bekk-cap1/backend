@@ -19,7 +19,8 @@ export class PaymentsService {
     private readonly outbox: OutboxService,
   ) {}
 
-  async createIntent(userId: string, bookingId: string, dto: CreatePaymentIntentDto) {
+  async createIntent(userId: string, dto: CreatePaymentIntentDto) {
+    const bookingId = dto.bookingId;
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { passenger: true, trip: true },
@@ -39,15 +40,21 @@ export class PaymentsService {
       key: dto.idempotencyKey,
     });
     if (existing) {
+      if (existing.bookingId !== bookingId) {
+        throw new BadRequestException('Idempotency key already used');
+      }
       const adapter = this.registry.get(existing.provider);
-      const intent = await adapter.createIntent({
-        paymentId: existing.id,
-        amount: existing.amount,
-        currency: existing.currency,
-        description: dto.description ?? null,
-        customer: { userId: booking.passengerId, phone: booking.passenger.phone },
-        metadata: { bookingId },
-      });
+      const intent =
+        existing.status === PaymentStatus.created || existing.status === PaymentStatus.pending
+          ? await adapter.createIntent({
+              paymentId: existing.id,
+              amount: existing.amount,
+              currency: existing.currency,
+              description: dto.description ?? null,
+              customer: { userId: booking.passengerId, phone: booking.passenger.phone },
+              metadata: { bookingId },
+            })
+          : null;
       const updatedExisting =
         existing.status === PaymentStatus.created
           ? await this.repo.updateStatus(existing.id, PaymentStatus.pending)
@@ -62,7 +69,20 @@ export class PaymentsService {
       status: PaymentStatus.created,
       amount: booking.price,
       currency: booking.currency,
-      payload: dto.idempotencyKey ? { idempotencyKey: dto.idempotencyKey } : undefined,
+      idempotencyKey: dto.idempotencyKey ?? undefined,
+    });
+
+    await this.prisma.paymentEvent.create({
+      data: {
+        paymentId: payment.id,
+        provider: payment.provider,
+        dedupeKey: `payment:${payment.id}:created`,
+        type: 'created',
+        payload: {
+          bookingId,
+          idempotencyKey: dto.idempotencyKey ?? null,
+        },
+      },
     });
 
     const adapter = this.registry.get(dto.provider);
@@ -93,6 +113,23 @@ export class PaymentsService {
 
     const [items, total] = await this.repo.list(where, page, pageSize);
     return { items, total, page, pageSize };
+  }
+
+  async getById(userId: string, paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: { booking: { include: { trip: true } } },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    if (payment.booking.passengerId !== userId) {
+      throw new ForbiddenException('Not your payment');
+    }
+
+    return payment;
   }
 
   /**
