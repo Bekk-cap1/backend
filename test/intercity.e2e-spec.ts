@@ -254,6 +254,28 @@ describe('Intercity (e2e)', () => {
     expect(trip?.seatsAvailable).toBe(3);
   });
 
+  it('creates payment intent and lists payments', async () => {
+    const intent = await request(app.getHttpServer())
+      .post(`/payments/booking/${bookingId}/intent`)
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({
+        provider: 'stripe',
+        idempotencyKey: `booking-${bookingId}`,
+        description: 'E2E payment',
+      })
+      .expect(201);
+
+    expect(intent.body.data.payment.status).toBe('pending');
+    expect(intent.body.data.payment.bookingId).toBe(bookingId);
+
+    const list = await request(app.getHttpServer())
+      .get(`/payments/me?bookingId=${bookingId}`)
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .expect(200);
+
+    expect(list.body.data.items.length).toBeGreaterThan(0);
+  });
+
   it('starts and completes trip', async () => {
     await request(app.getHttpServer())
       .patch(`/trips/${tripId}/start`)
