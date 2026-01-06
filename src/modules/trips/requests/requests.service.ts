@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import {
   BookingStatus,
@@ -19,7 +20,21 @@ export class RequestsService {
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
     private readonly drivers: DriversService,
+    private readonly config: ConfigService,
   ) {}
+
+  private getNegotiationLimits() {
+    const driverLimitRaw = Number(this.config.get('OFFERS_MAX_DRIVER') ?? 3);
+    const passengerLimitRaw = Number(this.config.get('OFFERS_MAX_PASSENGER') ?? 3);
+    const driverMovesLeft = Number.isFinite(driverLimitRaw) && driverLimitRaw > 0 ? driverLimitRaw : 3;
+    const passengerMovesLeft = Number.isFinite(passengerLimitRaw) && passengerLimitRaw > 0 ? passengerLimitRaw : 3;
+
+    return {
+      driverMovesLeft,
+      passengerMovesLeft,
+      maxMovesPerSide: Math.max(driverMovesLeft, passengerMovesLeft),
+    };
+  }
 
   async listMyRequests(passengerId: string) {
     return this.prisma.tripRequest.findMany({
@@ -104,14 +119,15 @@ export class RequestsService {
     if (existing) return existing;
 
     try {
+      const limits = this.getNegotiationLimits();
       return await this.prisma.negotiationSession.create({
         data: {
           requestId,
           state: NegotiationSessionState.active,
           nextTurn: NegotiationTurn.driver,
-          driverMovesLeft: 3,
-          passengerMovesLeft: 3,
-          maxMovesPerSide: 3,
+          driverMovesLeft: limits.driverMovesLeft,
+          passengerMovesLeft: limits.passengerMovesLeft,
+          maxMovesPerSide: limits.maxMovesPerSide,
           lastOfferId: null,
           version: 0,
         },
@@ -150,14 +166,15 @@ export class RequestsService {
           },
         });
 
+        const limits = this.getNegotiationLimits();
         await tx.negotiationSession.create({
           data: {
             requestId: req.id,
             state: NegotiationSessionState.active,
             nextTurn: NegotiationTurn.driver,
-            driverMovesLeft: 3,
-            passengerMovesLeft: 3,
-            maxMovesPerSide: 3,
+            driverMovesLeft: limits.driverMovesLeft,
+            passengerMovesLeft: limits.passengerMovesLeft,
+            maxMovesPerSide: limits.maxMovesPerSide,
             lastOfferId: null,
             version: 0,
           },

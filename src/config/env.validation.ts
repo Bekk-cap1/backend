@@ -27,4 +27,6 @@ export const envValidationSchema = Joi.object({
   REALTIME_ENABLED: Joi.boolean().default(false),
 
   BOOKING_CANCEL_FEE_PERCENT: Joi.number().min(0).max(100).default(10),
+  OFFERS_MAX_DRIVER: Joi.number().integer().min(1).default(3),
+  OFFERS_MAX_PASSENGER: Joi.number().integer().min(1).default(3),
 }).unknown(true);

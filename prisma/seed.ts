@@ -12,6 +12,13 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg(pool),
 });
 
+const offersMaxDriverRaw = Number(process.env.OFFERS_MAX_DRIVER ?? 3);
+const offersMaxPassengerRaw = Number(process.env.OFFERS_MAX_PASSENGER ?? 3);
+const offersMaxDriver = Number.isFinite(offersMaxDriverRaw) && offersMaxDriverRaw > 0 ? offersMaxDriverRaw : 3;
+const offersMaxPassenger =
+  Number.isFinite(offersMaxPassengerRaw) && offersMaxPassengerRaw > 0 ? offersMaxPassengerRaw : 3;
+const offersMaxMovesPerSide = Math.max(offersMaxDriver, offersMaxPassenger);
+
 async function main() {
   const cities = [
     { name: "Tashkent", countryCode: "UZ", region: "Tashkent", timezone: "Asia/Tashkent" },
@@ -190,18 +197,18 @@ async function main() {
     update: {
       state: NegotiationSessionState.active,
       nextTurn: NegotiationTurn.driver,
-      driverMovesLeft: 3,
-      passengerMovesLeft: 3,
-      maxMovesPerSide: 3,
+      driverMovesLeft: offersMaxDriver,
+      passengerMovesLeft: offersMaxPassenger,
+      maxMovesPerSide: offersMaxMovesPerSide,
       lastOfferId: null,
     },
     create: {
       requestId: request.id,
       state: NegotiationSessionState.active,
       nextTurn: NegotiationTurn.driver,
-      driverMovesLeft: 3,
-      passengerMovesLeft: 3,
-      maxMovesPerSide: 3,
+      driverMovesLeft: offersMaxDriver,
+      passengerMovesLeft: offersMaxPassenger,
+      maxMovesPerSide: offersMaxMovesPerSide,
       lastOfferId: null,
       version: 0,
     },
