@@ -64,6 +64,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.zip
 *.tar
 *.gz
+*.rar
 
 # binaries/media
 *.png
@@ -73,6 +74,10 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.pdf
 *.mp4
 *.mov
+*.exe
+*.dll
+*.so
+*.dylib
 
 # DB dumps
 *.sqlite
@@ -81,3 +86,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # secrets
 *.pem
 *.key
+
+# runtime uploads/cache
+uploads/
+.cache/

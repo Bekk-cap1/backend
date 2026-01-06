@@ -39,6 +39,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { OutboxModule } from './outbox/outbox.module';
 import { RequestsModule } from './modules/trips/requests/requests.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     OutboxModule,
     RequestContextModule,
     RealtimeModule,
+    NotificationsModule,
     
 
 

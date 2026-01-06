@@ -6,7 +6,19 @@ on:
   pull_request:
 
 jobs:
+  no-binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check forbidden files
+        run: node scripts/check-forbidden-files.js --all
+
   build-test:
+    needs: no-binaries
     runs-on: ubuntu-latest
     services:
       postgres:

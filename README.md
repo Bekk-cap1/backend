@@ -78,9 +78,14 @@ Offers / Negotiation:
 
 Bookings:
 - `GET /bookings/my` (passenger)
-- `GET /driver/bookings` (driver)
+- `GET /bookings/driver` (driver, alias: `/driver/bookings`)
 - `POST /bookings/:id/cancel`
 - `POST /bookings/:id/complete`
+
+Notifications & Realtime:
+- `GET /notifications/my`
+- `POST /notifications/:id/read`
+- WS: `/ws` (token auth)
 
 Admin:
 - `GET /admin/drivers?status=pending`
@@ -107,14 +112,21 @@ Health:
 ## Repository Policy (no binaries)
 Do not commit:
 - `dist/`, `node_modules/`, `coverage/`
-- archives: `*.zip`, `*.tar`, `*.gz`
+- `uploads/`
+- archives: `*.zip`, `*.tar`, `*.gz`, `*.rar`
 - media/binaries: `*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.pdf`, `*.mp4`, `*.mov`
+- executables: `*.exe`, `*.dll`, `*.so`, `*.dylib`
 - DB files: `*.sqlite`, `*.db`
 - secrets: `.env`, `*.pem`, `*.key`
 - logs: `*.log`
+- large files: over 5MB (configurable via `FORBIDDEN_FILE_MAX_BYTES`)
 
 ## Diagrams
 See `docs/diagrams.md`.
+
+## Docs
+- Architecture: `docs/architecture.md`
+- API overview: `docs/api.md`
 
 ## Notes
 - Branch protection should require PRs and passing CI checks.
