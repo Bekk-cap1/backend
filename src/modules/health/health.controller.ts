@@ -1,5 +1,5 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
-import { ApiDeprecated, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { RedisService } from '../../infrastructure/redis/redis.service';
 import { Public } from 'src/common/decorators/public.decorator';
@@ -42,8 +42,7 @@ export class HealthController {
    */
   @Public()
   @Get('health')
-  @ApiDeprecated()
-  @ApiOperation({ summary: 'Deprecated alias for /health/live' })
+  @ApiOperation({ summary: 'Deprecated alias for /health/live', deprecated: true })
   health() {
     return this.live();
   }
@@ -53,8 +52,7 @@ export class HealthController {
    */
   @Public()
   @Get('ready')
-  @ApiDeprecated()
-  @ApiOperation({ summary: 'Deprecated alias for /health/ready' })
+  @ApiOperation({ summary: 'Deprecated alias for /health/ready', deprecated: true })
   readyAlias() {
     return this.ready();
   }

@@ -1,8 +1,17 @@
 -- Add negotiation session table and remove legacy fields
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'NegotiationTurn') THEN
+    CREATE TYPE "NegotiationTurn" AS ENUM ('passenger', 'driver');
+  END IF;
+END$$;
+
 CREATE TYPE "NegotiationSessionState" AS ENUM ('active', 'accepted', 'expired', 'canceled');
 
 CREATE TABLE "NegotiationSession" (
-    "id" TEXT NOT NULL DEFAULT uuid(),
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid(),
     "requestId" TEXT NOT NULL,
     "state" "NegotiationSessionState" NOT NULL DEFAULT 'active',
     "nextTurn" "NegotiationTurn" NOT NULL,
@@ -24,11 +33,11 @@ ALTER TABLE "NegotiationSession" ADD CONSTRAINT "NegotiationSession_requestId_fk
     FOREIGN KEY ("requestId") REFERENCES "TripRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "TripRequest"
-  DROP COLUMN "negotiationTurn",
-  DROP COLUMN "negotiationDriverAttempts",
-  DROP COLUMN "negotiationPassengerAttempts",
-  DROP COLUMN "negotiationMaxAttempts",
-  DROP COLUMN "negotiationFinalStatus";
+  DROP COLUMN IF EXISTS "negotiationTurn",
+  DROP COLUMN IF EXISTS "negotiationDriverAttempts",
+  DROP COLUMN IF EXISTS "negotiationPassengerAttempts",
+  DROP COLUMN IF EXISTS "negotiationMaxAttempts",
+  DROP COLUMN IF EXISTS "negotiationFinalStatus";
 
 -- Offer sequencing
 ALTER TABLE "Offer" ADD COLUMN "seq" INTEGER;
@@ -48,6 +57,8 @@ CREATE UNIQUE INDEX "Offer_requestId_seq_key" ON "Offer"("requestId", "seq");
 
 -- Outbox status/state machine
 CREATE TYPE "OutboxStatus" AS ENUM ('NEW', 'PROCESSING', 'DONE', 'FAILED');
+
+ALTER TABLE "OutboxEvent" ALTER COLUMN "status" DROP DEFAULT;
 
 ALTER TABLE "OutboxEvent" ALTER COLUMN "status" TYPE "OutboxStatus"
 USING (CASE

@@ -5,6 +5,8 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { BookingsQueryDto } from './dto/bookings-query.dto';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
 
+const cancellableStatuses: BookingStatus[] = [BookingStatus.confirmed, BookingStatus.paid];
+
 @Injectable()
 export class BookingsService {
     constructor(
@@ -113,7 +115,7 @@ export class BookingsService {
             if (booking.passengerId !== userId) throw new ForbiddenException('Not your booking');
 
             if (booking.status === BookingStatus.canceled) return booking; // идемпотентно
-            if (![BookingStatus.confirmed, BookingStatus.paid].includes(booking.status)) {
+            if (!cancellableStatuses.includes(booking.status)) {
                 throw new BadRequestException('Only confirmed booking can be canceled');
             }
 
@@ -179,7 +181,7 @@ export class BookingsService {
             if (booking.trip.driverId !== driverId) throw new ForbiddenException('Not your trip booking');
 
             if (booking.status === BookingStatus.canceled) return booking;
-            if (![BookingStatus.confirmed, BookingStatus.paid].includes(booking.status)) {
+            if (!cancellableStatuses.includes(booking.status)) {
                 throw new BadRequestException('Only confirmed booking can be canceled');
             }
 
@@ -226,7 +228,7 @@ export class BookingsService {
             if (!isPassenger && !isDriver) throw new ForbiddenException('No access');
 
             if (booking.status === BookingStatus.completed) return booking;
-            if (![BookingStatus.confirmed, BookingStatus.paid].includes(booking.status)) {
+            if (!cancellableStatuses.includes(booking.status)) {
                 throw new BadRequestException('Only confirmed booking can be completed');
             }
 

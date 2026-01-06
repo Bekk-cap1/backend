@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../infrastructure/prisma/prisma.service';
 import { OutboxTopic, type OutboxTopicType } from './outbox.topics';
 import { ConfigService } from '@nestjs/config';
@@ -11,7 +12,7 @@ type NotificationDraft = {
   type: OutboxTopicType;
   title: string;
   message?: string | null;
-  payload?: Record<string, unknown> | null;
+  payload?: Prisma.InputJsonValue | null;
   idempotencyKey: string;
 };
 
@@ -33,7 +34,7 @@ export class DomainEventsProcessor extends WorkerHost {
     this.logger.log(`EVENT ${job.name} outboxId=${job.data?.outboxId}`);
 
     const topic = job.name as OutboxTopicType;
-    const payload = (job.data?.payload ?? {}) as Record<string, unknown>;
+    const payload = (job.data?.payload ?? {}) as Prisma.InputJsonObject;
     const outboxId = String(job.data?.outboxId ?? '');
 
     const notifications = await this.buildNotifications(topic, payload, outboxId);
@@ -59,7 +60,7 @@ export class DomainEventsProcessor extends WorkerHost {
           type: notification.type,
           title: notification.title,
           message: notification.message ?? null,
-          payload: notification.payload ?? null,
+          payload: notification.payload ?? Prisma.JsonNull,
           idempotencyKey: notification.idempotencyKey,
         },
       });
@@ -73,7 +74,7 @@ export class DomainEventsProcessor extends WorkerHost {
 
   private async buildNotifications(
     topic: OutboxTopicType,
-    payload: Record<string, unknown>,
+    payload: Prisma.InputJsonObject,
     outboxId: string,
   ): Promise<NotificationDraft[]> {
     switch (topic) {
@@ -112,7 +113,7 @@ export class DomainEventsProcessor extends WorkerHost {
     }
   }
 
-  private async notifyTripPublished(payload: Record<string, unknown>, outboxId: string) {
+  private async notifyTripPublished(payload: Prisma.InputJsonObject, outboxId: string) {
     const driverId = String(payload.driverId ?? '');
     if (!driverId) return [];
 
@@ -129,7 +130,7 @@ export class DomainEventsProcessor extends WorkerHost {
   }
 
   private async notifyTripParticipants(
-    payload: Record<string, unknown>,
+    payload: Prisma.InputJsonObject,
     outboxId: string,
     type: OutboxTopicType,
     title: string,
@@ -155,7 +156,7 @@ export class DomainEventsProcessor extends WorkerHost {
     );
   }
 
-  private async notifyRequestCreated(payload: Record<string, unknown>, outboxId: string) {
+  private async notifyRequestCreated(payload: Prisma.InputJsonObject, outboxId: string) {
     const tripId = String(payload.tripId ?? '');
     if (!tripId) return [];
 
@@ -179,7 +180,7 @@ export class DomainEventsProcessor extends WorkerHost {
   }
 
   private async notifyRequestDecision(
-    payload: Record<string, unknown>,
+    payload: Prisma.InputJsonObject,
     outboxId: string,
     type: OutboxTopicType,
     title: string,
@@ -206,7 +207,7 @@ export class DomainEventsProcessor extends WorkerHost {
     ];
   }
 
-  private async notifyRequestCanceled(payload: Record<string, unknown>, outboxId: string) {
+  private async notifyRequestCanceled(payload: Prisma.InputJsonObject, outboxId: string) {
     const requestId = String(payload.requestId ?? '');
     if (!requestId) return [];
 
@@ -228,7 +229,7 @@ export class DomainEventsProcessor extends WorkerHost {
     ];
   }
 
-  private async notifyOfferCreated(payload: Record<string, unknown>, outboxId: string) {
+  private async notifyOfferCreated(payload: Prisma.InputJsonObject, outboxId: string) {
     const requestId = String(payload.requestId ?? '');
     const proposerId = String(payload.proposerId ?? '');
     const proposerRole = String(payload.proposerRole ?? '');
@@ -256,7 +257,7 @@ export class DomainEventsProcessor extends WorkerHost {
   }
 
   private async notifyOfferOutcome(
-    payload: Record<string, unknown>,
+    payload: Prisma.InputJsonObject,
     outboxId: string,
     type: OutboxTopicType,
     title: string,
@@ -278,7 +279,7 @@ export class DomainEventsProcessor extends WorkerHost {
   }
 
   private async notifyUser(
-    payload: Record<string, unknown>,
+    payload: Prisma.InputJsonObject,
     outboxId: string,
     type: OutboxTopicType,
     title: string,
@@ -304,7 +305,7 @@ export class DomainEventsProcessor extends WorkerHost {
     type: OutboxTopicType;
     title: string;
     message?: string | null;
-    payload?: Record<string, unknown> | null;
+    payload?: Prisma.InputJsonValue | null;
     outboxId: string;
   }): NotificationDraft {
     return {

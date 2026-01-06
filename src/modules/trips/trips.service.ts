@@ -24,6 +24,8 @@ import { AuditAction } from '../../audit/audit.actions';
 import { OutboxService } from '../../outbox/outbox.service';
 import { OutboxTopic } from '../../outbox/outbox.topics';
 
+const confirmedBookingStatuses: BookingStatus[] = [BookingStatus.confirmed, BookingStatus.paid];
+
 @Injectable()
 export class TripsService {
     constructor(
@@ -336,8 +338,8 @@ export class TripsService {
                     },
                 });
 
-                const confirmedBookings = trip.bookings.filter(
-                    (b) => [BookingStatus.confirmed, BookingStatus.paid].includes(b.status),
+                const confirmedBookings = trip.bookings.filter((b) =>
+                    confirmedBookingStatuses.includes(b.status),
                 );
 
                 for (const b of confirmedBookings) {
