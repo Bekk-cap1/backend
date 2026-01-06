@@ -15,6 +15,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
 import { AdminDriversQueryDto } from './dto/admin-drivers-query.dto';
+import { AdminAuditQueryDto } from './dto/admin-audit-query.dto';
 import { RejectDriverDto } from './dto/reject-driver.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 
@@ -30,6 +31,12 @@ export class AdminController {
   @Get('drivers')
   listDrivers(@Query() q: AdminDriversQueryDto) {
     return this.admin.listDrivers(q);
+  }
+
+  // GET /admin/audit?actorId=...&entityType=...&action=...&requestId=...&page=1&pageSize=20
+  @Get('audit')
+  listAuditLogs(@Query() q: AdminAuditQueryDto) {
+    return this.admin.listAuditLogs(q);
   }
 
   // POST /admin/drivers/:userId/verify
