@@ -29,7 +29,7 @@ export class OutboxDispatcher {
     // 1) Сначала “освобождаем” протухшие локи (если воркер умер)
     await this.prisma.outboxEvent.updateMany({
       where: {
-        status: OutboxStatus.PROCESSING,
+        status: { in: [OutboxStatus.PROCESSING, OutboxStatus.ENQUEUED] },
         lockedAt: { lt: staleBefore },
       },
       data: {
@@ -65,7 +65,7 @@ export class OutboxDispatcher {
     const lockRes = await this.prisma.outboxEvent.updateMany({
       where: {
         id: { in: ids },
-        status: 'NEW',
+        status: OutboxStatus.NEW,
         OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: now } }],
       },
       data: {
@@ -117,11 +117,11 @@ export class OutboxDispatcher {
         await this.prisma.outboxEvent.update({
           where: { id: e.id },
           data: {
-            status: OutboxStatus.DONE,
-            sentAt: new Date(),
-            lockedAt: null,
-            lockedBy: null,
+            status: OutboxStatus.ENQUEUED,
+            lockedAt: now,
+            lockedBy: this.workerId,
             lastError: null,
+            nextRetryAt: null,
           },
         });
       } catch (err: unknown) {

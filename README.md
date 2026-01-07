@@ -18,8 +18,8 @@ Swagger (when `SWAGGER_ENABLED=true`):
 - `http://localhost:3000/api/swagger`
 
 Health:
-- `GET /health/live`
-- `GET /health/ready` (checks DB + Redis)
+- `GET /api/health/live`
+- `GET /api/health/ready` (checks DB + Redis)
 
 ## Scripts
 - `npm run migrate` -> apply migrations to DB
@@ -37,65 +37,65 @@ See `.env.example`. Required keys:
 
 ## Minimal API Contract
 Auth:
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/logout`
-- `GET /auth/me`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 
 Cities:
-- `GET /cities`
-- `POST /cities` (admin, optional)
+- `GET /api/cities`
+- `POST /api/cities` (admin, optional)
 
 Vehicles (driver):
-- `POST /vehicles`
-- `GET /vehicles/my`
-- `PATCH /vehicles/:id`
-- `DELETE /vehicles/:id`
+- `POST /api/vehicles`
+- `GET /api/vehicles/my`
+- `PATCH /api/vehicles/:id`
+- `DELETE /api/vehicles/:id`
 
 Trips:
-- `GET /trips/search`
-- `GET /trips/:id`
-- `POST /trips` (driver, draft)
-- `PATCH /trips/:id` (driver, draft only)
-- `POST /trips/:id/publish`
-- `POST /trips/:id/start`
-- `POST /trips/:id/complete`
-- `POST /trips/:id/cancel`
+- `GET /api/trips/search`
+- `GET /api/trips/:id`
+- `POST /api/trips` (driver, draft)
+- `PATCH /api/trips/:id` (driver, draft only)
+- `POST /api/trips/:id/publish`
+- `POST /api/trips/:id/start`
+- `POST /api/trips/:id/complete`
+- `POST /api/trips/:id/cancel`
 
 Requests:
-- `POST /trips/:id/requests` (passenger)
-- `GET /requests/my` (passenger)
-- `GET /driver/requests` (driver)
-- `POST /requests/:id/cancel` (passenger)
-- `POST /requests/:id/reject` (driver)
-- `POST /requests/:id/accept` (driver)
+- `POST /api/trips/:id/requests` (passenger)
+- `GET /api/requests/my` (passenger)
+- `GET /api/driver/requests` (driver)
+- `POST /api/requests/:id/cancel` (passenger)
+- `POST /api/requests/:id/reject` (driver)
+- `POST /api/requests/:id/accept` (driver)
 
 Offers / Negotiation:
-- `GET /requests/:id/offers`
-- `POST /requests/:id/offers`
-- `GET /requests/:id/negotiation`
+- `GET /api/requests/:id/offers`
+- `POST /api/requests/:id/offers`
+- `GET /api/requests/:id/negotiation`
 
 Bookings:
-- `GET /bookings/my` (passenger)
-- `GET /bookings/driver` (driver, alias: `/driver/bookings`)
-- `POST /bookings/:id/cancel`
-- `POST /bookings/:id/complete`
+- `GET /api/bookings/my` (passenger)
+- `GET /api/bookings/driver` (driver, alias: `/api/driver/bookings`)
+- `POST /api/bookings/:id/cancel`
+- `POST /api/bookings/:id/complete`
 
 Notifications & Realtime:
-- `GET /notifications/my`
-- `POST /notifications/:id/read`
-- WS: `/ws` (token auth)
+- `GET /api/notifications/my`
+- `POST /api/notifications/:id/read`
+- WS: `/realtime` (socket.io namespace)
 
 Admin:
-- `GET /admin/drivers?status=pending`
-- `POST /admin/drivers/:id/verify`
-- `POST /admin/drivers/:id/reject`
-- `GET /admin/audit`
+- `GET /api/admin/drivers?status=pending`
+- `POST /api/admin/drivers/:id/verify`
+- `POST /api/admin/drivers/:id/reject`
+- `GET /api/admin/audit`
 
 Health:
-- `GET /health/live`
-- `GET /health/ready`
+- `GET /api/health/live`
+- `GET /api/health/ready`
 
 ## Definition of Done
 - `docker compose up` starts Postgres + Redis + app.

@@ -98,10 +98,12 @@ describe('Intercity (e2e)', () => {
   let lastOfferId: string;
   let fromCityId: string;
   let toCityId: string;
+  let basePath = '';
 
   const driverPhone = '+998900000001';
   const passengerPhone = '+998900000002';
   const password = 'Password123!';
+  const apiPath = (path: string) => `${basePath}${path}`;
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
@@ -126,6 +128,10 @@ describe('Intercity (e2e)', () => {
       process.env.BOOKING_CANCEL_FEE_PERCENT ?? '10';
     process.env.OFFERS_MAX_DRIVER = process.env.OFFERS_MAX_DRIVER ?? '3';
     process.env.OFFERS_MAX_PASSENGER = process.env.OFFERS_MAX_PASSENGER ?? '3';
+    process.env.API_PREFIX = process.env.API_PREFIX ?? 'api';
+
+    const prefix = process.env.API_PREFIX ?? 'api';
+    basePath = prefix ? `/${prefix}` : '';
 
     await ensureDatabaseExists(databaseUrl);
     await ensureDatabaseExists(shadowUrl);
@@ -197,7 +203,7 @@ describe('Intercity (e2e)', () => {
 
   it('registers and logs in passenger', async () => {
     await api
-      .post('/auth/register')
+      .post(apiPath('/auth/register'))
       .send({
         phone: passengerPhone,
         password,
@@ -205,7 +211,7 @@ describe('Intercity (e2e)', () => {
       .expect(201);
 
     const login = await api
-      .post('/auth/login')
+      .post(apiPath('/auth/login'))
       .send({
         phone: passengerPhone,
         password,
@@ -216,7 +222,7 @@ describe('Intercity (e2e)', () => {
     passengerToken = loginData.accessToken;
 
     const me = await api
-      .get('/auth/me')
+      .get(apiPath('/auth/me'))
       .set('Authorization', `Bearer ${passengerToken}`)
       .expect(200);
 
@@ -227,7 +233,7 @@ describe('Intercity (e2e)', () => {
 
   it('registers and logs in driver', async () => {
     await api
-      .post('/auth/register')
+      .post(apiPath('/auth/register'))
       .send({
         phone: driverPhone,
         password,
@@ -262,7 +268,7 @@ describe('Intercity (e2e)', () => {
     });
 
     const login = await api
-      .post('/auth/login')
+      .post(apiPath('/auth/login'))
       .send({
         phone: driverPhone,
         password,
@@ -275,7 +281,7 @@ describe('Intercity (e2e)', () => {
 
   it('creates vehicle for verified driver', async () => {
     await api
-      .post('/vehicles')
+      .post(apiPath('/vehicles'))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({
         make: 'Chevrolet',
@@ -296,7 +302,7 @@ describe('Intercity (e2e)', () => {
     }
 
     const createTrip = await api
-      .post('/trips')
+      .post(apiPath('/trips'))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({
         vehicleId: vehicle.id,
@@ -315,7 +321,7 @@ describe('Intercity (e2e)', () => {
     tripId = tripData.id;
 
     await api
-      .patch(`/trips/${tripId}/publish`)
+      .patch(apiPath(`/trips/${tripId}/publish`))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({ notes: 'Published for tests' })
       .expect(200);
@@ -323,18 +329,18 @@ describe('Intercity (e2e)', () => {
 
   it('blocks passenger from driver trip actions', async () => {
     await api
-      .patch(`/trips/${tripId}/start`)
+      .patch(apiPath(`/trips/${tripId}/start`))
       .set('Authorization', `Bearer ${passengerToken}`)
       .expect(403);
   });
 
   it('searches trips and creates request', async () => {
-    const search = await api.get('/trips/search').expect(200);
+    const search = await api.get(apiPath('/trips/search')).expect(200);
     const searchData = getData<TripSearchPayload>(search);
     expect(searchData.items.length).toBeGreaterThan(0);
 
     const reqRes = await api
-      .post(`/trips/${tripId}/requests`)
+      .post(apiPath(`/trips/${tripId}/requests`))
       .set('Authorization', `Bearer ${passengerToken}`)
       .send({
         seats: 1,
@@ -353,55 +359,55 @@ describe('Intercity (e2e)', () => {
 
   it('negotiates offers turn-by-turn and accepts', async () => {
     const offer1 = await api
-      .post(`/requests/${requestId}/offers`)
+      .post(apiPath(`/requests/${requestId}/offers`))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({ price: 100000 })
       .expect(201);
     lastOfferId = getData<OfferPayload>(offer1).id;
 
     await api
-      .post(`/requests/${requestId}/offers`)
+      .post(apiPath(`/requests/${requestId}/offers`))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({ price: 99000 })
       .expect(400);
 
     const offer2 = await api
-      .post(`/requests/${requestId}/offers`)
+      .post(apiPath(`/requests/${requestId}/offers`))
       .set('Authorization', `Bearer ${passengerToken}`)
       .send({ price: 95000 })
       .expect(201);
     lastOfferId = getData<OfferPayload>(offer2).id;
 
     const offer3 = await api
-      .post(`/requests/${requestId}/offers`)
+      .post(apiPath(`/requests/${requestId}/offers`))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({ price: 98000 })
       .expect(201);
     lastOfferId = getData<OfferPayload>(offer3).id;
 
     const offer4 = await api
-      .post(`/requests/${requestId}/offers`)
+      .post(apiPath(`/requests/${requestId}/offers`))
       .set('Authorization', `Bearer ${passengerToken}`)
       .send({ price: 96000 })
       .expect(201);
     lastOfferId = getData<OfferPayload>(offer4).id;
 
     const offer5 = await api
-      .post(`/requests/${requestId}/offers`)
+      .post(apiPath(`/requests/${requestId}/offers`))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({ price: 97000 })
       .expect(201);
     lastOfferId = getData<OfferPayload>(offer5).id;
 
     const offer6 = await api
-      .post(`/requests/${requestId}/offers`)
+      .post(apiPath(`/requests/${requestId}/offers`))
       .set('Authorization', `Bearer ${passengerToken}`)
       .send({ price: 96500 })
       .expect(201);
     lastOfferId = getData<OfferPayload>(offer6).id;
 
     const negotiation = await api
-      .get(`/requests/${requestId}/negotiation`)
+      .get(apiPath(`/requests/${requestId}/negotiation`))
       .set('Authorization', `Bearer ${driverToken}`)
       .expect(200);
 
@@ -409,7 +415,7 @@ describe('Intercity (e2e)', () => {
     expect(negotiationData.state).toBe('active');
 
     const accept = await api
-      .patch(`/offers/${lastOfferId}/accept`)
+      .patch(apiPath(`/offers/${lastOfferId}/accept`))
       .set('Authorization', `Bearer ${driverToken}`)
       .send({ note: 'Deal' })
       .expect(200);
@@ -430,14 +436,14 @@ describe('Intercity (e2e)', () => {
 
   it('lists bookings via aliases', async () => {
     const passengerBookings = await api
-      .get('/bookings/my')
+      .get(apiPath('/bookings/my'))
       .set('Authorization', `Bearer ${passengerToken}`)
       .expect(200);
     const passengerData = getData<BookingsPayload>(passengerBookings);
     expect(passengerData.items.length).toBeGreaterThan(0);
 
     const driverBookings = await api
-      .get('/driver/bookings')
+      .get(apiPath('/driver/bookings'))
       .set('Authorization', `Bearer ${driverToken}`)
       .expect(200);
     const driverData = getData<BookingsPayload>(driverBookings);
@@ -446,22 +452,19 @@ describe('Intercity (e2e)', () => {
 
   it('starts and completes trip', async () => {
     await api
-      .patch(`/trips/${tripId}/start`)
+      .patch(apiPath(`/trips/${tripId}/start`))
       .set('Authorization', `Bearer ${driverToken}`)
       .expect(200);
 
     await api
-      .patch(`/trips/${tripId}/complete`)
+      .patch(apiPath(`/trips/${tripId}/complete`))
       .set('Authorization', `Bearer ${driverToken}`)
       .expect(200);
   });
 
   it('dispatches outbox events', async () => {
     await dispatcher.dispatchOnce(10, 60_000);
-
-    const outbox = await prisma.outboxEvent.findMany({
-      where: { status: OutboxStatus.DONE },
-    });
+    const outbox = await waitForOutboxDone(prisma);
 
     expect(outbox.length).toBeGreaterThan(0);
   });
@@ -490,6 +493,24 @@ async function resetDatabase(prisma: PrismaClient) {
       "User"
     CASCADE;
   `);
+}
+
+async function waitForOutboxDone(
+  prisma: PrismaClient,
+  timeoutMs = 5_000,
+) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const outbox = await prisma.outboxEvent.findMany({
+      where: { status: OutboxStatus.DONE },
+    });
+    if (outbox.length > 0) return outbox;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  return prisma.outboxEvent.findMany({
+    where: { status: OutboxStatus.DONE },
+  });
 }
 
 async function ensureDatabaseExists(connectionString: string) {

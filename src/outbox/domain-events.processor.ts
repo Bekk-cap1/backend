@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
-import { Prisma } from '@prisma/client';
+import { OutboxStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../infrastructure/prisma/prisma.service';
 import { OutboxTopic, type OutboxTopicType } from './outbox.topics';
 import { ConfigService } from '@nestjs/config';
@@ -43,28 +43,36 @@ export class DomainEventsProcessor extends WorkerHost {
     const payload = job.data?.payload ?? {};
     const outboxId = asString(job.data?.outboxId);
 
-    const notifications = await this.buildNotifications(
-      topic,
-      payload,
-      outboxId,
-    );
-    if (notifications.length === 0) {
-      return;
-    }
-
-    const realtimeEnabled = Boolean(
-      this.config.get('features.realtimeEnabled'),
-    );
-
-    for (const notification of notifications) {
-      const created = await this.createNotification(notification);
-      if (created && realtimeEnabled) {
-        this.realtimeGateway.emitToUser(
-          created.userId,
-          'notification',
-          created,
-        );
+    try {
+      const notifications = await this.buildNotifications(
+        topic,
+        payload,
+        outboxId,
+      );
+      if (notifications.length === 0) {
+        await this.markOutboxDone(outboxId);
+        return;
       }
+
+      const realtimeEnabled = Boolean(
+        this.config.get('features.realtimeEnabled'),
+      );
+
+      for (const notification of notifications) {
+        const created = await this.createNotification(notification);
+        if (created && realtimeEnabled) {
+          this.realtimeGateway.emitToUser(
+            created.userId,
+            'notification',
+            created,
+          );
+        }
+      }
+
+      await this.markOutboxDone(outboxId);
+    } catch (error) {
+      await this.markOutboxFailed(outboxId, error);
+      throw error;
     }
   }
 
@@ -86,6 +94,52 @@ export class DomainEventsProcessor extends WorkerHost {
       }
       throw error;
     }
+  }
+
+  private async markOutboxDone(outboxId: string) {
+    if (!outboxId) return;
+    await this.prisma.outboxEvent.update({
+      where: { id: outboxId },
+      data: {
+        status: OutboxStatus.DONE,
+        sentAt: new Date(),
+        lockedAt: null,
+        lockedBy: null,
+        lastError: null,
+        nextRetryAt: null,
+      },
+    });
+  }
+
+  private async markOutboxFailed(outboxId: string, error: unknown) {
+    if (!outboxId) return;
+    const current = await this.prisma.outboxEvent.findUnique({
+      where: { id: outboxId },
+      select: { attempts: true },
+    });
+    if (!current) return;
+
+    const attempts = (current.attempts ?? 0) + 1;
+    const delayMs = Math.min(5 * 60_000, 1_000 * 2 ** Math.min(10, attempts));
+    const nextRetryAt = new Date(Date.now() + delayMs);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : 'Unknown error';
+
+    await this.prisma.outboxEvent.update({
+      where: { id: outboxId },
+      data: {
+        status: attempts >= 25 ? OutboxStatus.FAILED : OutboxStatus.NEW,
+        attempts,
+        nextRetryAt,
+        lockedAt: null,
+        lockedBy: null,
+        lastError: errorMessage.slice(0, 1000),
+      },
+    });
   }
 
   private async buildNotifications(
