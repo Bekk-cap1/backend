@@ -1,19 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
-import { PaymentProviderAdapter, CreateIntentResult, WebhookResult } from './payment-provider.interface';
+import {
+  PaymentProviderAdapter,
+  CreateIntentResult,
+  WebhookResult,
+} from './payment-provider.interface';
 
 @Injectable()
 export class PaymeProvider implements PaymentProviderAdapter {
   readonly provider = PaymentProvider.payme;
 
-  async createIntent(): Promise<CreateIntentResult> {
-    return { raw: { stub: true, provider: 'payme' } };
+  createIntent(): Promise<CreateIntentResult> {
+    return Promise.resolve({ raw: { stub: true, provider: 'payme' } });
   }
 
-  async verifyAndParseWebhook(params: { headers: Record<string, any>; rawBody: Buffer }): Promise<WebhookResult> {
-    return {
+  verifyAndParseWebhook(params: {
+    headers: Record<string, string | string[] | undefined>;
+    rawBody: Buffer;
+  }): Promise<WebhookResult> {
+    return Promise.resolve({
       status: 'pending',
-      raw: { stub: true, provider: 'payme', headers: params.headers, body: params.rawBody.toString('utf8') },
-    };
+      raw: {
+        stub: true,
+        provider: 'payme',
+        headers: params.headers,
+        body: params.rawBody.toString('utf8'),
+      },
+    });
   }
 }

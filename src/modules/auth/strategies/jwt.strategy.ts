@@ -5,8 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 
 type AccessPayload = {
-  sub: string;   // userId
-  sid: string;   // sessionId
+  sub: string; // userId
+  sid: string; // sessionId
   phone?: string;
   role?: string;
   typ?: 'access';

@@ -1,6 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
-import { GlobalExceptionFilter  } from './common/filters/http-exception.filter';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 export function bootstrapApp(app: INestApplication) {
@@ -18,6 +18,6 @@ export function bootstrapApp(app: INestApplication) {
     }),
   );
 
-  app.useGlobalFilters(new GlobalExceptionFilter ());
+  app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
 }

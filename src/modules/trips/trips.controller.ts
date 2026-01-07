@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { TripsService } from './trips.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -11,6 +20,7 @@ import { CancelTripDto } from './dto/cancel-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import type { AuthUser } from '../../common/types/auth-user';
 
 @Controller('trips')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -37,71 +47,81 @@ export class TripsController {
 
   @Roles('driver')
   @Post()
-  async createTrip(@CurrentUser() user: any, @Body() dto: CreateTripDto) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.createTrip(driverId, dto);
+  async createTrip(@CurrentUser() user: AuthUser, @Body() dto: CreateTripDto) {
+    return this.tripsService.createTrip(user.sub, dto);
   }
 
   @Roles('driver')
   @Patch(':id')
-  async updateTrip(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateTripDto) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.updateTrip(driverId, id, dto);
+  async updateTrip(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateTripDto,
+  ) {
+    return this.tripsService.updateTrip(user.sub, id, dto);
   }
 
   @Roles('driver')
   @Patch(':id/publish')
-  async publish(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: PublishTripDto) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.publishTrip(driverId, id, dto.notes);
+  async publish(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: PublishTripDto,
+  ) {
+    return this.tripsService.publishTrip(user.sub, id, dto.notes);
   }
 
   @Roles('driver')
   @Post(':id/publish')
-  async publishPost(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: PublishTripDto) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.publishTrip(driverId, id, dto.notes);
+  async publishPost(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: PublishTripDto,
+  ) {
+    return this.tripsService.publishTrip(user.sub, id, dto.notes);
   }
 
   @Roles('driver')
   @Patch(':id/start')
-  start(@CurrentUser() user: any, @Param('id') id: string) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.startTrip(driverId, id);
+  start(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.tripsService.startTrip(user.sub, id);
   }
 
   @Roles('driver')
   @Post(':id/start')
-  startPost(@CurrentUser() user: any, @Param('id') id: string) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.startTrip(driverId, id);
+  startPost(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.tripsService.startTrip(user.sub, id);
   }
 
   @Roles('driver')
   @Patch(':id/complete')
-  complete(@CurrentUser() user: any, @Param('id') id: string) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.completeTrip(driverId, id);
+  complete(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.tripsService.completeTrip(user.sub, id);
   }
 
   @Roles('driver')
   @Post(':id/complete')
-  completePost(@CurrentUser() user: any, @Param('id') id: string) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.completeTrip(driverId, id);
+  completePost(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.tripsService.completeTrip(user.sub, id);
   }
 
   @Roles('driver')
   @Patch(':id/cancel')
-  cancel(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: CancelTripDto) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.cancelTrip(driverId, id, dto.reason);
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CancelTripDto,
+  ) {
+    return this.tripsService.cancelTrip(user.sub, id, dto.reason);
   }
 
   @Roles('driver')
   @Post(':id/cancel')
-  cancelPost(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: CancelTripDto) {
-    const driverId = user.sub ?? user.id;
-    return this.tripsService.cancelTrip(driverId, id, dto.reason);
+  cancelPost(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CancelTripDto,
+  ) {
+    return this.tripsService.cancelTrip(user.sub, id, dto.reason);
   }
 }

@@ -1,5 +1,15 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { BookingStatus, PaymentProvider, PaymentStatus, Prisma } from '@prisma/client';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  BookingStatus,
+  PaymentProvider,
+  PaymentStatus,
+  Prisma,
+} from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { PaymentsRepository } from './payments.repository';
@@ -19,16 +29,22 @@ export class PaymentsService {
     private readonly outbox: OutboxService,
   ) {}
 
-  async createIntent(userId: string, bookingId: string, dto: CreatePaymentIntentDto) {
+  async createIntent(
+    userId: string,
+    bookingId: string,
+    dto: CreatePaymentIntentDto,
+  ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { passenger: true, trip: true },
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.passengerId !== userId) throw new ForbiddenException('Not your booking');
+    if (booking.passengerId !== userId)
+      throw new ForbiddenException('Not your booking');
 
     // правило: платить можно только за confirmed
-    if (booking.status !== BookingStatus.confirmed) throw new BadRequestException('Booking not payable');
+    if (booking.status !== BookingStatus.confirmed)
+      throw new BadRequestException('Booking not payable');
 
     // идемпотентность (временный вариант без поля в БД)
     const existing = await this.repo.findIdempotent({
@@ -45,7 +61,10 @@ export class PaymentsService {
         amount: existing.amount,
         currency: existing.currency,
         description: dto.description ?? null,
-        customer: { userId: booking.passengerId, phone: booking.passenger.phone },
+        customer: {
+          userId: booking.passengerId,
+          phone: booking.passenger.phone,
+        },
         metadata: { bookingId },
       });
       const updatedExisting =
@@ -62,7 +81,9 @@ export class PaymentsService {
       status: PaymentStatus.created,
       amount: booking.price,
       currency: booking.currency,
-      payload: dto.idempotencyKey ? { idempotencyKey: dto.idempotencyKey } : undefined,
+      payload: dto.idempotencyKey
+        ? { idempotencyKey: dto.idempotencyKey }
+        : undefined,
     });
 
     const adapter = this.registry.get(dto.provider);
@@ -75,7 +96,10 @@ export class PaymentsService {
       metadata: { bookingId },
     });
 
-    const updatedPayment = await this.repo.updateStatus(payment.id, PaymentStatus.pending);
+    const updatedPayment = await this.repo.updateStatus(
+      payment.id,
+      PaymentStatus.pending,
+    );
 
     return { payment: updatedPayment, intent };
   }
@@ -103,7 +127,11 @@ export class PaymentsService {
    * - обновление Payment.status
    * - доменные эффекты (например, подтверждение оплаты)
    */
-  async handleWebhook(provider: PaymentProvider, headers: Record<string, any>, rawBody: Buffer) {
+  async handleWebhook(
+    provider: PaymentProvider,
+    headers: Record<string, string | string[] | undefined>,
+    rawBody: Buffer,
+  ) {
     const adapter = this.registry.get(provider);
     const parsed = await adapter.verifyAndParseWebhook({ headers, rawBody });
 
@@ -120,22 +148,28 @@ export class PaymentsService {
 
     const dedupeKey = this.buildDedupeKey(provider, parsed);
 
-    return this.prisma.$transaction(async (tx) => {
-      const event = await tx.paymentEvent.create({
-        data: {
-          paymentId: payment.id,
-          provider,
-          externalEventId: parsed.externalEventId ?? null,
-          dedupeKey,
-          type: parsed.status ?? 'unknown',
-          payload: parsed.raw ?? parsed,
-        },
-      }).catch((err) => {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-          return null;
-        }
-        throw err;
-      });
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const eventPayload = (parsed.raw ?? parsed) as Prisma.InputJsonValue;
+      const event = await tx.paymentEvent
+        .create({
+          data: {
+            paymentId: payment.id,
+            provider,
+            externalEventId: parsed.externalEventId ?? null,
+            dedupeKey,
+            type: parsed.status ?? 'unknown',
+            payload: eventPayload,
+          },
+        })
+        .catch((err: unknown) => {
+          if (
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002'
+          ) {
+            return null;
+          }
+          throw err;
+        });
 
       if (!event) {
         return { ok: true, duplicate: true };

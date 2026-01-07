@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   BookingStatus,
   NegotiationSessionState,
@@ -18,6 +23,7 @@ import { AuditAction } from '../../audit/audit.actions';
 import { OutboxService } from '../../outbox/outbox.service';
 import { OutboxTopic } from '../../outbox/outbox.topics';
 import { DriversService } from '../drivers/drivers.service';
+import { isPrismaError } from '../../common/utils/prisma-error';
 
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { AcceptOfferDto } from './dto/accept-offer.dto';
@@ -33,11 +39,13 @@ export class OffersService {
     private readonly outbox: OutboxService,
     private readonly drivers: DriversService,
     private readonly config: ConfigService,
-  ) { }
+  ) {}
 
   private getNegotiationLimits() {
-    const maxDriverOffers = this.config.get<number>('negotiation.maxDriverOffers') ?? 3;
-    const maxPassengerOffers = this.config.get<number>('negotiation.maxPassengerOffers') ?? 3;
+    const maxDriverOffers =
+      this.config.get<number>('negotiation.maxDriverOffers') ?? 3;
+    const maxPassengerOffers =
+      this.config.get<number>('negotiation.maxPassengerOffers') ?? 3;
     return {
       maxDriverOffers,
       maxPassengerOffers,
@@ -45,7 +53,7 @@ export class OffersService {
     };
   }
 
-  private assertRoleAllowed(role: any): asserts role is Role {
+  private assertRoleAllowed(role: Role) {
     if (role !== Role.driver && role !== Role.passenger) {
       throw new ForbiddenException('Role not allowed');
     }
@@ -56,7 +64,12 @@ export class OffersService {
    * - passenger, который создал request
    * - driver, владелец trip по request
    */
-  private async assertParticipant(tx: Prisma.TransactionClient, userId: string, role: Role, requestId: string) {
+  private async assertParticipant(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    role: Role,
+    requestId: string,
+  ) {
     const req = await tx.tripRequest.findUnique({
       where: { id: requestId },
       include: { trip: true },
@@ -82,7 +95,9 @@ export class OffersService {
   }
 
   private async ensureSession(tx: Prisma.TransactionClient, requestId: string) {
-    const existing = await tx.negotiationSession.findUnique({ where: { requestId } });
+    const existing = await tx.negotiationSession.findUnique({
+      where: { requestId },
+    });
     if (existing) return existing;
 
     const limits = this.getNegotiationLimits();
@@ -100,21 +115,23 @@ export class OffersService {
           version: 0,
         },
       });
-    } catch (error: any) {
-      if (String(error?.code) === 'P2002') {
-        return tx.negotiationSession.findUniqueOrThrow({ where: { requestId } });
+    } catch (error: unknown) {
+      if (isPrismaError(error) && error.code === 'P2002') {
+        return tx.negotiationSession.findUniqueOrThrow({
+          where: { requestId },
+        });
       }
       throw error;
     }
   }
 
-  async listForRequest(userId: string, role: any, requestId: string) {
+  async listForRequest(userId: string, role: Role, requestId: string) {
     this.assertRoleAllowed(role);
     if (role === Role.driver) {
       await this.drivers.assertVerifiedDriver(userId);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const req = await this.assertParticipant(tx, userId, role, requestId);
       const session = await this.ensureSession(tx, requestId);
 
@@ -140,20 +157,31 @@ export class OffersService {
       });
 
       // принятый оффер (переговоры завершены)
-      const accepted = items.find((x) => x.status === OfferStatus.accepted) ?? null;
+      const accepted =
+        items.find((x) => x.status === OfferStatus.accepted) ?? null;
 
       // активный оффер (текущий “ход” ожидает ответа)
       const active = items.find((x) => x.status === OfferStatus.active) ?? null;
 
-      const driverAttemptsUsed = items.filter((x) => x.proposerRole === Role.driver).length;
-      const passengerAttemptsUsed = items.filter((x) => x.proposerRole === Role.passenger).length;
+      const driverAttemptsUsed = items.filter(
+        (x) => x.proposerRole === Role.driver,
+      ).length;
+      const passengerAttemptsUsed = items.filter(
+        (x) => x.proposerRole === Role.passenger,
+      ).length;
       const maxDriverOffers = driverAttemptsUsed + session.driverMovesLeft;
-      const maxPassengerOffers = passengerAttemptsUsed + session.passengerMovesLeft;
+      const maxPassengerOffers =
+        passengerAttemptsUsed + session.passengerMovesLeft;
       const maxPerSide = Math.max(maxDriverOffers, maxPassengerOffers);
 
-      const myAttemptsUsed = role === Role.driver ? driverAttemptsUsed : passengerAttemptsUsed;
-      const myAttemptsLeft = role === Role.driver ? session.driverMovesLeft : session.passengerMovesLeft;
-      const myMaxOffers = role === Role.driver ? maxDriverOffers : maxPassengerOffers;
+      const myAttemptsUsed =
+        role === Role.driver ? driverAttemptsUsed : passengerAttemptsUsed;
+      const myAttemptsLeft =
+        role === Role.driver
+          ? session.driverMovesLeft
+          : session.passengerMovesLeft;
+      const myMaxOffers =
+        role === Role.driver ? maxDriverOffers : maxPassengerOffers;
 
       const nextTurnRole = session.nextTurn;
 
@@ -183,7 +211,9 @@ export class OffersService {
       );
 
       const canReject = canAccept; // отклонение доступно только контрагенту на active
-      const canCancel = Boolean(negotiationOk && active && active.proposerId === userId);
+      const canCancel = Boolean(
+        negotiationOk && active && active.proposerId === userId,
+      );
 
       const meta = {
         maxPerSide,
@@ -209,7 +239,6 @@ export class OffersService {
     });
   }
 
-
   /**
    * Создать offer:
    * - request должен быть pending
@@ -218,7 +247,12 @@ export class OffersService {
    * - один active offer на request на proposer (unique)
    * - при создании: отменяем предыдущий active offer того же proposer (если был)
    */
-  async createOffer(userId: string, role: any, requestId: string, dto: CreateOfferDto) {
+  async createOffer(
+    userId: string,
+    role: Role,
+    requestId: string,
+    dto: CreateOfferDto,
+  ) {
     this.assertRoleAllowed(role);
     if (role === Role.driver) {
       await this.drivers.assertVerifiedDriver(userId);
@@ -229,7 +263,7 @@ export class OffersService {
     }
 
     const result: CreateOfferResult = await this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         const req = await this.assertParticipant(tx, userId, role, requestId);
         await tx.$queryRaw`SELECT id FROM "TripRequest" WHERE id = ${requestId} FOR UPDATE`;
         await tx.$queryRaw`SELECT id FROM "NegotiationSession" WHERE "requestId" = ${requestId} FOR UPDATE`;
@@ -258,24 +292,34 @@ export class OffersService {
           select: { id: true },
         });
         if (accepted) {
-          throw new BadRequestException('Negotiation already finished (offer accepted)');
+          throw new BadRequestException(
+            'Negotiation already finished (offer accepted)',
+          );
         }
 
         // 1) запрет если уже есть активный offer (сначала принять/отклонить/контроффер)
-        const active =
-          session.lastOfferId
-            ? await tx.offer.findUnique({
+        const active = session.lastOfferId
+          ? await tx.offer.findUnique({
               where: { id: session.lastOfferId },
-              select: { id: true, proposerId: true, proposerRole: true, status: true },
+              select: {
+                id: true,
+                proposerId: true,
+                proposerRole: true,
+                status: true,
+              },
             })
-            : null;
+          : null;
         if (active) {
           if (active.status !== OfferStatus.active) {
-            throw new BadRequestException('Negotiation state is out of sync; refresh');
+            throw new BadRequestException(
+              'Negotiation state is out of sync; refresh',
+            );
           }
           // если активный от тебя — жди ответа или cancel
           if (active.proposerId === userId) {
-            throw new BadRequestException('Wait for counterparty response or cancel your active offer');
+            throw new BadRequestException(
+              'Wait for counterparty response or cancel your active offer',
+            );
           }
 
           // активный от другой стороны — в turn-based модели контр-оффер является ответом,
@@ -293,7 +337,9 @@ export class OffersService {
 
         // 2) проверка очередности (чередование)
         if (session.nextTurn !== role) {
-          throw new BadRequestException('Not your turn. Counterparty must respond first');
+          throw new BadRequestException(
+            'Not your turn. Counterparty must respond first',
+          );
         }
 
         // 3) лимит 3 предложения на сторону (role-based)
@@ -305,7 +351,10 @@ export class OffersService {
             ? session.driverMovesLeft + attemptsUsed
             : session.passengerMovesLeft + attemptsUsed;
 
-        const movesLeft = role === Role.driver ? session.driverMovesLeft : session.passengerMovesLeft;
+        const movesLeft =
+          role === Role.driver
+            ? session.driverMovesLeft
+            : session.passengerMovesLeft;
         if (movesLeft <= 0) {
           const sessionUpdate = await tx.negotiationSession.updateMany({
             where: { id: session.id, version: session.version },
@@ -315,7 +364,9 @@ export class OffersService {
             },
           });
           if (sessionUpdate.count !== 1) {
-            throw new BadRequestException('Negotiation session changed, please retry');
+            throw new BadRequestException(
+              'Negotiation session changed, please retry',
+            );
           }
 
           await tx.tripRequest.updateMany({
@@ -327,7 +378,7 @@ export class OffersService {
             },
           });
 
-          return { expired: true, maxForRole };
+          return { expired: true as const, maxForRole };
         }
 
         const seqData = await tx.offer.aggregate({
@@ -351,19 +402,30 @@ export class OffersService {
           },
         });
 
-        const nextTurn = role === Role.driver ? NegotiationTurn.passenger : NegotiationTurn.driver;
+        const nextTurn =
+          role === Role.driver
+            ? NegotiationTurn.passenger
+            : NegotiationTurn.driver;
         const sessionUpdate = await tx.negotiationSession.updateMany({
           where: { id: session.id, version: session.version },
           data: {
             nextTurn,
-            driverMovesLeft: role === Role.driver ? session.driverMovesLeft - 1 : session.driverMovesLeft,
-            passengerMovesLeft: role === Role.passenger ? session.passengerMovesLeft - 1 : session.passengerMovesLeft,
+            driverMovesLeft:
+              role === Role.driver
+                ? session.driverMovesLeft - 1
+                : session.driverMovesLeft,
+            passengerMovesLeft:
+              role === Role.passenger
+                ? session.passengerMovesLeft - 1
+                : session.passengerMovesLeft,
             lastOfferId: created.id,
             version: { increment: 1 },
           },
         });
         if (sessionUpdate.count !== 1) {
-          throw new BadRequestException('Negotiation session changed, please retry');
+          throw new BadRequestException(
+            'Negotiation session changed, please retry',
+          );
         }
 
         await this.audit.logTx(tx, {
@@ -412,8 +474,6 @@ export class OffersService {
     return result;
   }
 
-
-
   /**
    * Принять offer:
    * - принять может только “противоположная сторона”
@@ -423,15 +483,19 @@ export class OffersService {
    * - обновляем price на request (это и есть “пересчет денег”)
    */
 
-
-  async acceptOffer(userId: string, role: any, offerId: string, dto: AcceptOfferDto) {
+  async acceptOffer(
+    userId: string,
+    role: Role,
+    offerId: string,
+    dto: AcceptOfferDto,
+  ) {
     this.assertRoleAllowed(role);
     if (role === Role.driver) {
       await this.drivers.assertVerifiedDriver(userId);
     }
 
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         const offer = await tx.offer.findUnique({
           where: { id: offerId },
           include: { request: { include: { trip: true } } },
@@ -442,15 +506,23 @@ export class OffersService {
         await tx.$queryRaw`SELECT id FROM "NegotiationSession" WHERE "requestId" = ${offer.requestId} FOR UPDATE`;
 
         // доступ только участникам request
-        const req = await this.assertParticipant(tx, userId, role, offer.requestId);
+        const req = await this.assertParticipant(
+          tx,
+          userId,
+          role,
+          offer.requestId,
+        );
         const session = await this.ensureSession(tx, offer.requestId);
 
         // 1) базовые проверки
-        if (offer.status !== OfferStatus.active) { // или pending
+        if (offer.status !== OfferStatus.active) {
+          // или pending
           throw new BadRequestException('Only active offer can be accepted');
         }
         if (req.status !== RequestStatus.pending) {
-          throw new BadRequestException('Only pending request can accept offers');
+          throw new BadRequestException(
+            'Only pending request can accept offers',
+          );
         }
         if (req.trip.status !== TripStatus.published) {
           throw new BadRequestException('Trip is not published');
@@ -459,15 +531,21 @@ export class OffersService {
           throw new BadRequestException('Negotiation already finished');
         }
         if (session.lastOfferId !== offerId) {
-          throw new BadRequestException('Only the latest offer can be accepted');
+          throw new BadRequestException(
+            'Only the latest offer can be accepted',
+          );
         }
         if (session.nextTurn !== role) {
           throw new BadRequestException('Not your turn to respond');
         }
 
         // 2) принять может только контрагент
-        if (offer.proposerId === userId) throw new ForbiddenException('Cannot accept your own offer');
-        if (offer.proposerRole === role) throw new ForbiddenException('Only counterparty can accept this offer');
+        if (offer.proposerId === userId)
+          throw new ForbiddenException('Cannot accept your own offer');
+        if (offer.proposerRole === role)
+          throw new ForbiddenException(
+            'Only counterparty can accept this offer',
+          );
 
         // 3) seats инварианты (предположим, что request.seats хранит нужное кол-во мест)
         // Если у тебя seats в request нет — добавь или вычисляй из request/booking модели.
@@ -483,7 +561,9 @@ export class OffersService {
           data: { seatsAvailable: { decrement: seatsToReserve } },
         });
         if (tripUpd.count !== 1) {
-          throw new BadRequestException('Not enough seats or trip not available (race condition)');
+          throw new BadRequestException(
+            'Not enough seats or trip not available (race condition)',
+          );
         }
 
         const now = new Date();
@@ -498,7 +578,8 @@ export class OffersService {
             responseReason: null,
           },
         });
-        if (acceptRes.count !== 1) throw new BadRequestException('Offer already processed');
+        if (acceptRes.count !== 1)
+          throw new BadRequestException('Offer already processed');
 
         // 6) отменяем остальные активные офферы по request
         await tx.offer.updateMany({
@@ -536,7 +617,9 @@ export class OffersService {
           },
         });
         if (sessionUpdate.count !== 1) {
-          throw new BadRequestException('Negotiation session changed, please retry');
+          throw new BadRequestException(
+            'Negotiation session changed, please retry',
+          );
         }
 
         // 8) создаём booking (1:1 с request)
@@ -597,14 +680,19 @@ export class OffersService {
     );
   }
 
-  async rejectOffer(userId: string, role: any, offerId: string, dto: RejectOfferDto) {
+  async rejectOffer(
+    userId: string,
+    role: Role,
+    offerId: string,
+    dto: RejectOfferDto,
+  ) {
     this.assertRoleAllowed(role);
     if (role === Role.driver) {
       await this.drivers.assertVerifiedDriver(userId);
     }
 
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         const offer = await tx.offer.findUnique({
           where: { id: offerId },
           include: { request: { include: { trip: true } } },
@@ -624,13 +712,17 @@ export class OffersService {
           throw new ForbiddenException('Cannot reject your own offer');
         }
         if (offer.proposerRole === role) {
-          throw new ForbiddenException('Only counterparty can reject this offer');
+          throw new ForbiddenException(
+            'Only counterparty can reject this offer',
+          );
         }
         if (session.state !== NegotiationSessionState.active) {
           throw new BadRequestException('Negotiation already finished');
         }
         if (session.lastOfferId !== offerId) {
-          throw new BadRequestException('Only the latest offer can be rejected');
+          throw new BadRequestException(
+            'Only the latest offer can be rejected',
+          );
         }
         if (session.nextTurn !== role) {
           throw new BadRequestException('Not your turn to respond');
@@ -644,10 +736,10 @@ export class OffersService {
             responseReason: dto.reason ?? null,
             responseNote: dto.note ?? null,
           },
-
         });
 
-        if (upd.count !== 1) throw new BadRequestException('Offer already processed');
+        if (upd.count !== 1)
+          throw new BadRequestException('Offer already processed');
 
         const sessionUpdate = await tx.negotiationSession.updateMany({
           where: { id: session.id, version: session.version },
@@ -658,7 +750,9 @@ export class OffersService {
           },
         });
         if (sessionUpdate.count !== 1) {
-          throw new BadRequestException('Negotiation session changed, please retry');
+          throw new BadRequestException(
+            'Negotiation session changed, please retry',
+          );
         }
 
         await this.audit.logTx(tx, {
@@ -697,14 +791,14 @@ export class OffersService {
     );
   }
 
-  async cancelOffer(userId: string, role: any, offerId: string) {
+  async cancelOffer(userId: string, role: Role, offerId: string) {
     this.assertRoleAllowed(role);
     if (role === Role.driver) {
       await this.drivers.assertVerifiedDriver(userId);
     }
 
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         const offer = await tx.offer.findUnique({
           where: { id: offerId },
           include: { request: { include: { trip: true } } },
@@ -739,7 +833,10 @@ export class OffersService {
 
         if (upd.count !== 1) return { ok: true };
 
-        const nextTurn = offer.proposerRole === Role.driver ? NegotiationTurn.passenger : NegotiationTurn.driver;
+        const nextTurn =
+          offer.proposerRole === Role.driver
+            ? NegotiationTurn.passenger
+            : NegotiationTurn.driver;
         const sessionUpdate = await tx.negotiationSession.updateMany({
           where: { id: session.id, version: session.version },
           data: {
@@ -750,7 +847,9 @@ export class OffersService {
           },
         });
         if (sessionUpdate.count !== 1) {
-          throw new BadRequestException('Negotiation session changed, please retry');
+          throw new BadRequestException(
+            'Negotiation session changed, please retry',
+          );
         }
 
         await this.audit.logTx(tx, {

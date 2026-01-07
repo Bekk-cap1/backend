@@ -24,8 +24,18 @@ import { OutboxModule } from '../../outbox/outbox.module';
     // registry bootstrap
     {
       provide: 'PAYMENT_PROVIDERS_BOOTSTRAP',
-      inject: [PaymentProviderRegistry, ClickProvider, PaymeProvider, StripeProvider],
-      useFactory: (reg: PaymentProviderRegistry, click: ClickProvider, payme: PaymeProvider, stripe: StripeProvider) => {
+      inject: [
+        PaymentProviderRegistry,
+        ClickProvider,
+        PaymeProvider,
+        StripeProvider,
+      ],
+      useFactory: (
+        reg: PaymentProviderRegistry,
+        click: ClickProvider,
+        payme: PaymeProvider,
+        stripe: StripeProvider,
+      ) => {
         reg.register(click);
         reg.register(payme);
         reg.register(stripe);
@@ -36,4 +46,3 @@ import { OutboxModule } from '../../outbox/outbox.module';
   exports: [PaymentsService],
 })
 export class PaymentsModule {}
-    

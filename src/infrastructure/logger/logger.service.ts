@@ -14,11 +14,20 @@ export class AppLoggerService implements LoggerService {
       transport: isProd
         ? undefined
         : {
-          target: 'pino-pretty',
-          options: { singleLine: true, colorize: true, translateTime: 'SYS:standard' },
-        },
+            target: 'pino-pretty',
+            options: {
+              singleLine: true,
+              colorize: true,
+              translateTime: 'SYS:standard',
+            },
+          },
       redact: {
-        paths: ['req.headers.authorization', '*.password', '*.passwordHash', '*.refreshToken'],
+        paths: [
+          'req.headers.authorization',
+          '*.password',
+          '*.passwordHash',
+          '*.refreshToken',
+        ],
         remove: true,
       },
     });
@@ -57,5 +66,4 @@ export class AppLoggerService implements LoggerService {
     if (meta) this.logger.error(meta, message);
     else this.logger.error(message);
   }
-
 }

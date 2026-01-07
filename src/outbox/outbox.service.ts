@@ -8,7 +8,7 @@ export type OutboxEnqueueInput = {
   topic: OutboxTopicType;
   aggregateType: string;
   aggregateId?: string;
-  payload: any;
+  payload: Prisma.InputJsonValue;
 
   // если хочешь жесткую идемпотентность (рекомендуется для critical)
   idempotencyKey?: string;
@@ -19,7 +19,7 @@ export type OutboxEnqueueInput = {
 
 @Injectable()
 export class OutboxService {
-  async enqueueTx(tx: Tx, input: OutboxEnqueueInput) {
+  enqueueTx(tx: Tx, input: OutboxEnqueueInput) {
     // idempotencyKey опционален: если передан — гарантируем уникальность
     return tx.outboxEvent.create({
       data: {

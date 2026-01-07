@@ -12,7 +12,8 @@ export class PaymentProviderRegistry {
 
   get(provider: PaymentProvider): PaymentProviderAdapter {
     const found = this.map.get(provider);
-    if (!found) throw new Error(`Payment provider adapter not registered: ${provider}`);
+    if (!found)
+      throw new Error(`Payment provider adapter not registered: ${provider}`);
     return found;
   }
 

@@ -6,6 +6,7 @@ import { PrismaService } from '../infrastructure/prisma/prisma.service';
 import { OutboxTopic, type OutboxTopicType } from './outbox.topics';
 import { ConfigService } from '@nestjs/config';
 import { RealtimeGateway } from '../modules/realtime/realtime.gateway';
+import { isPrismaError } from '../common/utils/prisma-error';
 
 type NotificationDraft = {
   userId: string;
@@ -14,6 +15,11 @@ type NotificationDraft = {
   message?: string | null;
   payload?: Prisma.InputJsonValue | null;
   idempotencyKey: string;
+};
+
+type OutboxJobData = {
+  outboxId?: string | number;
+  payload?: Prisma.InputJsonObject;
 };
 
 @Processor('domain-events')
@@ -28,26 +34,36 @@ export class DomainEventsProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job) {
+  async process(job: Job<OutboxJobData>) {
     // job.name == topic
     // job.data == payload
     this.logger.log(`EVENT ${job.name} outboxId=${job.data?.outboxId}`);
 
     const topic = job.name as OutboxTopicType;
-    const payload = (job.data?.payload ?? {}) as Prisma.InputJsonObject;
-    const outboxId = String(job.data?.outboxId ?? '');
+    const payload = job.data?.payload ?? {};
+    const outboxId = asString(job.data?.outboxId);
 
-    const notifications = await this.buildNotifications(topic, payload, outboxId);
+    const notifications = await this.buildNotifications(
+      topic,
+      payload,
+      outboxId,
+    );
     if (notifications.length === 0) {
       return;
     }
 
-    const realtimeEnabled = Boolean(this.config.get('features.realtimeEnabled'));
+    const realtimeEnabled = Boolean(
+      this.config.get('features.realtimeEnabled'),
+    );
 
     for (const notification of notifications) {
       const created = await this.createNotification(notification);
       if (created && realtimeEnabled) {
-        this.realtimeGateway.emitToUser(created.userId, 'notification', created);
+        this.realtimeGateway.emitToUser(
+          created.userId,
+          'notification',
+          created,
+        );
       }
     }
   }
@@ -64,8 +80,8 @@ export class DomainEventsProcessor extends WorkerHost {
           idempotencyKey: notification.idempotencyKey,
         },
       });
-    } catch (error: any) {
-      if (String(error?.code) === 'P2002') {
+    } catch (error: unknown) {
+      if (isPrismaError(error) && error.code === 'P2002') {
         return null;
       }
       throw error;
@@ -81,40 +97,109 @@ export class DomainEventsProcessor extends WorkerHost {
       case OutboxTopic.TripPublished:
         return this.notifyTripPublished(payload, outboxId);
       case OutboxTopic.TripStarted:
-        return this.notifyTripParticipants(payload, outboxId, topic, 'Поездка началась', 'Водитель начал поездку.');
+        return this.notifyTripParticipants(
+          payload,
+          outboxId,
+          topic,
+          'Поездка началась',
+          'Водитель начал поездку.',
+        );
       case OutboxTopic.TripCompleted:
-        return this.notifyTripParticipants(payload, outboxId, topic, 'Поездка завершена', 'Поездка завершена. Спасибо!');
+        return this.notifyTripParticipants(
+          payload,
+          outboxId,
+          topic,
+          'Поездка завершена',
+          'Поездка завершена. Спасибо!',
+        );
       case OutboxTopic.TripCanceled:
-        return this.notifyTripParticipants(payload, outboxId, topic, 'Поездка отменена', 'Поездка была отменена.');
+        return this.notifyTripParticipants(
+          payload,
+          outboxId,
+          topic,
+          'Поездка отменена',
+          'Поездка была отменена.',
+        );
       case OutboxTopic.RequestCreated:
         return this.notifyRequestCreated(payload, outboxId);
       case OutboxTopic.RequestAccepted:
-        return this.notifyRequestDecision(payload, outboxId, topic, 'Заявка принята', 'Ваша заявка принята.');
+        return this.notifyRequestDecision(
+          payload,
+          outboxId,
+          topic,
+          'Заявка принята',
+          'Ваша заявка принята.',
+        );
       case OutboxTopic.RequestRejected:
-        return this.notifyRequestDecision(payload, outboxId, topic, 'Заявка отклонена', 'Ваша заявка отклонена.');
+        return this.notifyRequestDecision(
+          payload,
+          outboxId,
+          topic,
+          'Заявка отклонена',
+          'Ваша заявка отклонена.',
+        );
       case OutboxTopic.RequestCanceled:
         return this.notifyRequestCanceled(payload, outboxId);
       case OutboxTopic.OfferCreated:
         return this.notifyOfferCreated(payload, outboxId);
       case OutboxTopic.OfferAccepted:
-        return this.notifyOfferOutcome(payload, outboxId, topic, 'Оффер принят', 'Ваш оффер принят.');
+        return this.notifyOfferOutcome(
+          payload,
+          outboxId,
+          topic,
+          'Оффер принят',
+          'Ваш оффер принят.',
+        );
       case OutboxTopic.OfferRejected:
-        return this.notifyOfferOutcome(payload, outboxId, topic, 'Оффер отклонен', 'Ваш оффер отклонен.');
+        return this.notifyOfferOutcome(
+          payload,
+          outboxId,
+          topic,
+          'Оффер отклонен',
+          'Ваш оффер отклонен.',
+        );
       case OutboxTopic.OfferCanceled:
-        return this.notifyOfferOutcome(payload, outboxId, topic, 'Оффер отменен', 'Оффер был отменен.');
+        return this.notifyOfferOutcome(
+          payload,
+          outboxId,
+          topic,
+          'Оффер отменен',
+          'Оффер был отменен.',
+        );
       case OutboxTopic.DriverVerified:
-        return this.notifyUser(payload, outboxId, topic, 'Профиль водителя подтвержден', 'Ваш профиль водителя подтвержден.');
+        return this.notifyUser(
+          payload,
+          outboxId,
+          topic,
+          'Профиль водителя подтвержден',
+          'Ваш профиль водителя подтвержден.',
+        );
       case OutboxTopic.DriverRejected:
-        return this.notifyUser(payload, outboxId, topic, 'Профиль водителя отклонен', 'Ваш профиль водителя отклонен.');
+        return this.notifyUser(
+          payload,
+          outboxId,
+          topic,
+          'Профиль водителя отклонен',
+          'Ваш профиль водителя отклонен.',
+        );
       case OutboxTopic.UserRoleChanged:
-        return this.notifyUser(payload, outboxId, topic, 'Роль обновлена', 'Ваша роль была изменена.');
+        return this.notifyUser(
+          payload,
+          outboxId,
+          topic,
+          'Роль обновлена',
+          'Ваша роль была изменена.',
+        );
       default:
         return [];
     }
   }
 
-  private async notifyTripPublished(payload: Prisma.InputJsonObject, outboxId: string) {
-    const driverId = String(payload.driverId ?? '');
+  private notifyTripPublished(
+    payload: Prisma.InputJsonObject,
+    outboxId: string,
+  ) {
+    const driverId = asString(payload.driverId);
     if (!driverId) return [];
 
     return [
@@ -136,7 +221,7 @@ export class DomainEventsProcessor extends WorkerHost {
     title: string,
     message: string,
   ) {
-    const tripId = String(payload.tripId ?? '');
+    const tripId = asString(payload.tripId);
     if (!tripId) return [];
 
     const bookings = await this.prisma.booking.findMany({
@@ -156,8 +241,11 @@ export class DomainEventsProcessor extends WorkerHost {
     );
   }
 
-  private async notifyRequestCreated(payload: Prisma.InputJsonObject, outboxId: string) {
-    const tripId = String(payload.tripId ?? '');
+  private async notifyRequestCreated(
+    payload: Prisma.InputJsonObject,
+    outboxId: string,
+  ) {
+    const tripId = asString(payload.tripId);
     if (!tripId) return [];
 
     const trip = await this.prisma.trip.findUnique({
@@ -186,7 +274,7 @@ export class DomainEventsProcessor extends WorkerHost {
     title: string,
     message: string,
   ) {
-    const requestId = String(payload.requestId ?? '');
+    const requestId = asString(payload.requestId);
     if (!requestId) return [];
 
     const request = await this.prisma.tripRequest.findUnique({
@@ -207,8 +295,11 @@ export class DomainEventsProcessor extends WorkerHost {
     ];
   }
 
-  private async notifyRequestCanceled(payload: Prisma.InputJsonObject, outboxId: string) {
-    const requestId = String(payload.requestId ?? '');
+  private async notifyRequestCanceled(
+    payload: Prisma.InputJsonObject,
+    outboxId: string,
+  ) {
+    const requestId = asString(payload.requestId);
     if (!requestId) return [];
 
     const request = await this.prisma.tripRequest.findUnique({
@@ -229,10 +320,13 @@ export class DomainEventsProcessor extends WorkerHost {
     ];
   }
 
-  private async notifyOfferCreated(payload: Prisma.InputJsonObject, outboxId: string) {
-    const requestId = String(payload.requestId ?? '');
-    const proposerId = String(payload.proposerId ?? '');
-    const proposerRole = String(payload.proposerRole ?? '');
+  private async notifyOfferCreated(
+    payload: Prisma.InputJsonObject,
+    outboxId: string,
+  ) {
+    const requestId = asString(payload.requestId);
+    const proposerId = asString(payload.proposerId);
+    const proposerRole = asString(payload.proposerRole);
     if (!requestId || !proposerId) return [];
 
     const request = await this.prisma.tripRequest.findUnique({
@@ -241,7 +335,10 @@ export class DomainEventsProcessor extends WorkerHost {
     });
     if (!request) return [];
 
-    const recipientId = proposerRole === 'passenger' ? request.trip.driverId : request.passengerId;
+    const recipientId =
+      proposerRole === 'passenger'
+        ? request.trip.driverId
+        : request.passengerId;
     if (!recipientId) return [];
 
     return [
@@ -256,14 +353,14 @@ export class DomainEventsProcessor extends WorkerHost {
     ];
   }
 
-  private async notifyOfferOutcome(
+  private notifyOfferOutcome(
     payload: Prisma.InputJsonObject,
     outboxId: string,
     type: OutboxTopicType,
     title: string,
     message: string,
   ) {
-    const proposerId = String(payload.proposerId ?? '');
+    const proposerId = asString(payload.proposerId);
     if (!proposerId) return [];
 
     return [
@@ -278,14 +375,14 @@ export class DomainEventsProcessor extends WorkerHost {
     ];
   }
 
-  private async notifyUser(
+  private notifyUser(
     payload: Prisma.InputJsonObject,
     outboxId: string,
     type: OutboxTopicType,
     title: string,
     message: string,
   ) {
-    const userId = String(payload.userId ?? '');
+    const userId = asString(payload.userId);
     if (!userId) return [];
 
     return [
@@ -317,4 +414,11 @@ export class DomainEventsProcessor extends WorkerHost {
       idempotencyKey: `outbox:${input.outboxId}:user:${input.userId}`,
     };
   }
+}
+
+function asString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return String(value);
+  return '';
 }

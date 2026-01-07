@@ -124,12 +124,21 @@ export class OutboxDispatcher {
             lastError: null,
           },
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         const attempts = (e.attempts ?? 0) + 1;
 
         // Exponential backoff (capped)
-        const delayMs = Math.min(5 * 60_000, 1_000 * 2 ** Math.min(10, attempts));
+        const delayMs = Math.min(
+          5 * 60_000,
+          1_000 * 2 ** Math.min(10, attempts),
+        );
         const nextRetryAt = new Date(Date.now() + delayMs);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : 'Unknown error';
 
         await this.prisma.outboxEvent.update({
           where: { id: e.id },
@@ -139,7 +148,7 @@ export class OutboxDispatcher {
             nextRetryAt,
             lockedAt: null,
             lockedBy: null,
-            lastError: (err?.message ?? String(err)).slice(0, 1000),
+            lastError: errorMessage.slice(0, 1000),
           },
         });
 

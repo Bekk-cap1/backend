@@ -18,7 +18,12 @@ export class PaymentsRepository {
     return this.prisma.payment.findFirst({ where: { externalId } });
   }
 
-  updateStatus(id: string, status: PaymentStatus, payload?: any, externalId?: string | null) {
+  updateStatus(
+    id: string,
+    status: PaymentStatus,
+    payload?: Prisma.InputJsonValue,
+    externalId?: string | null,
+  ) {
     return this.prisma.payment.update({
       where: { id },
       data: {
@@ -42,7 +47,13 @@ export class PaymentsRepository {
     ]);
   }
 
-  findIdempotent(params: { bookingId: string; provider: PaymentProvider; amount: number; currency: string; key?: string }) {
+  findIdempotent(params: {
+    bookingId: string;
+    provider: PaymentProvider;
+    amount: number;
+    currency: string;
+    key?: string;
+  }) {
     // Сейчас без поля idempotencyKey в БД — fallback:
     // 1) если key передали — позже добавим поле и unique индекс
     // 2) пока возвращаем последний pending по booking+provider

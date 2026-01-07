@@ -10,7 +10,11 @@ import { OffersModule } from '../../offers/offers.module';
 
 @Module({
   imports: [PrismaModule, OutboxModule, DriversModule, OffersModule],
-  controllers: [RequestsController, RequestsByIdController, DriverRequestsController],
+  controllers: [
+    RequestsController,
+    RequestsByIdController,
+    DriverRequestsController,
+  ],
   providers: [RequestsService],
   exports: [RequestsService],
 })

@@ -1,7 +1,13 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import {
   BookingStatus,
+  Prisma,
   NegotiationSessionState,
   NegotiationTurn,
   OfferStatus,
@@ -13,6 +19,7 @@ import { ConfigService } from '@nestjs/config';
 import { OutboxService } from '../../../outbox/outbox.service';
 import { OutboxTopic } from '../../../outbox/outbox.topics';
 import { DriversService } from '../../drivers/drivers.service';
+import { isPrismaError } from '../../../common/utils/prisma-error';
 
 @Injectable()
 export class RequestsService {
@@ -24,8 +31,10 @@ export class RequestsService {
   ) {}
 
   private getNegotiationLimits() {
-    const maxDriverOffers = this.config.get<number>('negotiation.maxDriverOffers') ?? 3;
-    const maxPassengerOffers = this.config.get<number>('negotiation.maxPassengerOffers') ?? 3;
+    const maxDriverOffers =
+      this.config.get<number>('negotiation.maxDriverOffers') ?? 3;
+    const maxPassengerOffers =
+      this.config.get<number>('negotiation.maxPassengerOffers') ?? 3;
     return {
       maxDriverOffers,
       maxPassengerOffers,
@@ -96,7 +105,9 @@ export class RequestsService {
 
     const session = await this.ensureNegotiationSession(requestId);
     const lastOffer = session.lastOfferId
-      ? await this.prisma.offer.findUnique({ where: { id: session.lastOfferId } })
+      ? await this.prisma.offer.findUnique({
+          where: { id: session.lastOfferId },
+        })
       : null;
 
     const driverAttemptsUsed = await this.prisma.offer.count({
@@ -106,7 +117,8 @@ export class RequestsService {
       where: { requestId, proposerRole: Role.passenger },
     });
     const maxDriverOffers = driverAttemptsUsed + session.driverMovesLeft;
-    const maxPassengerOffers = passengerAttemptsUsed + session.passengerMovesLeft;
+    const maxPassengerOffers =
+      passengerAttemptsUsed + session.passengerMovesLeft;
 
     return {
       requestId,
@@ -123,7 +135,9 @@ export class RequestsService {
   }
 
   private async ensureNegotiationSession(requestId: string) {
-    const existing = await this.prisma.negotiationSession.findUnique({ where: { requestId } });
+    const existing = await this.prisma.negotiationSession.findUnique({
+      where: { requestId },
+    });
     if (existing) return existing;
 
     const limits = this.getNegotiationLimits();
@@ -141,15 +155,21 @@ export class RequestsService {
           version: 0,
         },
       });
-    } catch (error: any) {
-      if (String(error?.code) === 'P2002') {
-        return this.prisma.negotiationSession.findUniqueOrThrow({ where: { requestId } });
+    } catch (error: unknown) {
+      if (isPrismaError(error) && error.code === 'P2002') {
+        return this.prisma.negotiationSession.findUniqueOrThrow({
+          where: { requestId },
+        });
       }
       throw error;
     }
   }
 
-  async createRequest(passengerId: string, tripId: string, dto: { seats: number; price: number; currency: string; message?: string }) {
+  async createRequest(
+    passengerId: string,
+    tripId: string,
+    dto: { seats: number; price: number; currency: string; message?: string },
+  ) {
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Trip not found');
 
@@ -162,47 +182,49 @@ export class RequestsService {
     }
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const limits = this.getNegotiationLimits();
+      return await this.prisma.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          const limits = this.getNegotiationLimits();
 
-        const req = await tx.tripRequest.create({
-          data: {
-            tripId,
-            passengerId,
-            seats: dto.seats,
-            price: dto.price,
-            currency: dto.currency,
-            message: dto.message ?? null,
-            status: RequestStatus.pending,
-          },
-        });
+          const req = await tx.tripRequest.create({
+            data: {
+              tripId,
+              passengerId,
+              seats: dto.seats,
+              price: dto.price,
+              currency: dto.currency,
+              message: dto.message ?? null,
+              status: RequestStatus.pending,
+            },
+          });
 
-        await tx.negotiationSession.create({
-          data: {
-            requestId: req.id,
-            state: NegotiationSessionState.active,
-            nextTurn: NegotiationTurn.driver,
-            driverMovesLeft: limits.maxDriverOffers,
-            passengerMovesLeft: limits.maxPassengerOffers,
-            maxMovesPerSide: limits.maxPerSide,
-            lastOfferId: null,
-            version: 0,
-          },
-        });
+          await tx.negotiationSession.create({
+            data: {
+              requestId: req.id,
+              state: NegotiationSessionState.active,
+              nextTurn: NegotiationTurn.driver,
+              driverMovesLeft: limits.maxDriverOffers,
+              passengerMovesLeft: limits.maxPassengerOffers,
+              maxMovesPerSide: limits.maxPerSide,
+              lastOfferId: null,
+              version: 0,
+            },
+          });
 
-        await this.outbox.enqueueTx(tx, {
-          topic: OutboxTopic.RequestCreated,
-          aggregateType: 'TripRequest',
-          aggregateId: req.id,
-          payload: { tripId, passengerId, seats: dto.seats },
-          idempotencyKey: `request.created:${req.id}`,
-        });
+          await this.outbox.enqueueTx(tx, {
+            topic: OutboxTopic.RequestCreated,
+            aggregateType: 'TripRequest',
+            aggregateId: req.id,
+            payload: { tripId, passengerId, seats: dto.seats },
+            idempotencyKey: `request.created:${req.id}`,
+          });
 
-        return req;
-      });
-    } catch (e: any) {
+          return req;
+        },
+      );
+    } catch (e: unknown) {
       // уникальность @@unique([tripId, passengerId])
-      if (String(e?.code) === 'P2002') {
+      if (isPrismaError(e) && e.code === 'P2002') {
         throw new BadRequestException('Request already exists for this trip');
       }
       throw e;
@@ -216,11 +238,16 @@ export class RequestsService {
    * - booking.create
    * - trip.seatsAvailable -= request.seats (атомарно)
    */
-  async acceptRequest(actorId: string, role: Role, tripId: string, requestId: string) {
+  async acceptRequest(
+    actorId: string,
+    role: Role,
+    tripId: string,
+    requestId: string,
+  ) {
     if (role === Role.driver) {
       await this.drivers.assertVerifiedDriver(actorId);
     }
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const trip = await tx.trip.findUnique({ where: { id: tripId } });
       if (!trip) throw new NotFoundException('Trip not found');
 
@@ -236,7 +263,8 @@ export class RequestsService {
       const req = await tx.tripRequest.findUnique({
         where: { id: requestId },
       });
-      if (!req || req.tripId !== tripId) throw new NotFoundException('Request not found');
+      if (!req || req.tripId !== tripId)
+        throw new NotFoundException('Request not found');
 
       if (req.status !== RequestStatus.pending) {
         throw new BadRequestException('Request is not pending');
@@ -251,11 +279,16 @@ export class RequestsService {
         where: { id: tripId, seatsAvailable: { gte: req.seats } },
         data: { seatsAvailable: { decrement: req.seats } },
       });
-      if (tripUpd.count !== 1) throw new BadRequestException('Seats race condition, retry');
+      if (tripUpd.count !== 1)
+        throw new BadRequestException('Seats race condition, retry');
 
       const updatedReq = await tx.tripRequest.update({
         where: { id: requestId },
-        data: { status: RequestStatus.accepted, respondedAt: new Date(), rejectionReason: null },
+        data: {
+          status: RequestStatus.accepted,
+          respondedAt: new Date(),
+          rejectionReason: null,
+        },
       });
 
       const booking = await tx.booking.create({
@@ -300,17 +333,25 @@ export class RequestsService {
     });
   }
 
-  async rejectRequest(actorId: string, role: Role, tripId: string, requestId: string, reason?: string) {
+  async rejectRequest(
+    actorId: string,
+    role: Role,
+    tripId: string,
+    requestId: string,
+    reason?: string,
+  ) {
     if (role === Role.driver) {
       await this.drivers.assertVerifiedDriver(actorId);
     }
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const trip = await tx.trip.findUnique({ where: { id: tripId } });
       if (!trip) throw new NotFoundException('Trip not found');
-      if (trip.driverId !== actorId) throw new ForbiddenException('Only trip driver can reject requests');
+      if (trip.driverId !== actorId)
+        throw new ForbiddenException('Only trip driver can reject requests');
 
       const req = await tx.tripRequest.findUnique({ where: { id: requestId } });
-      if (!req || req.tripId !== tripId) throw new NotFoundException('Request not found');
+      if (!req || req.tripId !== tripId)
+        throw new NotFoundException('Request not found');
 
       if (req.status !== RequestStatus.pending) {
         throw new BadRequestException('Request is not pending');
@@ -343,7 +384,11 @@ export class RequestsService {
         topic: OutboxTopic.RequestRejected,
         aggregateType: 'TripRequest',
         aggregateId: updated.id,
-        payload: { tripId, requestId: updated.id, reason: updated.rejectionReason },
+        payload: {
+          tripId,
+          requestId: updated.id,
+          reason: updated.rejectionReason,
+        },
         idempotencyKey: `request.rejected:${updated.id}`,
       });
 
@@ -352,7 +397,7 @@ export class RequestsService {
   }
 
   async cancelRequest(passengerId: string, requestId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const req = await tx.tripRequest.findUnique({
         where: { id: requestId },
       });

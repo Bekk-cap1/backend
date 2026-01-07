@@ -42,7 +42,10 @@ export class HealthController {
    */
   @Public()
   @Get('health')
-  @ApiOperation({ summary: 'Deprecated alias for /health/live', deprecated: true })
+  @ApiOperation({
+    summary: 'Deprecated alias for /health/live',
+    deprecated: true,
+  })
   health() {
     return this.live();
   }
@@ -52,7 +55,10 @@ export class HealthController {
    */
   @Public()
   @Get('ready')
-  @ApiOperation({ summary: 'Deprecated alias for /health/ready', deprecated: true })
+  @ApiOperation({
+    summary: 'Deprecated alias for /health/ready',
+    deprecated: true,
+  })
   readyAlias() {
     return this.ready();
   }

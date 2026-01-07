@@ -1,9 +1,17 @@
 import { Logger } from '@nestjs/common';
-import { WebSocketGateway, WebSocketServer, type OnGatewayConnection, type OnGatewayDisconnect } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  type OnGatewayConnection,
+  type OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
+import { isRecord } from '../../common/utils/type-guards';
 
 @WebSocketGateway({ namespace: '/realtime', cors: { origin: '*' } })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   private server!: Server;
 
@@ -16,7 +24,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       return;
     }
 
-    client.join(this.userRoom(userId));
+    void client.join(this.userRoom(userId));
     this.logger.debug(`Socket connected ${client.id} user=${userId}`);
   }
 
@@ -34,9 +42,12 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   private resolveUserId(client: Socket): string | undefined {
-    const authUserId = client.handshake.auth?.userId;
-    if (typeof authUserId === 'string' && authUserId.length > 0) {
-      return authUserId;
+    const auth = client.handshake.auth;
+    if (isRecord(auth)) {
+      const authUserId = auth.userId;
+      if (typeof authUserId === 'string' && authUserId.length > 0) {
+        return authUserId;
+      }
     }
 
     const queryUserId = client.handshake.query?.userId;

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../infrastructure/prisma/prisma.service';
 import { getRequestContext } from '../infrastructure/request-context/request-context';
 import type { AuditActionType, AuditSeverity } from './audit.actions';
@@ -11,7 +11,7 @@ export type AuditInput = {
   entityType: string;
   entityId?: string;
   severity?: AuditSeverity;
-  metadata?: any;
+  metadata?: Prisma.InputJsonValue;
 
   // overrides (optional)
   actorId?: string;
@@ -41,7 +41,7 @@ export class AuditService {
         ip: ctx.ip ?? null,
         userAgent: ctx.userAgent ?? null,
 
-        metadata: input.metadata ?? null,
+        metadata: input.metadata ?? Prisma.JsonNull,
       },
     });
   }
@@ -64,7 +64,7 @@ export class AuditService {
         ip: ctx.ip ?? null,
         userAgent: ctx.userAgent ?? null,
 
-        metadata: input.metadata ?? null,
+        metadata: input.metadata ?? Prisma.JsonNull,
       },
     });
   }

@@ -4,6 +4,6 @@ export class RejectOfferDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  reason?: string
+  reason?: string;
   note?: string;
 }

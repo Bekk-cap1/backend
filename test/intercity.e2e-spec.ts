@@ -3,8 +3,8 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Queue } from 'bullmq';
 import { execSync } from 'node:child_process';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, DriverStatus, OutboxStatus, Role } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import request, { type Response } from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -25,7 +25,7 @@ type NegotiationPayload = { state: string };
 type AcceptOfferPayload = { bookingId: string; requestId?: string };
 type BookingsPayload = { items: Array<{ id: string }> };
 
-type PgError = { code?: string };
+type PgError = { code?: string; message?: string };
 type RequestApp = Parameters<typeof request>[0];
 type ApiClient = ReturnType<typeof request>;
 
@@ -41,16 +41,53 @@ const getData = <T>(res: Response): T => {
   return raw as T;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 const isPgError = (error: unknown): error is PgError =>
-  typeof error === 'object' && error !== null && 'code' in error;
+  isRecord(error) && typeof error.code === 'string';
+
+const getPgError = (error: unknown): PgError | undefined => {
+  if (isPgError(error)) return error;
+  if (
+    error instanceof AggregateError ||
+    (isRecord(error) && 'errors' in error)
+  ) {
+    const errors = (error as AggregateError & { errors?: unknown[] }).errors;
+    if (Array.isArray(errors)) {
+      return errors.find(isPgError);
+    }
+  }
+  return undefined;
+};
+
+const isPgConnectionError = (error: PgError | undefined): boolean =>
+  Boolean(
+    error?.code &&
+    ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET'].includes(
+      error.code,
+    ),
+  );
+
+const formatPgHost = (url: URL): string => {
+  const host = url.hostname || 'localhost';
+  const port = url.port || '5432';
+  return `${host}:${port}`;
+};
+
+const sanitizePgConnectionString = (connectionString: string): string => {
+  const url = new URL(connectionString);
+  url.searchParams.delete('schema');
+  return url.toString();
+};
 
 describe('Intercity (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
-  let pool: Pool;
   let dispatcher: OutboxDispatcher;
   let outboxQueue: Queue | null = null;
   let api: ApiClient;
+  let prismaPool: Pool | null = null;
 
   let driverToken: string;
   let passengerToken: string;
@@ -116,8 +153,8 @@ describe('Intercity (e2e)', () => {
     const httpServer = app.getHttpServer() as unknown as RequestApp;
     api = request(httpServer);
 
-    pool = new Pool({ connectionString: databaseUrl });
-    prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
+    prismaPool = new Pool({ connectionString: databaseUrl });
+    prisma = new PrismaClient({ adapter: new PrismaPg(prismaPool) });
     await resetDatabase(prisma);
 
     const cities = await prisma.city.createMany({
@@ -155,7 +192,7 @@ describe('Intercity (e2e)', () => {
     await outboxQueue?.close();
     await app?.close();
     await prisma?.$disconnect();
-    await pool?.end();
+    await prismaPool?.end();
   });
 
   it('registers and logs in passenger', async () => {
@@ -460,17 +497,52 @@ async function ensureDatabaseExists(connectionString: string) {
   const url = new URL(connectionString);
   const dbName = url.pathname.replace('/', '');
   if (!dbName) return;
+  const hostLabel = formatPgHost(url);
 
-  const adminUrl = new URL(connectionString);
+  const targetPool = new Pool({
+    connectionString: sanitizePgConnectionString(connectionString),
+    connectionTimeoutMillis: 2000,
+  });
+  try {
+    await targetPool.query('SELECT 1');
+    return;
+  } catch (error) {
+    const pgError = getPgError(error);
+    if (isPgConnectionError(pgError)) {
+      throw new Error(
+        `Postgres is not reachable at ${hostLabel}. Start Docker Desktop and run "docker compose up -d postgres redis", or update DATABASE_URL.`,
+      );
+    }
+    if (pgError?.code !== '3D000') {
+      throw error;
+    }
+  } finally {
+    await targetPool.end();
+  }
+
+  const adminUrl = new URL(sanitizePgConnectionString(connectionString));
   adminUrl.pathname = '/postgres';
 
-  const adminPool = new Pool({ connectionString: adminUrl.toString() });
+  const adminPool = new Pool({
+    connectionString: adminUrl.toString(),
+    connectionTimeoutMillis: 2000,
+  });
   try {
     await adminPool.query(`CREATE DATABASE "${dbName}"`);
   } catch (error) {
-    if (!isPgError(error) || error.code !== '42P04') {
-      throw error;
+    const pgError = getPgError(error);
+    if (isPgConnectionError(pgError)) {
+      throw new Error(
+        `Postgres is not reachable at ${hostLabel}. Start Docker Desktop and run "docker compose up -d postgres redis", or update DATABASE_URL.`,
+      );
     }
+    if (pgError?.code === '42P04') return;
+    if (pgError?.code === '42501') {
+      throw new Error(
+        `No permission to create database "${dbName}". Create it manually or grant CREATEDB.`,
+      );
+    }
+    throw error;
   } finally {
     await adminPool.end();
   }

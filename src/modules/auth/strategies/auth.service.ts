@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -25,7 +29,11 @@ export class AuthStrategiesService {
   }
 
   private accessSecret() {
-    return process.env.JWT_ACCESS_SECRET ?? process.env.JWT_SECRET ?? 'dev_access_secret';
+    return (
+      process.env.JWT_ACCESS_SECRET ??
+      process.env.JWT_SECRET ??
+      'dev_access_secret'
+    );
   }
 
   private refreshTtlSec() {
@@ -33,7 +41,11 @@ export class AuthStrategiesService {
   }
 
   private refreshSecret() {
-    return process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET ?? 'dev_refresh_secret';
+    return (
+      process.env.JWT_REFRESH_SECRET ??
+      process.env.JWT_SECRET ??
+      'dev_refresh_secret'
+    );
   }
 
   private signRefreshToken(userId: string) {
@@ -46,7 +58,12 @@ export class AuthStrategiesService {
     return { token, jti, expiresAt };
   }
 
-  private signAccessToken(params: { userId: string; sessionId: string; phone: string; role: Role }) {
+  private signAccessToken(params: {
+    userId: string;
+    sessionId: string;
+    phone: string;
+    role: Role;
+  }) {
     return this.jwt.sign(
       {
         sub: params.userId,
@@ -61,7 +78,9 @@ export class AuthStrategiesService {
 
   private verifyRefreshToken(token: string): RefreshPayload {
     try {
-      const payload = this.jwt.verify<RefreshPayload>(token, { secret: this.refreshSecret() });
+      const payload = this.jwt.verify<RefreshPayload>(token, {
+        secret: this.refreshSecret(),
+      });
 
       if (!payload?.sub || !payload?.jti) {
         throw new UnauthorizedException('Invalid refresh token');
@@ -126,8 +145,18 @@ export class AuthStrategiesService {
   /**
    * Login: создаём сессию + выдаём access+refresh
    */
-  async issueTokens(params: { userId: string; phone: string; role: Role; userAgent?: string; ip?: string }) {
-    const { token: refreshToken, jti, expiresAt } = this.signRefreshToken(params.userId);
+  async issueTokens(params: {
+    userId: string;
+    phone: string;
+    role: Role;
+    userAgent?: string;
+    ip?: string;
+  }) {
+    const {
+      token: refreshToken,
+      jti,
+      expiresAt,
+    } = this.signRefreshToken(params.userId);
 
     const session = await this.createSession({
       userId: params.userId,
@@ -155,10 +184,18 @@ export class AuthStrategiesService {
   /**
    * Refresh rotation: обновляем refresh в той же записи, и выдаём новый access
    */
-  async rotateRefresh(params: { refreshToken: string; userAgent?: string; ip?: string }) {
+  async rotateRefresh(params: {
+    refreshToken: string;
+    userAgent?: string;
+    ip?: string;
+  }) {
     const { session, user } = await this.validateRefresh(params.refreshToken);
 
-    const { token: newRefreshToken, jti: newJti, expiresAt } = this.signRefreshToken(session.userId);
+    const {
+      token: newRefreshToken,
+      jti: newJti,
+      expiresAt,
+    } = this.signRefreshToken(session.userId);
     const newHash = await bcrypt.hash(newRefreshToken, 10);
 
     const updatedSession = await this.prisma.userSession.update({

@@ -84,7 +84,7 @@ export class AdminService {
    */
   async verifyDriver(userId: string) {
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         // pre-state
         const user = await tx.user.findUnique({
           where: { id: userId },
@@ -96,7 +96,8 @@ export class AdminService {
           where: { userId },
           select: { status: true, rejectionReason: true, verifiedAt: true },
         });
-        if (!profileBefore) throw new NotFoundException('Driver profile not found');
+        if (!profileBefore)
+          throw new NotFoundException('Driver profile not found');
 
         // domain update (tx-safe)
         const profileAfter = await this.drivers.verifyTx(tx, userId);
@@ -147,7 +148,7 @@ export class AdminService {
     const finalReason = reason ?? 'Rejected by admin';
 
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         // pre-state
         const user = await tx.user.findUnique({
           where: { id: userId },
@@ -159,10 +160,15 @@ export class AdminService {
           where: { userId },
           select: { status: true, rejectionReason: true, verifiedAt: true },
         });
-        if (!profileBefore) throw new NotFoundException('Driver profile not found');
+        if (!profileBefore)
+          throw new NotFoundException('Driver profile not found');
 
         // domain update (tx-safe)
-        const profileAfter = await this.drivers.rejectTx(tx, userId, finalReason);
+        const profileAfter = await this.drivers.rejectTx(
+          tx,
+          userId,
+          finalReason,
+        );
 
         // audit
         await this.audit.logTx(tx, {
@@ -206,7 +212,7 @@ export class AdminService {
    */
   async updateUserRole(userId: string, role: Role) {
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         const before = await tx.user.findUnique({
           where: { id: userId },
           select: { id: true, phone: true, role: true },

@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  ForbiddenException,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthUser } from '../../common/types/auth-user';
 
 import { OffersService } from './offers.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
@@ -14,12 +24,13 @@ import { RejectOfferDto } from './dto/reject-offer.dto';
 export class OffersController {
   constructor(private readonly offers: OffersService) {}
 
-  // список offers по request (видят участники + водитель поездки)
+  // Create offer for a request
   @Get('requests/:requestId')
   @Roles('driver', 'passenger')
-  list(@CurrentUser() user: any, @Param('requestId') requestId: string) {
-    const userId = user.sub ?? user.id;
+  list(@CurrentUser() user: AuthUser, @Param('requestId') requestId: string) {
+    const userId = user.sub;
     const role = user.role;
+    if (!role) throw new ForbiddenException('Role is required');
     return this.offers.listForRequest(userId, role, requestId);
   }
 
@@ -27,47 +38,51 @@ export class OffersController {
   @Post('requests/:requestId')
   @Roles('driver', 'passenger')
   create(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthUser,
     @Param('requestId') requestId: string,
     @Body() dto: CreateOfferDto,
   ) {
-    const userId = user.sub ?? user.id;
+    const userId = user.sub;
     const role = user.role;
+    if (!role) throw new ForbiddenException('Role is required');
     return this.offers.createOffer(userId, role, requestId, dto);
   }
 
-  // accept offer (принимает противоположная сторона)
+  // Accept offer
   @Patch(':offerId/accept')
   @Roles('driver', 'passenger')
   accept(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthUser,
     @Param('offerId') offerId: string,
     @Body() dto: AcceptOfferDto,
   ) {
-    const userId = user.sub ?? user.id;
+    const userId = user.sub;
     const role = user.role;
+    if (!role) throw new ForbiddenException('Role is required');
     return this.offers.acceptOffer(userId, role, offerId, dto);
   }
 
-  // reject offer (тоже противоположная сторона)
+  // Reject offer
   @Patch(':offerId/reject')
   @Roles('driver', 'passenger')
   reject(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthUser,
     @Param('offerId') offerId: string,
     @Body() dto: RejectOfferDto,
   ) {
-    const userId = user.sub ?? user.id;
+    const userId = user.sub;
     const role = user.role;
+    if (!role) throw new ForbiddenException('Role is required');
     return this.offers.rejectOffer(userId, role, offerId, dto);
   }
 
-  // cancel offer (только автор)
+  // Cancel offer
   @Patch(':offerId/cancel')
   @Roles('driver', 'passenger')
-  cancel(@CurrentUser() user: any, @Param('offerId') offerId: string) {
-    const userId = user.sub ?? user.id;
+  cancel(@CurrentUser() user: AuthUser, @Param('offerId') offerId: string) {
+    const userId = user.sub;
     const role = user.role;
+    if (!role) throw new ForbiddenException('Role is required');
     return this.offers.cancelOffer(userId, role, offerId);
   }
 }

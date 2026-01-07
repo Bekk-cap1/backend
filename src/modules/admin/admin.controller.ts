@@ -55,7 +55,10 @@ export class AdminController {
 
   // PATCH /admin/users/:userId/role  { role: 'admin'|'driver'|'passenger' }
   @Patch('users/:userId/role')
-  updateUserRole(@Param('userId') userId: string, @Body() dto: UpdateUserRoleDto) {
+  updateUserRole(
+    @Param('userId') userId: string,
+    @Body() dto: UpdateUserRoleDto,
+  ) {
     return this.admin.updateUserRole(userId, dto.role);
   }
 }

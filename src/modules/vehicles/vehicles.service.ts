@@ -1,17 +1,22 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { ListVehiclesDto } from './dto/list-vehicles.dto';
-
-type AuthUser = { id?: string; sub?: string; role?: string };
+import type { AuthUser } from '../../common/types/auth-user';
+import { isPrismaError } from '../../common/utils/prisma-error';
 
 @Injectable()
 export class VehiclesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private getUserId(user: AuthUser) {
-    return (user.sub ?? user.id) as string;
+    return user.sub ?? user.id;
   }
 
   private isAdmin(user: AuthUser) {
@@ -28,7 +33,13 @@ export class VehiclesService {
     this.ensureDriverOrAdmin(user);
     const userId = this.getUserId(user);
 
-    const { q, limit = 50, offset = 0, sortBy = 'createdAt', order = 'desc' } = dto;
+    const {
+      q,
+      limit = 50,
+      offset = 0,
+      sortBy = 'createdAt',
+      order = 'desc',
+    } = dto;
 
     const where = {
       userId,
@@ -73,8 +84,9 @@ export class VehiclesService {
           seats: dto.seats ?? 4,
         },
       });
-    } catch (e: any) {
-      if (e?.code === 'P2002') throw new BadRequestException('Vehicle with this plate already exists');
+    } catch (e: unknown) {
+      if (isPrismaError(e) && e.code === 'P2002')
+        throw new BadRequestException('Vehicle with this plate already exists');
       throw e;
     }
   }
@@ -83,7 +95,9 @@ export class VehiclesService {
     this.ensureDriverOrAdmin(user);
     const userId = this.getUserId(user);
 
-    const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId } });
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
     if (!vehicle) throw new NotFoundException('Vehicle not found');
 
     if (!this.isAdmin(user) && vehicle.userId !== userId) {
@@ -103,8 +117,9 @@ export class VehiclesService {
           seats: dto.seats,
         },
       });
-    } catch (e: any) {
-      if (e?.code === 'P2002') throw new BadRequestException('Vehicle with this plate already exists');
+    } catch (e: unknown) {
+      if (isPrismaError(e) && e.code === 'P2002')
+        throw new BadRequestException('Vehicle with this plate already exists');
       throw e;
     }
   }
@@ -136,7 +151,13 @@ export class VehiclesService {
   async listAll(user: AuthUser, dto: ListVehiclesDto) {
     if (!this.isAdmin(user)) throw new ForbiddenException('Admin only');
 
-    const { q, limit = 50, offset = 0, sortBy = 'createdAt', order = 'desc' } = dto;
+    const {
+      q,
+      limit = 50,
+      offset = 0,
+      sortBy = 'createdAt',
+      order = 'desc',
+    } = dto;
 
     const where = q
       ? {

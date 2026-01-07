@@ -9,12 +9,14 @@ import { RequestIdMiddleware } from './common/middlewares/request-id.middleware'
 import { AppLoggerService } from './infrastructure/logger/logger.service';
 import { setupSwagger } from './common/swagger';
 
-
 function parseCorsOrigins(value: string | undefined): string[] | boolean {
   if (!value) return false;
   const v = value.trim();
   if (!v) return false;
-  return v.split(',').map((x) => x.trim()).filter(Boolean);
+  return v
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 
 async function bootstrap() {
@@ -22,7 +24,9 @@ async function bootstrap() {
 
   // trust proxy (полезно в проде за nginx)
   const httpAdapter = app.getHttpAdapter();
-  const instance = httpAdapter.getInstance();
+  const instance = httpAdapter.getInstance() as {
+    set?: (key: string, value: unknown) => void;
+  };
 
   if (typeof instance.set === 'function') {
     instance.set('trust proxy', 1);
@@ -32,12 +36,12 @@ async function bootstrap() {
   const prefix = process.env.API_PREFIX ?? 'api';
   if (prefix) app.setGlobalPrefix(prefix);
 
-  const swaggerEnabled = String(process.env.SWAGGER_ENABLED ?? 'false') === 'true';
+  const swaggerEnabled =
+    String(process.env.SWAGGER_ENABLED ?? 'false') === 'true';
   if (swaggerEnabled) {
     setupSwagger(app);
   }
 
-  
   // Security
   app.use(helmet());
 
@@ -52,8 +56,18 @@ async function bootstrap() {
   const max = Number(process.env.RATE_LIMIT_MAX ?? 200);
   const authMax = Number(process.env.RATE_LIMIT_AUTH_MAX ?? 20);
 
-  const globalLimiter = rateLimit({ windowMs, max, standardHeaders: true, legacyHeaders: false });
-  const authLimiter = rateLimit({ windowMs, max: authMax, standardHeaders: true, legacyHeaders: false });
+  const globalLimiter = rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  const authLimiter = rateLimit({
+    windowMs,
+    max: authMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
   app.use(globalLimiter);
 
@@ -63,7 +77,8 @@ async function bootstrap() {
   app.use(`${base}/admin`, authLimiter);
 
   // RequestId
-  app.use(new RequestIdMiddleware().use);
+  const requestIdMiddleware = new RequestIdMiddleware();
+  app.use(requestIdMiddleware.use.bind(requestIdMiddleware));
 
   // Logger (HTTP)
   const logger = app.get(AppLoggerService);
@@ -82,8 +97,7 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
 
-
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
 }
-bootstrap();
+void bootstrap();

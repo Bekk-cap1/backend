@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { DriverStatus, Role, Prisma } from '@prisma/client';
 
@@ -40,7 +44,9 @@ export class DriversService {
   }
 
   async submit(userId: string) {
-    const profile = await this.prisma.driverProfile.findUnique({ where: { userId } });
+    const profile = await this.prisma.driverProfile.findUnique({
+      where: { userId },
+    });
     if (!profile) throw new NotFoundException('Driver profile not found');
 
     // Политика: verified не трогаем
@@ -139,14 +145,16 @@ export class DriversService {
 
   async verify(userId: string) {
     return this.prisma.$transaction(
-      async (tx) => this.verifyTx(tx, userId),
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      async (tx: Prisma.TransactionClient) => this.verifyTx(tx, userId),
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
     );
   }
 
   async reject(userId: string, reason: string) {
     return this.prisma.$transaction(
-      async (tx) => this.rejectTx(tx, userId, reason),
+      async (tx: Prisma.TransactionClient) => this.rejectTx(tx, userId, reason),
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   }

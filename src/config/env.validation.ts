@@ -1,7 +1,9 @@
 import * as Joi from 'joi';
 
 export const envValidationSchema = Joi.object({
-  NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
+  NODE_ENV: Joi.string()
+    .valid('development', 'test', 'production')
+    .default('development'),
   PORT: Joi.number().integer().min(1).max(65535).default(3000),
   API_PREFIX: Joi.string().default('api'),
 
@@ -21,7 +23,9 @@ export const envValidationSchema = Joi.object({
   RATE_LIMIT_MAX: Joi.number().integer().min(1).default(200),
   RATE_LIMIT_AUTH_MAX: Joi.number().integer().min(1).default(20),
 
-  LOG_LEVEL: Joi.string().valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent').default('info'),
+  LOG_LEVEL: Joi.string()
+    .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
+    .default('info'),
 
   SWAGGER_ENABLED: Joi.boolean().default(false),
   REALTIME_ENABLED: Joi.boolean().default(false),

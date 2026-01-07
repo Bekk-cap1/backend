@@ -1,13 +1,19 @@
 import { BadRequestException } from '@nestjs/common';
+import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import type { DriversService } from '../drivers/drivers.service';
+import type { AuditService } from '../../audit/audit.service';
+import type { OutboxService } from '../../outbox/outbox.service';
 import { TripsService } from './trips.service';
 
 describe('TripsService', () => {
   it('rejects invalid seatsTotal', async () => {
-    const prisma = {} as any;
-    const drivers = { assertVerifiedDriver: jest.fn().mockResolvedValue(null) };
-    const audit = {} as any;
-    const outbox = {} as any;
-    const service = new TripsService(prisma, drivers as any, audit, outbox);
+    const prisma = {} as unknown as PrismaService;
+    const drivers = {
+      assertVerifiedDriver: jest.fn().mockResolvedValue(null),
+    } as unknown as DriversService;
+    const audit = {} as unknown as AuditService;
+    const outbox = {} as unknown as OutboxService;
+    const service = new TripsService(prisma, drivers, audit, outbox);
 
     await expect(
       service.createTrip('driver-1', {

@@ -1,4 +1,11 @@
-import { IsInt, IsOptional, IsString, Max, Min, MaxLength } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateOfferDto {
   @IsOptional()

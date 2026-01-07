@@ -1,20 +1,28 @@
+import type { Prisma } from '@prisma/client';
 import { PaymentProvider } from '@prisma/client';
 
 export type CreateIntentResult = {
   // например, ссылка на оплату / параметры формы / qr
   redirectUrl?: string;
   form?: Record<string, string>;
-  raw?: any;
+  raw?: Prisma.InputJsonValue;
 };
 
 export type WebhookResult = {
   // что произошло с платежом
   externalId?: string;
   externalEventId?: string;
-  status?: 'created' | 'pending' | 'paid' | 'failed' | 'refunded' | 'succeeded' | 'canceled';
+  status?:
+    | 'created'
+    | 'pending'
+    | 'paid'
+    | 'failed'
+    | 'refunded'
+    | 'succeeded'
+    | 'canceled';
   amount?: number;
   currency?: string;
-  raw?: any;
+  raw?: Prisma.InputJsonValue;
 };
 
 export interface PaymentProviderAdapter {
@@ -30,7 +38,7 @@ export interface PaymentProviderAdapter {
     currency: string;
     description?: string | null;
     customer?: { userId: string; phone: string };
-    metadata?: Record<string, any>;
+    metadata?: Record<string, Prisma.InputJsonValue>;
   }): Promise<CreateIntentResult>;
 
   /**

@@ -5,14 +5,16 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
+import { isRecord } from '../utils/type-guards';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const req = ctx.getRequest<any>();
-    const res = ctx.getResponse<any>();
+    const req = ctx.getRequest<Request>();
+    const res = ctx.getResponse<Response>();
 
     const requestId = req?.requestId;
     const timestamp = new Date().toISOString();
@@ -20,23 +22,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // 1) HttpException (Nest)
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
-      const response = exception.getResponse() as any;
-
-      const message =
-        typeof response === 'string'
-          ? response
-          : response?.message ?? exception.message;
-
-      const details =
-        typeof response === 'object' && response
-          ? response
-          : undefined;
+      const response = exception.getResponse();
+      const message = getExceptionMessage(response, exception.message);
+      const details = isRecord(response) ? response : undefined;
 
       return res.status(status).json({
         ok: false,
         error: {
           code: `HTTP_${status}`,
-          message: Array.isArray(message) ? message.join(', ') : String(message),
+          message,
           details: sanitizeDetails(details),
         },
         meta: { requestId, timestamp },
@@ -72,7 +66,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const message =
       process.env.NODE_ENV === 'production'
         ? 'Internal server error'
-        : (exception as any)?.message ?? String(exception);
+        : exception instanceof Error
+          ? exception.message
+          : String(exception);
 
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       ok: false,
@@ -89,16 +85,16 @@ function mapPrismaKnownError(e: Prisma.PrismaClientKnownRequestError): {
   status: number;
   code: string;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 } {
   // P2002 = Unique constraint
   if (e.code === 'P2002') {
-    const target = (e.meta as any)?.target;
+    const target = isRecord(e.meta) ? e.meta.target : undefined;
     return {
       status: HttpStatus.CONFLICT,
       code: 'UNIQUE_CONSTRAINT',
       message: 'Unique constraint violated',
-      details: target ? { target } : undefined,
+      details: target === undefined ? undefined : { target },
     };
   }
 
@@ -115,25 +111,56 @@ function mapPrismaKnownError(e: Prisma.PrismaClientKnownRequestError): {
     status: HttpStatus.BAD_REQUEST,
     code: `PRISMA_${e.code}`,
     message: 'Database request error',
-    details: process.env.NODE_ENV === 'production' ? undefined : { meta: e.meta },
+    details:
+      process.env.NODE_ENV === 'production' ? undefined : { meta: e.meta },
   };
 }
 
-function sanitizeDetails(details: any) {
-  if (!details || typeof details !== 'object') return details;
+function getExceptionMessage(response: unknown, fallback: string) {
+  if (typeof response === 'string') {
+    return response;
+  }
 
-  // вычищаем чувствительные поля если вдруг пролезли
-  const copy = JSON.parse(JSON.stringify(details));
+  if (isRecord(response) && 'message' in response) {
+    const msg = response.message;
+    if (Array.isArray(msg)) {
+      return msg.map((item) => String(item)).join(', ');
+    }
+    if (typeof msg === 'string') {
+      return msg;
+    }
+    return String(msg);
+  }
+
+  return fallback;
+}
+
+function sanitizeDetails(details: unknown) {
+  if (!isRecord(details)) return details;
+
+  // Remove sensitive fields from error details.
+  const copy = JSON.parse(JSON.stringify(details)) as Record<string, unknown>;
   deepDelete(copy, 'password');
   deepDelete(copy, 'passwordHash');
   deepDelete(copy, 'refreshToken');
   return copy;
 }
 
-function deepDelete(obj: any, key: string) {
-  if (!obj || typeof obj !== 'object') return;
-  for (const k of Object.keys(obj)) {
-    if (k === key) delete obj[k];
-    else deepDelete(obj[k], key);
+function deepDelete(value: unknown, key: string) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      deepDelete(item, key);
+    }
+    return;
+  }
+
+  if (!isRecord(value)) return;
+
+  for (const [k, v] of Object.entries(value)) {
+    if (k === key) {
+      delete value[k];
+    } else {
+      deepDelete(v, key);
+    }
   }
 }

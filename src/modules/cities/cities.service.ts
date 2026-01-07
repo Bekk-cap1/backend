@@ -1,8 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { CreateCityDto } from './dto/create-city.dto';
 import { UpdateCityDto } from './dto/update-city.dto';
 import { ListCitiesDto } from './dto/list-cities.dto';
+import { isPrismaError } from '../../common/utils/prisma-error';
 
 @Injectable()
 export class CitiesService {
@@ -52,9 +57,10 @@ export class CitiesService {
           timezone: dto.timezone?.trim(),
         },
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       // unique violation
-      if (e?.code === 'P2002') throw new BadRequestException('City already exists');
+      if (isPrismaError(e) && e.code === 'P2002')
+        throw new BadRequestException('City already exists');
       throw e;
     }
   }
@@ -64,7 +70,9 @@ export class CitiesService {
     if (!existing) throw new NotFoundException('City not found');
 
     const nextName = dto.name ? dto.name.trim() : undefined;
-    const nextCountryCode = dto.countryCode ? dto.countryCode.trim().toUpperCase() : undefined;
+    const nextCountryCode = dto.countryCode
+      ? dto.countryCode.trim().toUpperCase()
+      : undefined;
 
     try {
       return await this.prisma.city.update({
@@ -76,8 +84,9 @@ export class CitiesService {
           timezone: dto.timezone?.trim(),
         },
       });
-    } catch (e: any) {
-      if (e?.code === 'P2002') throw new BadRequestException('City already exists');
+    } catch (e: unknown) {
+      if (isPrismaError(e) && e.code === 'P2002')
+        throw new BadRequestException('City already exists');
       throw e;
     }
   }
@@ -91,9 +100,11 @@ export class CitiesService {
     try {
       await this.prisma.city.delete({ where: { id } });
       return { ok: true };
-    } catch (e: any) {
+    } catch {
       // foreign key fail
-      throw new BadRequestException('City is used in trips and cannot be deleted');
+      throw new BadRequestException(
+        'City is used in trips and cannot be deleted',
+      );
     }
   }
 }

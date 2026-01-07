@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { AuthStrategiesService } from './strategies/auth.service';
@@ -43,7 +47,11 @@ export class AuthService {
     return { id: user.id, phone: user.phone, role: user.role };
   }
 
-  async issueTokens(user: { id: string; phone: string; role: Role }, ua?: string, ip?: string) {
+  async issueTokens(
+    user: { id: string; phone: string; role: Role },
+    ua?: string,
+    ip?: string,
+  ) {
     return this.strategies.issueTokens({
       userId: user.id,
       phone: user.phone,

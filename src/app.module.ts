@@ -54,7 +54,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
         bookingsConfig,
         negotiationConfig,
       ],
-      
     }),
 
     ScheduleModule.forRoot(),
@@ -84,13 +83,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     RequestContextModule,
     RealtimeModule,
     NotificationsModule,
-    
-
-
-
 
     PaymentsModule,
-    
   ],
 
   // ВАЖНО: чтобы middleware мог получить AppLoggerService через DI
