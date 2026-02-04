@@ -7,7 +7,7 @@ import { getRequestContext } from '../request-context/request-context';
 export class LoggerMiddleware implements NestMiddleware {
   constructor(private readonly logger: AppLoggerService) {}
 
-  use(req: Request, res: Response, next: NextFunction) {
+  use(req: Request & { requestId?: string }, res: Response, next: NextFunction) {
     const startedAt = Date.now();
 
     res.on('finish', () => {

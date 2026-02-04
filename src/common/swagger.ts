@@ -1,8 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-export function setupSwagger(app: INestApplication) {
-  const config = new DocumentBuilder()
+export function buildSwaggerConfig() {
+  return new DocumentBuilder()
     .setTitle('InterCity API')
     .setDescription('Backend API')
     .setVersion('1.0.0')
@@ -11,7 +11,14 @@ export function setupSwagger(app: INestApplication) {
       'bearer',
     )
     .build();
+}
 
-  const document = SwaggerModule.createDocument(app, config);
+export function buildSwaggerDocument(app: INestApplication) {
+  const config = buildSwaggerConfig();
+  return SwaggerModule.createDocument(app, config);
+}
+
+export function setupSwagger(app: INestApplication) {
+  const document = buildSwaggerDocument(app);
   SwaggerModule.setup('swagger', app, document);
 }

@@ -14,7 +14,7 @@ import { captureException, isSentryEnabled } from '../../infrastructure/sentry/s
 export class GlobalExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const req = ctx.getRequest<Request>();
+    const req = ctx.getRequest<Request & { requestId?: string }>();
     const res = ctx.getResponse<Response>();
 
     const requestId = req?.requestId;

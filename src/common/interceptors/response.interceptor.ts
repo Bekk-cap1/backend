@@ -18,7 +18,7 @@ export class ResponseInterceptor implements NestInterceptor {
     meta: { requestId?: string; timestamp: string };
   }> {
     const req = context.switchToHttp().getRequest<Request>();
-    const requestId = req?.requestId;
+    const requestId = (req as { requestId?: string } | undefined)?.requestId;
 
     return next.handle().pipe(
       map((data) => ({

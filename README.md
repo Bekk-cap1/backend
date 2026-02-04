@@ -14,12 +14,21 @@ Production-grade API for intercity trips: trips, requests, price negotiation, bo
 5) `npm run seed`
 6) `npm run start:dev`
 
+## Quick Start (tests)
+1) `docker compose -f docker-compose.test.yml up -d`
+2) Export test env (`DATABASE_URL_TEST`, `REDIS_URL_TEST`)
+3) `npm run test:cov`
+4) `npm run test:e2e`
+
 Swagger (when `SWAGGER_ENABLED=true`):
 - `http://localhost:3000/api/swagger`
 
 Health:
-- `GET /api/health/live`
-- `GET /api/health/ready` (checks DB + Redis)
+- `GET /health/live`
+- `GET /health/ready` (checks DB + Redis)
+
+Metrics:
+- `GET /metrics` (Prometheus)
 
 ## Scripts
 - `npm run migrate` -> apply migrations to DB
@@ -27,6 +36,8 @@ Health:
 - `npm run build` -> compile
 - `npm run start:dev` -> dev server
 - `npm run test:e2e` -> end-to-end tests
+- `npm run test:cov` -> unit tests with coverage gate
+- `npm run openapi:generate` -> generate `docs/openapi.json`
 
 ## Environment
 See `.env.example`. Required keys:
@@ -34,6 +45,26 @@ See `.env.example`. Required keys:
 - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` (seconds)
 - `OFFERS_MAX_DRIVER`, `OFFERS_MAX_PASSENGER`
+Optional keys:
+- `SENTRY_DSN`, `SENTRY_ENV`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE`
+- `METRICS_ENABLED`
+- `DATABASE_URL_TEST`, `SHADOW_DATABASE_URL_TEST`, `REDIS_URL_TEST`
+
+## OpenAPI Contract
+- Generated file: `docs/openapi.json`
+- Regenerate: `npm run openapi:generate`
+
+## Deployment (Kubernetes)
+Manifests are in `k8s/`. CI builds and publishes images to GHCR, then deploys
+using a kubeconfig secret.
+
+Required GitHub secrets:
+- `KUBE_CONFIG` (kubeconfig contents)
+- `KUBE_NAMESPACE` (optional, defaults to `intercity`)
+
+Cluster prerequisites:
+- Create secret `intercity-secrets` (see `k8s/secret.example.yaml`)
+- Create image pull secret for GHCR if the repo is private
 
 ## Minimal API Contract
 Auth:
@@ -94,8 +125,12 @@ Admin:
 - `GET /api/admin/audit`
 
 Health:
-- `GET /api/health/live`
-- `GET /api/health/ready`
+- `GET /health/live`
+- `GET /health/ready`
+
+## Architecture
+- NestJS monolith with domain modules and outbox pipeline
+- See `docs/architecture.md` for diagrams and data flow
 
 ## Definition of Done
 - `docker compose up` starts Postgres + Redis + app.
@@ -106,7 +141,7 @@ Health:
 - Outbox event created and processed by worker.
 - Health endpoints present.
 - Unified error schema with requestId.
-- CI runs lint + test + build + prisma validate/migrate check.
+- CI runs lint + unit (coverage) + e2e + build + docker build/publish + deploy.
 - No binary artifacts in git.
 
 ## Repository Policy (no binaries)
@@ -127,6 +162,8 @@ See `docs/diagrams.md`.
 ## Docs
 - Architecture: `docs/architecture.md`
 - API overview: `docs/api.md`
+- Observability: `docs/observability.md`
+- Runbooks: `docs/runbooks/`
 
 ## Notes
 - Branch protection should require PRs and passing CI checks.
