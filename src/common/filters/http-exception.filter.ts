@@ -8,6 +8,7 @@ import {
 import type { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { isRecord } from '../utils/type-guards';
+import { captureException, isSentryEnabled } from '../../infrastructure/sentry/sentry';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -26,6 +27,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const message = getExceptionMessage(response, exception.message);
       const details = isRecord(response) ? response : undefined;
 
+      if (isSentryEnabled() && status >= 500) {
+        captureException(exception);
+      }
+
       return res.status(status).json({
         ok: false,
         error: {
@@ -39,6 +44,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // 2) Prisma known errors
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      if (isSentryEnabled()) {
+        captureException(exception);
+      }
       const mapped = mapPrismaKnownError(exception);
       return res.status(mapped.status).json({
         ok: false,
@@ -52,6 +60,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof Prisma.PrismaClientValidationError) {
+      if (isSentryEnabled()) {
+        captureException(exception);
+      }
       return res.status(HttpStatus.BAD_REQUEST).json({
         ok: false,
         error: {
@@ -69,6 +80,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         : exception instanceof Error
           ? exception.message
           : String(exception);
+
+    if (isSentryEnabled()) {
+      captureException(exception);
+    }
 
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       ok: false,

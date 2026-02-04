@@ -50,7 +50,9 @@ export function bootstrapApp(
   }
 
   if (prefix) {
-    app.setGlobalPrefix(prefix);
+    app.setGlobalPrefix(prefix, {
+      exclude: ['health/(.*)', 'metrics'],
+    });
   }
 
   const swaggerEnabled =

@@ -40,6 +40,8 @@ import { OutboxModule } from './outbox/outbox.module';
 import { RequestsModule } from './modules/trips/requests/requests.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
+import { MetricsMiddleware } from './modules/metrics/metrics.middleware';
 
 @Module({
   imports: [
@@ -83,6 +85,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     RequestContextModule,
     RealtimeModule,
     NotificationsModule,
+    MetricsModule,
 
     PaymentsModule,
   ],
@@ -91,6 +94,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
   providers: [
     LoggerMiddleware,
     RequestContextMiddleware,
+    MetricsMiddleware,
 
     // глобальная защита (по умолчанию закрыто всё; Public() открывает нужное)
     { provide: APP_GUARD, useClass: JwtAuthGuard },
@@ -100,6 +104,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // логируем все http запросы
-    consumer.apply(RequestContextMiddleware, LoggerMiddleware).forRoutes('*');
+    consumer
+      .apply(RequestContextMiddleware, LoggerMiddleware, MetricsMiddleware)
+      .forRoutes('*');
   }
 }

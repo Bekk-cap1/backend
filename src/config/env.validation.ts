@@ -29,9 +29,16 @@ export const envValidationSchema = Joi.object({
 
   SWAGGER_ENABLED: Joi.boolean().default(false),
   REALTIME_ENABLED: Joi.boolean().default(false),
+  METRICS_ENABLED: Joi.boolean().default(true),
 
   BOOKING_CANCEL_FEE_PERCENT: Joi.number().min(0).max(100).default(10),
 
   OFFERS_MAX_DRIVER: Joi.number().integer().min(1).default(3),
   OFFERS_MAX_PASSENGER: Joi.number().integer().min(1).default(3),
+
+  SENTRY_ENABLED: Joi.boolean().default(true),
+  SENTRY_DSN: Joi.string().uri().optional(),
+  SENTRY_ENV: Joi.string().optional(),
+  SENTRY_RELEASE: Joi.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: Joi.number().min(0).max(1).default(0),
 }).unknown(true);

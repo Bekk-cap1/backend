@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { AppLoggerService } from './logger.service';
+import { getRequestContext } from '../request-context/request-context';
 
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
@@ -11,8 +12,13 @@ export class LoggerMiddleware implements NestMiddleware {
 
     res.on('finish', () => {
       const ms = Date.now() - startedAt;
+      const ctx = getRequestContext();
+      const userId = ctx.actorId;
 
-      this.logger.log('HTTP', {
+      this.logger.info('HTTP', {
+        requestId: ctx.requestId ?? req.requestId,
+        userId,
+        userRole: ctx.actorRole,
         method: req.method,
         url: req.originalUrl,
         statusCode: res.statusCode,
