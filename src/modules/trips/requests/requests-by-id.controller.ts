@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  HttpCode,
   Param,
   Post,
   UseGuards,
@@ -31,6 +32,7 @@ export class RequestsByIdController {
   }
 
   @Post(':requestId/cancel')
+  @HttpCode(200)
   @Roles(Role.passenger)
   cancel(@Param('requestId') requestId: string, @CurrentUser() user: AuthUser) {
     return this.service.cancelRequest(user.sub, requestId);
