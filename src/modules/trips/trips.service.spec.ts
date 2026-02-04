@@ -1,4 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { TripStatus } from '@prisma/client';
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import type { DriversService } from '../drivers/drivers.service';
 import type { AuditService } from '../../audit/audit.service';
@@ -6,13 +11,33 @@ import type { OutboxService } from '../../outbox/outbox.service';
 import { TripsService } from './trips.service';
 
 describe('TripsService', () => {
+  const drivers = {
+    assertVerifiedDriver: jest.fn().mockResolvedValue(undefined),
+  } as unknown as DriversService;
+  const audit = {
+    logTx: jest.fn().mockResolvedValue(undefined),
+  } as unknown as AuditService;
+  const outbox = {
+    enqueueTx: jest.fn().mockResolvedValue(undefined),
+  } as unknown as OutboxService;
+
+  const prismaBase = {
+    vehicle: {
+      findFirst: jest.fn(),
+    },
+    trip: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
+  } as unknown as PrismaService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('rejects invalid seatsTotal', async () => {
-    const prisma = {} as unknown as PrismaService;
-    const drivers = {
-      assertVerifiedDriver: jest.fn().mockResolvedValue(null),
-    } as unknown as DriversService;
-    const audit = {} as unknown as AuditService;
-    const outbox = {} as unknown as OutboxService;
+    const prisma = prismaBase as unknown as PrismaService;
     const service = new TripsService(prisma, drivers, audit, outbox);
 
     await expect(
@@ -25,5 +50,86 @@ describe('TripsService', () => {
         currency: 'UZS',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects invalid departureAt', async () => {
+    const prisma = prismaBase as unknown as PrismaService;
+    const service = new TripsService(prisma, drivers, audit, outbox);
+
+    await expect(
+      service.createTrip('driver-1', {
+        fromCityId: 'city-1',
+        toCityId: 'city-2',
+        departureAt: 'invalid-date',
+        seatsTotal: 1,
+        price: 1000,
+        currency: 'UZS',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects when vehicle does not belong to driver', async () => {
+    const prisma = prismaBase as unknown as PrismaService;
+    (prisma.vehicle.findFirst as jest.Mock).mockResolvedValue(null);
+    const service = new TripsService(prisma, drivers, audit, outbox);
+
+    await expect(
+      service.createTrip('driver-1', {
+        fromCityId: 'city-1',
+        toCityId: 'city-2',
+        departureAt: new Date(Date.now() + 3600_000).toISOString(),
+        seatsTotal: 1,
+        price: 1000,
+        currency: 'UZS',
+        vehicleId: 'vehicle-1',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('publishes trip and enqueues outbox', async () => {
+    const prisma = prismaBase as unknown as PrismaService;
+    const trip = {
+      id: 'trip-1',
+      driverId: 'driver-1',
+      status: TripStatus.draft,
+      vehicleId: 'vehicle-1',
+      departureAt: new Date(Date.now() + 3600_000),
+      fromCityId: 'city-1',
+      toCityId: 'city-2',
+      price: 1000,
+      currency: 'UZS',
+      notes: null,
+    };
+    (prisma.trip.findUnique as jest.Mock).mockResolvedValue(trip);
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (cb: (tx: { trip: { update: jest.Mock } }) => unknown) => {
+        const tx = {
+          trip: {
+            update: jest.fn().mockResolvedValue({
+              ...trip,
+              status: TripStatus.published,
+            }),
+          },
+        };
+        return cb(tx);
+      },
+    );
+
+    const service = new TripsService(prisma, drivers, audit, outbox);
+    const result = await service.publishTrip('driver-1', 'trip-1');
+
+    expect(result.status).toBe(TripStatus.published);
+    expect(audit.logTx).toHaveBeenCalled();
+    expect(outbox.enqueueTx).toHaveBeenCalled();
+  });
+
+  it('rejects publish when trip is missing', async () => {
+    const prisma = prismaBase as unknown as PrismaService;
+    (prisma.trip.findUnique as jest.Mock).mockResolvedValue(null);
+    const service = new TripsService(prisma, drivers, audit, outbox);
+
+    await expect(
+      service.publishTrip('driver-1', 'trip-missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

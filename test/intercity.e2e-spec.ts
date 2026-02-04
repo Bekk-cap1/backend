@@ -91,9 +91,11 @@ describe('Intercity (e2e)', () => {
 
   let driverToken: string;
   let passengerToken: string;
+  let cancelPassengerToken: string;
   let driverId: string;
   let tripId: string;
   let requestId: string;
+  let cancelRequestId: string;
   let bookingId: string;
   let lastOfferId: string;
   let fromCityId: string;
@@ -102,6 +104,7 @@ describe('Intercity (e2e)', () => {
 
   const driverPhone = '+998900000001';
   const passengerPhone = '+998900000002';
+  const cancelPassengerPhone = '+998900000003';
   const password = 'Password123!';
   const apiPath = (path: string) => `${basePath}${path}`;
 
@@ -109,15 +112,20 @@ describe('Intercity (e2e)', () => {
     process.env.NODE_ENV = 'test';
 
     const databaseUrl =
+      process.env.DATABASE_URL_TEST ??
       process.env.DATABASE_URL ??
       'postgresql://postgres:postgres@localhost:5433/intercity_test?schema=public';
     const shadowUrl =
+      process.env.SHADOW_DATABASE_URL_TEST ??
       process.env.SHADOW_DATABASE_URL ??
       'postgresql://postgres:postgres@localhost:5433/intercity_shadow?schema=public';
 
     process.env.DATABASE_URL = databaseUrl;
     process.env.SHADOW_DATABASE_URL = shadowUrl;
-    process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+    process.env.REDIS_URL =
+      process.env.REDIS_URL_TEST ??
+      process.env.REDIS_URL ??
+      'redis://localhost:6379';
     process.env.JWT_ACCESS_SECRET =
       process.env.JWT_ACCESS_SECRET ?? 'test_access_secret_123456';
     process.env.JWT_REFRESH_SECRET =
@@ -279,6 +287,27 @@ describe('Intercity (e2e)', () => {
     driverToken = loginData.accessToken;
   });
 
+  it('registers and logs in passenger for cancel flow', async () => {
+    await api
+      .post(apiPath('/auth/register'))
+      .send({
+        phone: cancelPassengerPhone,
+        password,
+      })
+      .expect(201);
+
+    const login = await api
+      .post(apiPath('/auth/login'))
+      .send({
+        phone: cancelPassengerPhone,
+        password,
+      })
+      .expect(201);
+
+    const loginData = getData<AuthLoginPayload>(login);
+    cancelPassengerToken = loginData.accessToken;
+  });
+
   it('creates vehicle for verified driver', async () => {
     await api
       .post(apiPath('/vehicles'))
@@ -355,6 +384,26 @@ describe('Intercity (e2e)', () => {
 
     const requestData = getData<RequestPayload>(reqRes);
     requestId = requestData.id;
+  });
+
+  it('creates and cancels a passenger request', async () => {
+    const reqRes = await api
+      .post(apiPath(`/trips/${tripId}/requests`))
+      .set('Authorization', `Bearer ${cancelPassengerToken}`)
+      .send({
+        seats: 1,
+        price: 88000,
+        currency: 'UZS',
+        message: 'Will cancel',
+      })
+      .expect(201);
+
+    cancelRequestId = getData<RequestPayload>(reqRes).id;
+
+    await api
+      .post(apiPath(`/requests/${cancelRequestId}/cancel`))
+      .set('Authorization', `Bearer ${cancelPassengerToken}`)
+      .expect(200);
   });
 
   it('negotiates offers turn-by-turn and accepts', async () => {
