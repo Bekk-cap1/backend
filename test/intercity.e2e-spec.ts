@@ -173,12 +173,16 @@ describe('Intercity (e2e)', () => {
       },
     });
 
-    const { AppModule } =
-      require('../src/app.module') as typeof import('../src/app.module');
-    const { bootstrapApp } =
-      require('../src/app.bootstrap') as typeof import('../src/app.bootstrap');
-    const { OutboxDispatcher } =
-      require('../src/outbox/outbox.dispatcher') as typeof import('../src/outbox/outbox.dispatcher');
+    const [{ AppModule }, { bootstrapApp }, { OutboxDispatcher }] =
+      (await Promise.all([
+        import('../src/app.module'),
+        import('../src/app.bootstrap'),
+        import('../src/outbox/outbox.dispatcher'),
+      ])) as [
+        typeof import('../src/app.module'),
+        typeof import('../src/app.bootstrap'),
+        typeof import('../src/outbox/outbox.dispatcher'),
+      ];
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
