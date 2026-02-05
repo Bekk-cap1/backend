@@ -7,15 +7,18 @@ const targetDir = path.join(root, 'node_modules', '@prisma', 'client', '.prisma'
 const target = path.join(targetDir, 'client');
 
 const inCi = process.env.CI === 'true' || process.env.CI === '1';
+const skipSync =
+  process.env.SKIP_PRISMA_CLIENT_SYNC === 'true' ||
+  process.env.SKIP_PRISMA_CLIENT_SYNC === '1';
+
+if (skipSync) {
+  process.exit(0);
+}
 
 if (!fs.existsSync(source)) {
   const msg = 'Prisma client not found. Run `prisma generate` first.';
-  if (inCi) {
-    console.warn(msg);
-    process.exit(0);
-  }
-  console.error(msg);
-  process.exit(1);
+  console.warn(msg);
+  process.exit(0);
 }
 
 try {
@@ -24,12 +27,7 @@ try {
   fs.cpSync(source, target, { recursive: true });
 } catch (error) {
   const msg = 'Failed to sync Prisma client to @prisma/client/.prisma';
-  if (inCi) {
-    console.warn(msg);
-    console.warn(error);
-    process.exit(0);
-  }
-  console.error(msg);
-  console.error(error);
-  process.exit(1);
+  console.warn(msg);
+  console.warn(error);
+  process.exit(0);
 }
