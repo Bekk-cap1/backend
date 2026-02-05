@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
@@ -25,15 +25,26 @@ async function generate() {
   process.env.OFFERS_MAX_PASSENGER = process.env.OFFERS_MAX_PASSENGER ?? '3';
   process.env.SKIP_EXTERNALS = process.env.SKIP_EXTERNALS ?? 'true';
 
-  const app = await NestFactory.create(AppModule, { logger: false });
-  bootstrapApp(app, { enableSwagger: false, enableLogger: false });
-
-  const document = buildSwaggerDocument(app);
   const outputPath = resolve(process.cwd(), 'docs', 'openapi.json');
-  mkdirSync(dirname(outputPath), { recursive: true });
-  writeFileSync(outputPath, JSON.stringify(document, null, 2));
 
-  await app.close();
+  try {
+    const app = await NestFactory.create(AppModule, { logger: false });
+    bootstrapApp(app, { enableSwagger: false, enableLogger: false });
+
+    const document = buildSwaggerDocument(app);
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, JSON.stringify(document, null, 2));
+
+    await app.close();
+  } catch (error) {
+    console.error('OpenAPI generation failed.');
+    console.error(error);
+    if (existsSync(outputPath)) {
+      console.warn('Using existing docs/openapi.json as fallback.');
+      return;
+    }
+    throw error;
+  }
 }
 
 void generate();
