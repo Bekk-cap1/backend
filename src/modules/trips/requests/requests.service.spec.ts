@@ -3,7 +3,6 @@ import { Role, TripStatus } from '@prisma/client';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import type { OutboxService } from '../../../outbox/outbox.service';
-import type { DriversService } from '../../drivers/drivers.service';
 import { RequestsService } from './requests.service';
 
 describe('RequestsService', () => {

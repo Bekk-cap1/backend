@@ -2,7 +2,6 @@ import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { Role, type User } from '@prisma/client';
 import { AuthService } from './auth.service';
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import type { AuthStrategiesService } from './strategies/auth.service';
 import { isRecord } from '../../common/utils/type-guards';
 import * as bcrypt from 'bcrypt';
 
@@ -127,10 +126,7 @@ describe('AuthService', () => {
     bcryptMock.compare.mockResolvedValue(true);
 
     const service = new AuthService(prisma, strategies);
-    const result = await service.validateUser(
-      '+998900000000',
-      'Password123!',
-    );
+    const result = await service.validateUser('+998900000000', 'Password123!');
 
     expect(result).toEqual({
       id: 'user-1',

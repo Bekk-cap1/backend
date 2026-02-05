@@ -4,7 +4,6 @@ import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import type { AuditService } from '../../audit/audit.service';
 import type { OutboxService } from '../../outbox/outbox.service';
-import type { DriversService } from '../drivers/drivers.service';
 import { OffersService } from './offers.service';
 
 describe('OffersService', () => {

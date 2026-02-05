@@ -5,9 +5,6 @@ import {
 } from '@nestjs/common';
 import { TripStatus } from '@prisma/client';
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import type { DriversService } from '../drivers/drivers.service';
-import type { AuditService } from '../../audit/audit.service';
-import type { OutboxService } from '../../outbox/outbox.service';
 import { TripsService } from './trips.service';
 
 describe('TripsService', () => {

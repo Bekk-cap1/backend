@@ -54,10 +54,11 @@ const redactKeys = new Set([
 ]);
 
 const formatResponseBody = (body: unknown): string => {
+  const replacer = (key: string, value: unknown): unknown =>
+    redactKeys.has(key) ? '[REDACTED]' : value;
+
   try {
-    return JSON.stringify(body, (key, value) =>
-      redactKeys.has(key) ? '[REDACTED]' : value,
-    );
+    return JSON.stringify(body, replacer);
   } catch {
     return String(body);
   }
@@ -171,19 +172,16 @@ describe('Intercity (e2e)', () => {
       },
     });
 
-    const [
-      { AppModule },
-      { bootstrapApp },
-      { OutboxDispatcher },
-    ] = (await Promise.all([
-      import('../src/app.module'),
-      import('../src/app.bootstrap'),
-      import('../src/outbox/outbox.dispatcher'),
-    ])) as [
-      typeof import('../src/app.module'),
-      typeof import('../src/app.bootstrap'),
-      typeof import('../src/outbox/outbox.dispatcher'),
-    ];
+    const [{ AppModule }, { bootstrapApp }, { OutboxDispatcher }] =
+      (await Promise.all([
+        import('../src/app.module'),
+        import('../src/app.bootstrap'),
+        import('../src/outbox/outbox.dispatcher'),
+      ])) as [
+        typeof import('../src/app.module'),
+        typeof import('../src/app.bootstrap'),
+        typeof import('../src/outbox/outbox.dispatcher'),
+      ];
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -242,12 +240,10 @@ describe('Intercity (e2e)', () => {
   });
 
   it('registers and logs in passenger', async () => {
-    const register = await api
-      .post(apiPath('/auth/register'))
-      .send({
-        phone: passengerUser.phone,
-        password: passengerUser.password,
-      });
+    const register = await api.post(apiPath('/auth/register')).send({
+      phone: passengerUser.phone,
+      password: passengerUser.password,
+    });
     if (register.status !== 201) {
       throw new Error(
         `register passenger failed: ${register.status} ${formatResponseBody(
@@ -278,12 +274,10 @@ describe('Intercity (e2e)', () => {
   });
 
   it('registers and logs in driver', async () => {
-    const register = await api
-      .post(apiPath('/auth/register'))
-      .send({
-        phone: driverUser.phone,
-        password: driverUser.password,
-      });
+    const register = await api.post(apiPath('/auth/register')).send({
+      phone: driverUser.phone,
+      password: driverUser.password,
+    });
     if (register.status !== 201) {
       throw new Error(
         `register driver failed: ${register.status} ${formatResponseBody(
@@ -332,12 +326,10 @@ describe('Intercity (e2e)', () => {
   });
 
   it('registers and logs in passenger for cancel flow', async () => {
-    const register = await api
-      .post(apiPath('/auth/register'))
-      .send({
-        phone: cancelPassengerUser.phone,
-        password: cancelPassengerUser.password,
-      });
+    const register = await api.post(apiPath('/auth/register')).send({
+      phone: cancelPassengerUser.phone,
+      password: cancelPassengerUser.password,
+    });
     if (register.status !== 201) {
       throw new Error(
         `register cancel passenger failed: ${register.status} ${formatResponseBody(
@@ -594,10 +586,7 @@ async function resetDatabase(prisma: PrismaClient) {
   `);
 }
 
-async function waitForOutboxDone(
-  prisma: PrismaClient,
-  timeoutMs = 5_000,
-) {
+async function waitForOutboxDone(prisma: PrismaClient, timeoutMs = 5_000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const outbox = await prisma.outboxEvent.findMany({
