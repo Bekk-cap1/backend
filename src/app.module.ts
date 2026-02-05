@@ -42,6 +42,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { MetricsMiddleware } from './modules/metrics/metrics.middleware';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { MetricsMiddleware } from './modules/metrics/metrics.middleware';
     RealtimeModule,
     NotificationsModule,
     MetricsModule,
+    HealthModule,
 
     PaymentsModule,
   ],

@@ -1,4 +1,4 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe, RequestMethod } from '@nestjs/common';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
@@ -51,7 +51,10 @@ export function bootstrapApp(
 
   if (prefix) {
     app.setGlobalPrefix(prefix, {
-      exclude: ['health/(.*)', 'metrics'],
+      exclude: [
+        { path: 'health/*path', method: RequestMethod.ALL },
+        { path: 'metrics', method: RequestMethod.ALL },
+      ],
     });
   }
 
