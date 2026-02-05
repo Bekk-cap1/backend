@@ -46,7 +46,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
       - name: Generate OpenAPI
         run: npm run openapi:generate
       - name: Unit tests with coverage
@@ -106,7 +106,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
       - name: Prepare databases
         run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_test;' || true
@@ -172,7 +172,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
       - name: Prepare databases
         run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_smoke;' || true

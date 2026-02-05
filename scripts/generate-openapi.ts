@@ -23,6 +23,7 @@ async function generate() {
   process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL ?? '2592000';
   process.env.OFFERS_MAX_DRIVER = process.env.OFFERS_MAX_DRIVER ?? '3';
   process.env.OFFERS_MAX_PASSENGER = process.env.OFFERS_MAX_PASSENGER ?? '3';
+  process.env.SKIP_EXTERNALS = process.env.SKIP_EXTERNALS ?? 'true';
 
   const app = await NestFactory.create(AppModule, { logger: false });
   bootstrapApp(app, { enableSwagger: false, enableLogger: false });

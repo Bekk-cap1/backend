@@ -6,7 +6,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client!: Redis;
 
   onModuleInit() {
-    this.client = new Redis(process.env.REDIS_URL!);
+    const redisUrl = process.env.REDIS_URL!;
+    if (process.env.SKIP_EXTERNALS === 'true') {
+      this.client = new Redis(redisUrl, { lazyConnect: true });
+      return;
+    }
+    this.client = new Redis(redisUrl);
   }
 
   async onModuleDestroy() {

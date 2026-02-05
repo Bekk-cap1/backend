@@ -24,10 +24,12 @@ export class PrismaService
   }
 
   async onModuleInit() {
+    if (process.env.SKIP_EXTERNALS === 'true') return;
     await this.$connect();
   }
 
   async onModuleDestroy() {
+    if (process.env.SKIP_EXTERNALS === 'true') return;
     await this.$disconnect();
     await this.pool.end();
   }

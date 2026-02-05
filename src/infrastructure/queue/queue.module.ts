@@ -12,9 +12,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       useFactory: (cfg: ConfigService) => {
         const redisUrl = cfg.get<string>('REDIS_URL') ?? process.env.REDIS_URL;
         if (!redisUrl) throw new Error('REDIS_URL is missing');
+        const skipExternals = process.env.SKIP_EXTERNALS === 'true';
 
         return {
-          connection: { url: redisUrl },
+          connection: { url: redisUrl, lazyConnect: skipExternals },
           prefix: cfg.get<string>('BULL_PREFIX') ?? 'intercity',
           defaultJobOptions: {
             attempts: 5,
