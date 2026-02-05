@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
+import { AppModule } from '../src/app.module';
+import { bootstrapApp } from '../src/app.bootstrap';
+import { buildSwaggerDocument } from '../src/common/swagger';
 
 async function generate() {
   process.env.NODE_ENV = process.env.NODE_ENV ?? 'development';
@@ -25,13 +28,6 @@ async function generate() {
   const outputPath = resolve(process.cwd(), 'docs', 'openapi.json');
 
   try {
-    const { AppModule } =
-      await import('../src/app.module');
-    const { bootstrapApp } =
-      await import('../src/app.bootstrap');
-    const { buildSwaggerDocument } =
-      await import('../src/common/swagger');
-
     const app = await NestFactory.create(AppModule, { logger: false });
     bootstrapApp(app, { enableSwagger: false, enableLogger: false });
 
