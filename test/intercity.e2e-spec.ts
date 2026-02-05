@@ -29,9 +29,11 @@ type RequestApp = Parameters<typeof request>[0];
 type ApiClient = ReturnType<typeof request>;
 
 const getData = <T>(res: Response): T => {
-  const body = res.body as Partial<ApiEnvelope<unknown>>;
+  const body = res.body as unknown as Partial<ApiEnvelope<unknown>>;
   const raw: unknown =
-    body && typeof body === 'object' && 'data' in body ? body.data : res.body;
+    body && typeof body === 'object' && 'data' in body
+      ? body.data
+      : (res.body as unknown);
 
   if (raw && typeof raw === 'object' && 'ok' in raw && 'data' in raw) {
     return (raw as ApiEnvelope<T>).data;
@@ -169,12 +171,19 @@ describe('Intercity (e2e)', () => {
       },
     });
 
-    const [{ AppModule }, { bootstrapApp }, { OutboxDispatcher }] =
-      await Promise.all([
-        import('../src/app.module'),
-        import('../src/app.bootstrap'),
-        import('../src/outbox/outbox.dispatcher'),
-      ]);
+    const [
+      { AppModule },
+      { bootstrapApp },
+      { OutboxDispatcher },
+    ] = (await Promise.all([
+      import('../src/app.module'),
+      import('../src/app.bootstrap'),
+      import('../src/outbox/outbox.dispatcher'),
+    ])) as [
+      typeof import('../src/app.module'),
+      typeof import('../src/app.bootstrap'),
+      typeof import('../src/outbox/outbox.dispatcher'),
+    ];
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],

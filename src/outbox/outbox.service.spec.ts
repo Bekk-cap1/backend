@@ -5,9 +5,9 @@ import { OutboxTopic } from './outbox.topics';
 describe('OutboxService', () => {
   it('enqueues with defaults', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'evt-1' });
-    const tx = {
+    const tx: { outboxEvent: { create: jest.Mock } } = {
       outboxEvent: { create },
-    } as any;
+    };
 
     const service = new OutboxService();
     await service.enqueueTx(tx, {
@@ -32,9 +32,9 @@ describe('OutboxService', () => {
 
   it('respects idempotencyKey and availableAt', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'evt-2' });
-    const tx = {
+    const tx: { outboxEvent: { create: jest.Mock } } = {
       outboxEvent: { create },
-    } as any;
+    };
     const availableAt = new Date('2030-01-01T00:00:00.000Z');
 
     const service = new OutboxService();

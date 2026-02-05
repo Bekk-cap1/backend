@@ -15,7 +15,7 @@ describe('OffersService', () => {
   const outbox = {} as unknown as OutboxService;
   const drivers = {
     assertVerifiedDriver: jest.fn().mockResolvedValue(null),
-  } as unknown as DriversService;
+  } as { assertVerifiedDriver: jest.Mock };
   const config = {
     get: jest.fn().mockReturnValue(undefined),
   } as unknown as ConfigService;

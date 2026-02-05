@@ -18,7 +18,7 @@ export class MetricsMiddleware implements NestMiddleware {
       if (req.path === '/metrics') return;
 
       const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
-      const routePath = req.route?.path;
+      const routePath = (req.route as { path?: string } | undefined)?.path;
       const base = req.baseUrl ?? '';
       const route = routePath ? `${base}${routePath}` : req.path;
 

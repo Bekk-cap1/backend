@@ -13,13 +13,13 @@ import { TripsService } from './trips.service';
 describe('TripsService', () => {
   const drivers = {
     assertVerifiedDriver: jest.fn().mockResolvedValue(undefined),
-  } as unknown as DriversService;
+  } as { assertVerifiedDriver: jest.Mock };
   const audit = {
     logTx: jest.fn().mockResolvedValue(undefined),
-  } as unknown as AuditService;
+  } as { logTx: jest.Mock };
   const outbox = {
     enqueueTx: jest.fn().mockResolvedValue(undefined),
-  } as unknown as OutboxService;
+  } as { enqueueTx: jest.Mock };
 
   const prismaBase = {
     vehicle: {
@@ -102,7 +102,7 @@ describe('TripsService', () => {
     };
     (prisma.trip.findUnique as jest.Mock).mockResolvedValue(trip);
     (prisma.$transaction as jest.Mock).mockImplementation(
-      async (cb: (tx: { trip: { update: jest.Mock } }) => unknown) => {
+      (cb: (tx: { trip: { update: jest.Mock } }) => unknown) => {
         const tx = {
           trip: {
             update: jest.fn().mockResolvedValue({

@@ -27,7 +27,11 @@ describe('AuthService', () => {
     issueTokens: jest.fn(),
     rotateRefresh: jest.fn(),
     revokeByRefreshToken: jest.fn(),
-  } as unknown as AuthStrategiesService;
+  } as {
+    issueTokens: jest.Mock;
+    rotateRefresh: jest.Mock;
+    revokeByRefreshToken: jest.Mock;
+  };
   const bcryptMock = bcrypt as jest.Mocked<typeof bcrypt>;
 
   beforeEach(() => {
