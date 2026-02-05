@@ -7,9 +7,8 @@ import { PrismaClient, DriverStatus, OutboxStatus, Role } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import request, { type Response } from 'supertest';
-import { AppModule } from '../src/app.module';
-import { bootstrapApp } from '../src/app.bootstrap';
-import { OutboxDispatcher } from '../src/outbox/outbox.dispatcher';
+import type { OutboxDispatcher } from '../src/outbox/outbox.dispatcher';
+import { makeUniqueUser } from './helpers/e2e-user';
 
 jest.setTimeout(120_000);
 
@@ -43,6 +42,24 @@ const getData = <T>(res: Response): T => {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
+
+const redactKeys = new Set([
+  'accessToken',
+  'refreshToken',
+  'token',
+  'authorization',
+  'Authorization',
+]);
+
+const formatResponseBody = (body: unknown): string => {
+  try {
+    return JSON.stringify(body, (key, value) =>
+      redactKeys.has(key) ? '[REDACTED]' : value,
+    );
+  } catch {
+    return String(body);
+  }
+};
 
 const isPgError = (error: unknown): error is PgError =>
   isRecord(error) && typeof error.code === 'string';
@@ -102,10 +119,9 @@ describe('Intercity (e2e)', () => {
   let toCityId: string;
   let basePath = '';
 
-  const driverPhone = '+998900000001';
-  const passengerPhone = '+998900000002';
-  const cancelPassengerPhone = '+998900000003';
-  const password = 'Password123!';
+  const driverUser = makeUniqueUser('driver');
+  const passengerUser = makeUniqueUser('passenger');
+  const cancelPassengerUser = makeUniqueUser('cancel');
   const apiPath = (path: string) => `${basePath}${path}`;
 
   beforeAll(async () => {
@@ -152,6 +168,13 @@ describe('Intercity (e2e)', () => {
         SHADOW_DATABASE_URL: shadowUrl,
       },
     });
+
+    const [{ AppModule }, { bootstrapApp }, { OutboxDispatcher }] =
+      await Promise.all([
+        import('../src/app.module'),
+        import('../src/app.bootstrap'),
+        import('../src/outbox/outbox.dispatcher'),
+      ]);
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -210,19 +233,25 @@ describe('Intercity (e2e)', () => {
   });
 
   it('registers and logs in passenger', async () => {
-    await api
+    const register = await api
       .post(apiPath('/auth/register'))
       .send({
-        phone: passengerPhone,
-        password,
-      })
-      .expect(201);
+        phone: passengerUser.phone,
+        password: passengerUser.password,
+      });
+    if (register.status !== 201) {
+      throw new Error(
+        `register passenger failed: ${register.status} ${formatResponseBody(
+          register.body,
+        )}`,
+      );
+    }
 
     const login = await api
       .post(apiPath('/auth/login'))
       .send({
-        phone: passengerPhone,
-        password,
+        phone: passengerUser.phone,
+        password: passengerUser.password,
       })
       .expect(201);
 
@@ -240,16 +269,22 @@ describe('Intercity (e2e)', () => {
   });
 
   it('registers and logs in driver', async () => {
-    await api
+    const register = await api
       .post(apiPath('/auth/register'))
       .send({
-        phone: driverPhone,
-        password,
-      })
-      .expect(201);
+        phone: driverUser.phone,
+        password: driverUser.password,
+      });
+    if (register.status !== 201) {
+      throw new Error(
+        `register driver failed: ${register.status} ${formatResponseBody(
+          register.body,
+        )}`,
+      );
+    }
 
     const driver = await prisma.user.findUnique({
-      where: { phone: driverPhone },
+      where: { phone: driverUser.phone },
     });
     if (!driver) {
       throw new Error('Driver not created');
@@ -278,8 +313,8 @@ describe('Intercity (e2e)', () => {
     const login = await api
       .post(apiPath('/auth/login'))
       .send({
-        phone: driverPhone,
-        password,
+        phone: driverUser.phone,
+        password: driverUser.password,
       })
       .expect(201);
 
@@ -288,19 +323,25 @@ describe('Intercity (e2e)', () => {
   });
 
   it('registers and logs in passenger for cancel flow', async () => {
-    await api
+    const register = await api
       .post(apiPath('/auth/register'))
       .send({
-        phone: cancelPassengerPhone,
-        password,
-      })
-      .expect(201);
+        phone: cancelPassengerUser.phone,
+        password: cancelPassengerUser.password,
+      });
+    if (register.status !== 201) {
+      throw new Error(
+        `register cancel passenger failed: ${register.status} ${formatResponseBody(
+          register.body,
+        )}`,
+      );
+    }
 
     const login = await api
       .post(apiPath('/auth/login'))
       .send({
-        phone: cancelPassengerPhone,
-        password,
+        phone: cancelPassengerUser.phone,
+        password: cancelPassengerUser.password,
       })
       .expect(201);
 
