@@ -1,4 +1,8 @@
-import { INestApplication, ValidationPipe, RequestMethod } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  RequestMethod,
+} from '@nestjs/common';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
@@ -80,8 +84,7 @@ export function bootstrapApp(
       options.rateLimit?.windowMs ??
       Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
     const max =
-      options.rateLimit?.max ??
-      Number(process.env.RATE_LIMIT_MAX ?? 200);
+      options.rateLimit?.max ?? Number(process.env.RATE_LIMIT_MAX ?? 200);
     const authMax =
       options.rateLimit?.authMax ??
       Number(process.env.RATE_LIMIT_AUTH_MAX ?? 20);

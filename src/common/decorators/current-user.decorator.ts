@@ -28,7 +28,8 @@ export const CurrentUser = createParamDecorator(
 
     return {
       sub,
-      id: hasKey(user, 'id') && typeof user.id === 'string' ? user.id : undefined,
+      id:
+        hasKey(user, 'id') && typeof user.id === 'string' ? user.id : undefined,
       phone:
         hasKey(user, 'phone') && typeof user.phone === 'string'
           ? user.phone

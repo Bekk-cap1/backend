@@ -8,7 +8,10 @@ import {
 import type { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { isRecord } from '../utils/type-guards';
-import { captureException, isSentryEnabled } from '../../infrastructure/sentry/sentry';
+import {
+  captureException,
+  isSentryEnabled,
+} from '../../infrastructure/sentry/sentry';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
