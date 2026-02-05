@@ -14,7 +14,7 @@
     "seed": "prisma db seed",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate && node scripts/ensure-prisma-client.js",
-    "postinstall": "npm run prisma:generate",
+    "postinstall": "node -e \"process.exit(process.env.CI ? 0 : 1)\" || npm run prisma:generate",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
