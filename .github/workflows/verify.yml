@@ -11,6 +11,9 @@ permissions:
 jobs:
   verify_unit_openapi:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -62,6 +65,8 @@ jobs:
           --health-retries=5
     env:
       NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
       DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
       SHADOW_DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
       REDIS_URL_TEST: redis://localhost:6379
