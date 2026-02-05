@@ -93,6 +93,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Generate OpenAPI
+        run: npm run openapi:generate
+
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: docs/openapi.json
+
   docker:
     needs: build-test
     runs-on: ubuntu-latest
@@ -130,6 +139,17 @@ jobs:
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+
+      - name: Run migrations job
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/intercity-backend:${{ github.sha }}
+          NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
+        run: |
+          NAMESPACE="${NAMESPACE:-intercity}"
+          kubectl -n "${NAMESPACE}" delete job intercity-migrate --ignore-not-found
+          kubectl apply -f k8s/migrate-job.yaml
+          kubectl -n "${NAMESPACE}" set image job/intercity-migrate intercity-migrate="${IMAGE}"
+          kubectl -n "${NAMESPACE}" wait --for=condition=complete job/intercity-migrate --timeout=180s
 
       - name: Deploy manifests
         env:

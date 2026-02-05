@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: intercity-migrate
+  namespace: intercity
+  labels:
+    app: intercity-migrate
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: intercity-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: intercity-migrate
+          image: intercity-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "npm run migrate"]
+          envFrom:
+            - configMapRef:
+                name: intercity-config
+            - secretRef:
+                name: intercity-secrets
