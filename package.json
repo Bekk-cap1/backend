@@ -115,6 +115,11 @@
         "lines": 70
       }
     },
+    "collectCoverageFrom": [
+      "modules/auth/auth.service.ts",
+      "outbox/outbox.service.ts",
+      "common/utils/*.ts"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }
