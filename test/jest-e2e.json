@@ -5,14 +5,8 @@
   "testRegex": ".e2e-spec.ts$",
   "preset": "ts-jest/presets/default-esm",
   "transform": {
-    "^.+\\.(t|j)s$": [
-      "ts-jest",
-      { "useESM": true, "tsconfig": { "module": "NodeNext" } }
-    ]
-  },
-  "extensionsToTreatAsEsm": [".ts"],
-  "moduleNameMapper": {
-    "^(\\.{1,2}/.*)\\.js$": "$1"
+    "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": { "module": "CommonJS" } }]
+
   }
 
 }
