@@ -106,6 +106,8 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    env:
+      GHCR_OWNER: ${{ toLower(github.repository_owner) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -125,8 +127,9 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/intercity-backend:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/intercity-backend:latest
+            ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
+            ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:latest
+
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
@@ -134,6 +137,8 @@ jobs:
     needs: docker
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    env:
+      GHCR_OWNER: ${{ toLower(github.repository_owner) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -144,7 +149,8 @@ jobs:
 
       - name: Run migrations job
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/intercity-backend:${{ github.sha }}
+          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
+
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
@@ -155,7 +161,8 @@ jobs:
 
       - name: Deploy manifests
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/intercity-backend:${{ github.sha }}
+          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
+
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
