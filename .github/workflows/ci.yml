@@ -129,6 +129,8 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    env:
+      GHCR_OWNER: ${{ toLower(github.repository_owner) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -153,6 +155,7 @@ jobs:
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/backend:${{ github.sha }}
             ghcr.io/${{ env.GHCR_OWNER }}/backend:latest
+
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 

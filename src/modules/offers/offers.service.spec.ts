@@ -1,5 +1,4 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import type { AuditService } from '../../audit/audit.service';
@@ -27,7 +26,7 @@ describe('OffersService', () => {
     const service = new OffersService(prisma, audit, outbox, drivers, config);
 
     await expect(
-      service.createOffer('user-1', Role.passenger, 'request-1', { price: 0 }),
+      service.createOffer('user-1', 'passenger', 'request-1', { price: 0 }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -35,7 +34,7 @@ describe('OffersService', () => {
     const service = new OffersService(prisma, audit, outbox, drivers, config);
 
     await expect(
-      service.createOffer('user-1', Role.admin, 'request-1', { price: 1000 }),
+      service.createOffer('user-1', 'admin', 'request-1', { price: 1000 }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -46,7 +45,7 @@ describe('OffersService', () => {
     });
 
     await expect(
-      service.createOffer('user-1', Role.driver, 'request-1', { price: 1000 }),
+      service.createOffer('user-1', 'driver', 'request-1', { price: 1000 }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(drivers.assertVerifiedDriver).toHaveBeenCalledWith('user-1');
