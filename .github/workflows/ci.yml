@@ -179,21 +179,38 @@ jobs:
   deploy:
     needs: docker
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && secrets.KUBE_CONFIG != ''
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check deploy config
+        id: deploy_check
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip deploy (no KUBE_CONFIG)
+        if: steps.deploy_check.outputs.enabled != 'true'
+        run: echo "KUBE_CONFIG not set -> skipping deploy"
+
       - name: Compute GHCR owner lowercase
+        if: steps.deploy_check.outputs.enabled == 'true'
         shell: bash
         run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Configure kubeconfig
+        if: steps.deploy_check.outputs.enabled == 'true'
         shell: bash
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
 
       - name: Run migrations job
+        if: steps.deploy_check.outputs.enabled == 'true'
         env:
           IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
@@ -206,6 +223,7 @@ jobs:
           kubectl -n "${NAMESPACE}" wait --for=condition=complete job/intercity-migrate --timeout=180s
 
       - name: Deploy manifests
+        if: steps.deploy_check.outputs.enabled == 'true'
         env:
           IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
