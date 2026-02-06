@@ -53,10 +53,16 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
       SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
       REDIS_URL: redis://localhost:6379
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
+      SHADOW_DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
+      REDIS_URL_TEST: redis://localhost:6379
       JWT_ACCESS_SECRET: ci_access_secret_123456
       JWT_REFRESH_SECRET: ci_refresh_secret_123456
       JWT_ACCESS_TTL: 900
       JWT_REFRESH_TTL: 2592000
+      JWT_SECRET: test_jwt_secret
+      SENTRY_DSN: ""
+      METRICS_ENABLED: true
 
     steps:
       - uses: actions/checkout@v4
@@ -68,12 +74,29 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres?schema=public
+          JWT_SECRET: test_jwt_secret
+          SENTRY_DSN: ""
+          METRICS_ENABLED: true
         run: npm ci
 
       - name: Prepare databases
         run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_test;' || true
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_shadow;' || true
+
+      - name: Wait for services
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -U postgres && break
+            sleep 2
+          done
+          for i in {1..30}; do
+            redis-cli ping && break
+            sleep 2
+          done
 
       - name: Prisma validate
         run: npx prisma validate
@@ -114,6 +137,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Normalize GHCR owner
+        run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -127,8 +153,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
-            ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:latest
+            ghcr.io/${{ env.GHCR_OWNER }}/backend:${{ github.sha }}
+            ghcr.io/${{ env.GHCR_OWNER }}/backend:latest
 
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
@@ -136,11 +162,12 @@ jobs:
   deploy:
     needs: docker
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    env:
-      GHCR_OWNER: ${{ toLower(github.repository_owner) }}
+    if: github.event_name == 'push' && secrets.KUBE_CONFIG != ''
     steps:
       - uses: actions/checkout@v4
+
+      - name: Normalize GHCR owner
+        run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Configure kubeconfig
         run: |
@@ -149,8 +176,7 @@ jobs:
 
       - name: Run migrations job
         env:
-          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
-
+          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/backend:${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
@@ -161,8 +187,7 @@ jobs:
 
       - name: Deploy manifests
         env:
-          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
-
+          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/backend:${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
