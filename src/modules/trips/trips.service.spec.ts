@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { TripStatus } from '@prisma/client';
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { TripsService } from './trips.service';
 
@@ -88,7 +87,7 @@ describe('TripsService', () => {
     const trip = {
       id: 'trip-1',
       driverId: 'driver-1',
-      status: TripStatus.draft,
+      status: 'draft',
       vehicleId: 'vehicle-1',
       departureAt: new Date(Date.now() + 3600_000),
       fromCityId: 'city-1',
@@ -104,7 +103,7 @@ describe('TripsService', () => {
           trip: {
             update: jest.fn().mockResolvedValue({
               ...trip,
-              status: TripStatus.published,
+              status: 'published',
             }),
           },
         };
@@ -115,7 +114,7 @@ describe('TripsService', () => {
     const service = new TripsService(prisma, drivers, audit, outbox);
     const result = await service.publishTrip('driver-1', 'trip-1');
 
-    expect(result.status).toBe(TripStatus.published);
+    expect(result.status).toBe('published');
     expect(audit.logTx).toHaveBeenCalled();
     expect(outbox.enqueueTx).toHaveBeenCalled();
   });
