@@ -1,4 +1,3 @@
-import { OutboxStatus } from '@prisma/client';
 import { OutboxService } from './outbox.service';
 import { OutboxTopic } from './outbox.topics';
 
@@ -25,7 +24,7 @@ describe('OutboxService', () => {
         aggregateId: 'req-1',
         payload: { hello: 'world' },
         nextRetryAt: null,
-        status: OutboxStatus.NEW,
+        status: 'NEW',
       },
     });
   });
@@ -54,7 +53,7 @@ describe('OutboxService', () => {
         aggregateId: null,
         payload: { tripId: 'trip-1' },
         nextRetryAt: availableAt,
-        status: OutboxStatus.NEW,
+        status: 'NEW',
       },
     });
   });

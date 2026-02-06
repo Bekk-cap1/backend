@@ -1,5 +1,4 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { Role, TripStatus } from '@prisma/client';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import type { OutboxService } from '../../../outbox/outbox.service';
@@ -42,7 +41,7 @@ describe('RequestsService', () => {
     const prisma = prismaBase as unknown as PrismaService;
     (prisma.trip.findUnique as jest.Mock).mockResolvedValue({
       id: 'trip-1',
-      status: TripStatus.draft,
+      status: 'draft',
       seatsAvailable: 2,
     });
     const service = new RequestsService(prisma, outbox, drivers, config);
@@ -60,7 +59,7 @@ describe('RequestsService', () => {
     const prisma = prismaBase as unknown as PrismaService;
     (prisma.trip.findUnique as jest.Mock).mockResolvedValue({
       id: 'trip-1',
-      status: TripStatus.published,
+      status: 'published',
       seatsAvailable: 1,
     });
     const service = new RequestsService(prisma, outbox, drivers, config);
@@ -79,7 +78,7 @@ describe('RequestsService', () => {
     (prisma.tripRequest.findMany as jest.Mock).mockResolvedValue([]);
     const service = new RequestsService(prisma, outbox, drivers, config);
 
-    await service.listDriverRequests('driver-1', Role.driver);
+    await service.listDriverRequests('driver-1', 'driver');
     expect(drivers.assertVerifiedDriver).toHaveBeenCalledWith('driver-1');
   });
 });

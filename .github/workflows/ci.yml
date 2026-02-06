@@ -129,6 +129,8 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    env:
+      GHCR_OWNER: ${{ toLower(github.repository_owner) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -137,7 +139,22 @@ jobs:
 
       - name: Compute GHCR owner lowercase
         shell: bash
+<<<<<<< codex/task-title-o318o4
         run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+=======
+        run: |
+          echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            cat <<EOF >> "$GITHUB_ENV"
+GHCR_TAGS<<TAGS
+ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:sha-${GITHUB_SHA}
+ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:latest
+TAGS
+EOF
+          else
+            echo "GHCR_TAGS=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+          fi
+>>>>>>> main
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -152,7 +169,11 @@ jobs:
           context: .
           push: true
           tags: |
+<<<<<<< codex/task-title-o318o4
             ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
+=======
+            ${{ env.GHCR_TAGS }}
+>>>>>>> main
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
