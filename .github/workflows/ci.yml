@@ -129,6 +129,7 @@ jobs:
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
             ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:latest
+
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
@@ -149,6 +150,7 @@ jobs:
       - name: Run migrations job
         env:
           IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
+
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
@@ -160,6 +162,7 @@ jobs:
       - name: Deploy manifests
         env:
           IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/intercity-backend:${{ github.sha }}
+
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"

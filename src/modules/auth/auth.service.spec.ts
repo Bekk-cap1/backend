@@ -1,5 +1,5 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { Role, type User } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { AuthService } from './auth.service';
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { isRecord } from '../../common/utils/type-guards';
@@ -43,7 +43,7 @@ describe('AuthService', () => {
       id: 'user-1',
       phone: '+998900000000',
       passwordHash: 'hash',
-      role: Role.passenger,
+      role: 'passenger',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -60,7 +60,7 @@ describe('AuthService', () => {
     createMock.mockResolvedValue({
       id: 'user-1',
       phone: '+998900000000',
-      role: Role.passenger,
+      role: 'passenger',
     });
     const service = new AuthService(prisma, strategies);
     const result = await service.register('+998900000000', 'Password123!');
@@ -69,8 +69,8 @@ describe('AuthService', () => {
     if (!isRecord(createArgs) || !isRecord(createArgs.data)) {
       throw new Error('Expected create args to include data');
     }
-    expect(createArgs.data.role).toBe(Role.passenger);
-    expect(result.role).toBe(Role.passenger);
+    expect(createArgs.data.role).toBe('passenger');
+    expect(result.role).toBe('passenger');
   });
 
   it('hashes password on register', async () => {
@@ -79,7 +79,7 @@ describe('AuthService', () => {
     createMock.mockResolvedValue({
       id: 'user-2',
       phone: '+998900000123',
-      role: Role.passenger,
+      role: 'passenger',
     });
 
     const service = new AuthService(prisma, strategies);
@@ -102,7 +102,7 @@ describe('AuthService', () => {
       id: 'user-1',
       phone: '+998900000000',
       passwordHash: 'hash',
-      role: Role.passenger,
+      role: 'passenger',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -119,7 +119,7 @@ describe('AuthService', () => {
       id: 'user-1',
       phone: '+998900000000',
       passwordHash: 'hash',
-      role: Role.passenger,
+      role: 'passenger',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -131,7 +131,7 @@ describe('AuthService', () => {
     expect(result).toEqual({
       id: 'user-1',
       phone: '+998900000000',
-      role: Role.passenger,
+      role: 'passenger',
     });
   });
 
@@ -142,7 +142,7 @@ describe('AuthService', () => {
     const service = new AuthService(prisma, strategies);
 
     await service.issueTokens(
-      { id: 'user-1', phone: '+998900000000', role: Role.passenger },
+      { id: 'user-1', phone: '+998900000000', role: 'passenger' },
       'ua',
       '127.0.0.1',
     );
@@ -150,7 +150,7 @@ describe('AuthService', () => {
     expect(strategies.issueTokens).toHaveBeenCalledWith({
       userId: 'user-1',
       phone: '+998900000000',
-      role: Role.passenger,
+      role: 'passenger',
       userAgent: 'ua',
       ip: '127.0.0.1',
     });
