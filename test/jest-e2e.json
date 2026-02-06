@@ -3,8 +3,16 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "preset": "ts-jest/presets/default-esm",
   "transform": {
-    "^.+\\.(t|j)s$": ["ts-jest", { "useESM": true }]
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      { "useESM": true, "tsconfig": { "module": "NodeNext" } }
+    ]
   },
-  "extensionsToTreatAsEsm": [".ts"]
+  "extensionsToTreatAsEsm": [".ts"],
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  }
+
 }
