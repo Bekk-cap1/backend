@@ -129,6 +129,8 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    env:
+      GHCR_OWNER: ${{ toLower(github.repository_owner) }}
     steps:
       - uses: actions/checkout@v4
 
