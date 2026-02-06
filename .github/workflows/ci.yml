@@ -37,7 +37,7 @@ jobs:
           --health-cmd="pg_isready -U postgres"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
       redis:
         image: redis:7
         ports:
@@ -46,15 +46,17 @@ jobs:
           --health-cmd="redis-cli ping"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
 
     env:
       NODE_ENV: test
-      # Needed for postinstall -> prisma generate (must exist before npm ci)
+
+      # Required early (postinstall -> prisma generate)
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
       SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
       REDIS_URL: redis://localhost:6379
 
+      # For tests (some code uses *_TEST)
       DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
       SHADOW_DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
       REDIS_URL_TEST: redis://localhost:6379
@@ -64,7 +66,10 @@ jobs:
       JWT_ACCESS_TTL: "900"
       JWT_REFRESH_TTL: "2592000"
       JWT_SECRET: test_jwt_secret
-      SENTRY_DSN: ""
+
+      # MUST be non-empty because env validation rejects empty string
+      SENTRY_DSN: "https://public@example.ingest.sentry.io/1"
+
       METRICS_ENABLED: "true"
 
     steps:
@@ -76,15 +81,6 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
-        # Ensure DATABASE_URL exists at install time for prisma generate in postinstall
-        env:
-          NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres?schema=public
-          JWT_SECRET: test_jwt_secret
-          SENTRY_DSN: ""
-          METRICS_ENABLED: "true"
-        run: npm ci
       - name: Install tools (psql + redis-cli)
         run: |
           sudo apt-get update
@@ -100,18 +96,26 @@ jobs:
           pg_isready -h localhost -U postgres || exit 1
 
           for i in {1..30}; do
-            redis-cli ping && break
+            redis-cli -h localhost ping >/dev/null 2>&1 && break
             sleep 2
           done
-          redis-cli ping || exit 1
+          redis-cli -h localhost ping >/dev/null 2>&1 || exit 1
 
       - name: Prepare databases
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_test;' || true
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_shadow;' || true
+
+      - name: Install dependencies
+        # Ensure DATABASE_URL exists at install time for prisma generate in postinstall
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres?schema=public
+          JWT_SECRET: test_jwt_secret
+          SENTRY_DSN: "https://public@example.ingest.sentry.io/1"
+          METRICS_ENABLED: "true"
+        run: npm ci
 
       - name: Prisma validate
         run: npx prisma validate
