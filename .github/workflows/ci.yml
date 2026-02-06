@@ -50,19 +50,22 @@ jobs:
 
     env:
       NODE_ENV: test
+      # Needed for postinstall -> prisma generate (must exist before npm ci)
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
       SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
       REDIS_URL: redis://localhost:6379
+
       DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
       SHADOW_DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
       REDIS_URL_TEST: redis://localhost:6379
+
       JWT_ACCESS_SECRET: ci_access_secret_123456
       JWT_REFRESH_SECRET: ci_refresh_secret_123456
-      JWT_ACCESS_TTL: 900
-      JWT_REFRESH_TTL: 2592000
+      JWT_ACCESS_TTL: "900"
+      JWT_REFRESH_TTL: "2592000"
       JWT_SECRET: test_jwt_secret
       SENTRY_DSN: ""
-      METRICS_ENABLED: true
+      METRICS_ENABLED: "true"
 
     steps:
       - uses: actions/checkout@v4
@@ -74,29 +77,37 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        # Ensure DATABASE_URL exists at install time for prisma generate in postinstall
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres?schema=public
           JWT_SECRET: test_jwt_secret
           SENTRY_DSN: ""
-          METRICS_ENABLED: true
+          METRICS_ENABLED: "true"
         run: npm ci
 
-      - name: Prepare databases
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_test;' || true
-          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_shadow;' || true
-
       - name: Wait for services
+        shell: bash
         run: |
           for i in {1..30}; do
             pg_isready -h localhost -U postgres && break
             sleep 2
           done
+          pg_isready -h localhost -U postgres || exit 1
+
           for i in {1..30}; do
             redis-cli ping && break
             sleep 2
           done
+          redis-cli ping || exit 1
+
+      - name: Prepare databases
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_test;' || true
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_shadow;' || true
 
       - name: Prisma validate
         run: npx prisma validate
@@ -107,7 +118,7 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
+      - name: Unit tests (coverage)
         run: npm run test:cov
 
       - name: E2E tests
@@ -129,8 +140,6 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    env:
-      GHCR_OWNER: ${{ toLower(github.repository_owner) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -139,22 +148,7 @@ jobs:
 
       - name: Compute GHCR owner lowercase
         shell: bash
-<<<<<<< codex/task-title-o318o4
         run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-=======
-        run: |
-          echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            cat <<EOF >> "$GITHUB_ENV"
-GHCR_TAGS<<TAGS
-ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:sha-${GITHUB_SHA}
-ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:latest
-TAGS
-EOF
-          else
-            echo "GHCR_TAGS=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
-          fi
->>>>>>> main
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -163,17 +157,12 @@ EOF
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Build and push image (sha)
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-<<<<<<< codex/task-title-o318o4
-            ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
-=======
-            ${{ env.GHCR_TAGS }}
->>>>>>> main
+          tags: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
@@ -183,10 +172,10 @@ EOF
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:latest
+          tags: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:latest
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
+
   deploy:
     needs: docker
     runs-on: ubuntu-latest
@@ -199,6 +188,7 @@ EOF
         run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Configure kubeconfig
+        shell: bash
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
@@ -207,6 +197,7 @@ EOF
         env:
           IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
+        shell: bash
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
           kubectl -n "${NAMESPACE}" delete job intercity-migrate --ignore-not-found
@@ -218,6 +209,7 @@ EOF
         env:
           IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
+        shell: bash
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
           kubectl apply -k k8s
