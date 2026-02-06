@@ -137,8 +137,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Normalize GHCR owner
-        run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+      - name: Compute GHCR owner lowercase
+        shell: bash
+        run: |
+          echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            cat <<EOF >> "$GITHUB_ENV"
+GHCR_TAGS<<TAGS
+ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:sha-${GITHUB_SHA}
+ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:latest
+TAGS
+EOF
+          else
+            echo "GHCR_TAGS=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+          fi
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -153,9 +165,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/backend:${{ github.sha }}
-            ghcr.io/${{ env.GHCR_OWNER }}/backend:latest
-
+            ${{ env.GHCR_TAGS }}
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
@@ -166,7 +176,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Normalize GHCR owner
+      - name: Compute GHCR owner lowercase
+        shell: bash
         run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Configure kubeconfig
@@ -176,7 +187,7 @@ jobs:
 
       - name: Run migrations job
         env:
-          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/backend:${{ github.sha }}
+          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
@@ -187,7 +198,7 @@ jobs:
 
       - name: Deploy manifests
         env:
-          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/backend:${{ github.sha }}
+          IMAGE: ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
         run: |
           NAMESPACE="${NAMESPACE:-intercity}"
