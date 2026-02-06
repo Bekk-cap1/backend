@@ -13,7 +13,7 @@
     "migrate:dev": "prisma migrate dev",
     "seed": "prisma db seed",
     "prisma:validate": "prisma validate",
-    "prisma:generate": "prisma generate && node scripts/ensure-prisma-client.js",
+    "prisma:generate": "node scripts/prisma-generate.js && node scripts/ensure-prisma-client.js",
     "postinstall": "npm run prisma:generate",
     "start": "nest start",
     "start:dev": "nest start --watch",
