@@ -139,6 +139,9 @@ jobs:
 
       - name: Compute GHCR owner lowercase
         shell: bash
+<<<<<<< codex/task-title-o318o4
+        run: echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+=======
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
@@ -151,6 +154,7 @@ EOF
           else
             echo "GHCR_TAGS=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${GITHUB_REPOSITORY##*/}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
           fi
+>>>>>>> main
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -165,10 +169,24 @@ EOF
           context: .
           push: true
           tags: |
+<<<<<<< codex/task-title-o318o4
+            ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:sha-${{ github.sha }}
+=======
             ${{ env.GHCR_TAGS }}
+>>>>>>> main
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
+      - name: Build and push image (latest)
+        if: github.ref_name == 'main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ env.GHCR_OWNER }}/${{ github.event.repository.name }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
   deploy:
     needs: docker
     runs-on: ubuntu-latest
