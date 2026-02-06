@@ -1,11 +1,19 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
-import { bootstrapApp } from '../src/app.bootstrap';
-import { buildSwaggerDocument } from '../src/common/swagger';
 
 async function generate() {
+  process.on('unhandledRejection', (error) => {
+    if (
+      process.env.SKIP_EXTERNALS === 'true' &&
+      error instanceof Error &&
+      error.message === 'Connection is closed.'
+    ) {
+      return;
+    }
+    throw error;
+  });
+
   process.env.NODE_ENV = process.env.NODE_ENV ?? 'development';
   process.env.DATABASE_URL =
     process.env.DATABASE_URL ??
@@ -28,7 +36,16 @@ async function generate() {
   const outputPath = resolve(process.cwd(), 'docs', 'openapi.json');
 
   try {
-    const app = await NestFactory.create(AppModule, { logger: false });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { AppModule } = require('../src/app.module') as typeof import('../src/app.module');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { bootstrapApp } = require('../src/app.bootstrap') as typeof import('../src/app.bootstrap');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { buildSwaggerDocument } = require('../src/common/swagger') as typeof import('../src/common/swagger');
+    const app = await NestFactory.create(AppModule, {
+      logger: false,
+      abortOnError: false,
+    });
     bootstrapApp(app, { enableSwagger: false, enableLogger: false });
 
     const document = buildSwaggerDocument(app);
@@ -36,13 +53,16 @@ async function generate() {
     writeFileSync(outputPath, JSON.stringify(document, null, 2));
 
     await app.close();
+    process.exitCode = 0;
   } catch (error) {
     console.error('OpenAPI generation failed.');
     console.error(error);
     if (existsSync(outputPath)) {
       console.warn('Using existing docs/openapi.json as fallback.');
+      process.exitCode = 0;
       return;
     }
+    process.exitCode = 1;
     throw error;
   }
 }
