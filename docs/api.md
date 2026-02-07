@@ -65,6 +65,8 @@ Swagger is available when `SWAGGER_ENABLED=true`:
 
 ## Routing & Geo
 - `GET /api/routing/route`
+- `GET /api/routing/trip/:tripId`
+- `GET /api/routing/trip/:tripId/eta`
 - `PATCH /api/geo/trips/:tripId/location`
 - `GET /api/geo/trips/:tripId/location`
 - `GET /api/geo/trip/:tripId/eta`
@@ -72,14 +74,31 @@ Swagger is available when `SWAGGER_ENABLED=true`:
 ## POI / Radar
 - `GET /api/poi/nearby`
 - `POST /api/poi/route`
+- `POST /api/poi/reports`
 - `POST /api/admin/poi`
 - `GET /api/admin/poi`
 - `PATCH /api/admin/poi/:id`
 - `DELETE /api/admin/poi/:id`
+- `POST /api/admin/poi/import`
+- `GET /api/admin/poi/reports`
+- `POST /api/admin/poi/reports/:id/approve`
+- `POST /api/admin/poi/reports/:id/reject`
 
 ## Support Tickets
 - `POST /api/support/tickets`
 - `GET /api/support/tickets/my`
+
+## Cancellation
+- `GET /api/cancellations/bookings/:bookingId/quote`
+- `POST /api/cancellations/bookings/:bookingId/apply`
+
+## Admin v1
+- `GET /api/v1/admin/users`
+- `POST /api/v1/admin/users/:id/ban`
+- `POST /api/v1/admin/users/:id/unban`
+- `GET /api/v1/admin/payments`
+- `GET /api/v1/admin/tickets`
+- `PATCH /api/v1/admin/tickets/:ticketId/status`
 
 ## Admin
 - `GET /api/admin/drivers?status=...`

@@ -15,6 +15,8 @@ export const AuditAction = {
   DriverVerify: 'driver.verify',
   DriverReject: 'driver.reject',
   UserRoleChange: 'user.role.change',
+  UserBan: 'user.ban',
+  UserUnban: 'user.unban',
 
   OfferCreate: 'offer.create',
   OfferAccept: 'offer.accept',

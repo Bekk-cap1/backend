@@ -18,6 +18,7 @@ export class MetricsService {
   private readonly enabled: boolean;
   private readonly httpDuration: Histogram<'method' | 'route' | 'status'>;
   private readonly httpTotal: Counter<'method' | 'route' | 'status'>;
+  private readonly featureTotal: Counter<'feature' | 'outcome'>;
 
   constructor() {
     this.enabled = String(process.env.METRICS_ENABLED ?? 'true') === 'true';
@@ -39,6 +40,13 @@ export class MetricsService {
       labelNames: ['method', 'route', 'status'],
       registers: [this.registry],
     });
+
+    this.featureTotal = new Counter({
+      name: 'feature_events_total',
+      help: 'Product feature events',
+      labelNames: ['feature', 'outcome'],
+      registers: [this.registry],
+    });
   }
 
   isEnabled() {
@@ -49,6 +57,11 @@ export class MetricsService {
     if (!this.enabled) return;
     this.httpDuration.observe(labels, durationMs);
     this.httpTotal.inc(labels);
+  }
+
+  incFeature(feature: string, outcome = 'ok') {
+    if (!this.enabled) return;
+    this.featureTotal.inc({ feature, outcome });
   }
 
   async metrics(): Promise<string> {

@@ -44,11 +44,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         id: true,
         phone: true,
         role: true,
+        isBanned: true,
+        banReason: true,
         profile: true,
       },
     });
 
     if (!user) throw new UnauthorizedException('User not found');
+    if (user.isBanned) {
+      throw new UnauthorizedException(user.banReason ?? 'User is banned');
+    }
 
     return {
       sub: user.id,

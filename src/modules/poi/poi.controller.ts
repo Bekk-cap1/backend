@@ -1,7 +1,10 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthUser } from '../../common/types/auth-user';
 import { NearbyPoiQueryDto } from './dto/nearby-poi.query.dto';
 import { RoutePoiDto } from './dto/route-poi.dto';
+import { CreatePoiReportDto } from './dto/create-poi-report.dto';
 import { PoiService } from './poi.service';
 
 @Controller('poi')
@@ -28,6 +31,12 @@ export class PoiController {
       dto.bufferMeters,
       dto.type,
     );
+    return { ok: true, data };
+  }
+
+  @Post('reports')
+  async report(@CurrentUser() user: AuthUser, @Body() dto: CreatePoiReportDto) {
+    const data = await this.poi.createReport(user.sub, dto);
     return { ok: true, data };
   }
 }

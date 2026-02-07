@@ -24,6 +24,20 @@ export const OutboxTopic = {
 
   // Payments
   PaymentPaid: 'payment.paid',
+  PaymentMarkedPaid: 'payment.marked.paid',
+
+  // POI / Radar
+  PoiRadarAlert: 'poi.radar.alert',
+  PoiReportCreated: 'poi.report.created',
+  PoiReportApproved: 'poi.report.approved',
+  PoiReportRejected: 'poi.report.rejected',
+
+  // Support
+  SupportTicketCreated: 'support.ticket.created',
+
+  // Admin
+  UserBanned: 'user.banned',
+  UserUnbanned: 'user.unbanned',
 } as const;
 
 export type OutboxTopicType = (typeof OutboxTopic)[keyof typeof OutboxTopic];

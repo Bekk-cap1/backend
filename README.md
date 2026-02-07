@@ -35,6 +35,7 @@ Metrics:
 - `npm run seed` -> seed minimal data
 - `npm run build` -> compile
 - `npm run start:dev` -> dev server
+- `npm run start:worker` -> run outbox worker-only process
 - `npm run test:e2e` -> end-to-end tests
 - `npm run test:cov` -> unit tests with coverage gate
 - `npm run openapi:generate` -> generate `docs/openapi.json`
@@ -48,6 +49,9 @@ See `.env.example`. Required keys:
 Optional keys:
 - `SENTRY_DSN`, `SENTRY_ENV`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE`
 - `METRICS_ENABLED`
+- `GEO_MAX_UPDATES_PER_SEC`
+- `ROUTING_PROVIDER`, `OSRM_BASE_URL`
+- `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 - `DATABASE_URL_TEST`, `SHADOW_DATABASE_URL_TEST`, `REDIS_URL_TEST`
 
 ## OpenAPI Contract
@@ -193,8 +197,14 @@ See `docs/diagrams.md`.
 - API overview: `docs/api.md`
 - Observability: `docs/observability.md`
 - Geo/Routing/Radar: `docs/geo-routing-radar.md`
+- Product API map: `docs/product/api-map.md`
+- Product operations: `docs/product/operations.md`
 - Runbooks: `docs/runbooks/`
 
 ## Notes
 - Branch protection should require PRs and passing CI checks.
 - Request IDs are propagated via `x-request-id`.
+OSRM (optional for production-like local routing):
+- `docker compose -f docker-compose.osrm.yml up -d`
+- set `ROUTING_PROVIDER=osrm`
+- set `OSRM_BASE_URL=http://localhost:5000`

@@ -107,6 +107,7 @@ export function bootstrapApp(
     const base = prefix ? `/${prefix}` : '';
     app.use(`${base}/auth`, authLimiter);
     app.use(`${base}/admin`, authLimiter);
+    app.use(`${base}/v1/admin`, authLimiter);
   }
 
   if (options.enableRequestId ?? true) {

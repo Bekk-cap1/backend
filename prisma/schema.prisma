@@ -106,11 +106,20 @@ enum SupportTicketStatus {
   closed
 }
 
+enum PoiReportStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id           String @id @default(uuid())
   phone        String @unique
   passwordHash String
   role         Role   @default(passenger)
+  isBanned     Boolean  @default(false)
+  bannedAt     DateTime?
+  banReason    String?
 
   sessions      UserSession[]
   profile       UserProfile?
@@ -129,6 +138,8 @@ model User {
   offersProposed Offer[]  @relation("UserOffersAsProposer")
   locationSamples DriverLocationSample[]
   supportTickets SupportTicket[]
+  poiReports PoiReport[] @relation("PoiReportsByUser")
+  fareQuotes FareQuote[]
 }
 
 model UserSession {
@@ -273,6 +284,7 @@ model Trip {
   bookings Booking[]
   locationSamples DriverLocationSample[]
   route TripRoute?
+  fareQuotes FareQuote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -632,8 +644,57 @@ model Poi {
   isActive Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  reports PoiReport[]
 
   @@index([type, isActive])
+}
+
+model PoiReport {
+  id String @id @default(uuid())
+
+  reporterId String
+  reporter   User   @relation("PoiReportsByUser", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  poiId String?
+  poi   Poi?   @relation(fields: [poiId], references: [id], onDelete: SetNull)
+
+  type PoiType
+  description String?
+  location Unsupported("geography(Point,4326)")
+  radiusMeters Int @default(1200)
+  status PoiReportStatus @default(pending)
+  moderatedById String?
+  moderatedAt DateTime?
+  moderationNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([reporterId, createdAt])
+  @@index([poiId])
+}
+
+model FareQuote {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  seats Int
+  amount Int
+  currency String @default("UZS")
+  distanceMeters Int
+  durationSeconds Int
+  provider String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([tripId, createdAt])
+  @@index([expiresAt])
 }
 
 model OtpCode {

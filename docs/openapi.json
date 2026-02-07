@@ -1617,6 +1617,348 @@
         ]
       }
     },
+    "/api/v1/admin/drivers": {
+      "get": {
+        "operationId": "AdminV1Controller_listDrivers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{userId}/verify": {
+      "post": {
+        "operationId": "AdminV1Controller_verifyDriver",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{userId}/reject": {
+      "post": {
+        "operationId": "AdminV1Controller_rejectDriver",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDriverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "operationId": "AdminV1Controller_listUsers",
+        "parameters": [
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "passenger",
+                "driver",
+                "admin",
+                "moderator"
+              ]
+            }
+          },
+          {
+            "name": "isBanned",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{userId}/role": {
+      "patch": {
+        "operationId": "AdminV1Controller_updateUserRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{userId}/ban": {
+      "post": {
+        "operationId": "AdminV1Controller_banUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BanUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{userId}/unban": {
+      "post": {
+        "operationId": "AdminV1Controller_unbanUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/payments": {
+      "get": {
+        "operationId": "AdminV1Controller_listPayments",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "pending",
+                "paid",
+                "failed",
+                "refunded"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/tickets": {
+      "get": {
+        "operationId": "AdminV1Controller_listSupportTickets",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "in_progress",
+                "resolved",
+                "closed"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
+    "/api/v1/admin/tickets/{ticketId}/status": {
+      "patch": {
+        "operationId": "AdminV1Controller_updateSupportTicketStatus",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSupportTicketStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminV1"
+        ]
+      }
+    },
     "/api/notifications/my": {
       "get": {
         "operationId": "NotificationsController_listMine",
@@ -1745,6 +2087,52 @@
         ]
       }
     },
+    "/api/routing/trip/{tripId}": {
+      "get": {
+        "operationId": "RoutingController_tripRoute",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Routing"
+        ]
+      }
+    },
+    "/api/routing/trip/{tripId}/eta": {
+      "get": {
+        "operationId": "RoutingController_tripEta",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Routing"
+        ]
+      }
+    },
     "/api/geo/trips/{tripId}/location": {
       "patch": {
         "operationId": "GeoController_updateTripDriverLocation",
@@ -1860,9 +2248,33 @@
         ]
       }
     },
+    "/api/poi/reports": {
+      "post": {
+        "operationId": "PoiController_report",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePoiReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Poi"
+        ]
+      }
+    },
     "/api/admin/poi": {
       "post": {
-        "operationId": "AdminPoiController_create",
+        "operationId": "AdminPoiController_create[0]",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1884,7 +2296,43 @@
         ]
       },
       "get": {
-        "operationId": "AdminPoiController_list",
+        "operationId": "AdminPoiController_list[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/v1/admin/poi": {
+      "post": {
+        "operationId": "AdminPoiController_create[1]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePoiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      },
+      "get": {
+        "operationId": "AdminPoiController_list[1]",
         "parameters": [],
         "responses": {
           "200": {
@@ -1898,7 +2346,7 @@
     },
     "/api/admin/poi/{id}": {
       "patch": {
-        "operationId": "AdminPoiController_update",
+        "operationId": "AdminPoiController_update[0]",
         "parameters": [
           {
             "name": "id",
@@ -1929,7 +2377,7 @@
         ]
       },
       "delete": {
-        "operationId": "AdminPoiController_remove",
+        "operationId": "AdminPoiController_remove[0]",
         "parameters": [
           {
             "name": "id",
@@ -1942,6 +2390,334 @@
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/v1/admin/poi/{id}": {
+      "patch": {
+        "operationId": "AdminPoiController_update[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePoiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminPoiController_remove[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/admin/poi/import": {
+      "post": {
+        "operationId": "AdminPoiController_import[0]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPoiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/v1/admin/poi/import": {
+      "post": {
+        "operationId": "AdminPoiController_import[1]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPoiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/admin/poi/reports": {
+      "get": {
+        "operationId": "AdminPoiController_listReports[0]",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/v1/admin/poi/reports": {
+      "get": {
+        "operationId": "AdminPoiController_listReports[1]",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/admin/poi/reports/{id}/approve": {
+      "post": {
+        "operationId": "AdminPoiController_approve[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModeratePoiReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/v1/admin/poi/reports/{id}/approve": {
+      "post": {
+        "operationId": "AdminPoiController_approve[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModeratePoiReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/admin/poi/reports/{id}/reject": {
+      "post": {
+        "operationId": "AdminPoiController_reject[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModeratePoiReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/v1/admin/poi/reports/{id}/reject": {
+      "post": {
+        "operationId": "AdminPoiController_reject[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModeratePoiReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": ""
           }
         },
@@ -1985,6 +2761,62 @@
         },
         "tags": [
           "SupportTickets"
+        ]
+      }
+    },
+    "/api/cancellations/bookings/{bookingId}/quote": {
+      "get": {
+        "operationId": "CancellationController_quote",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Cancellation"
+        ]
+      }
+    },
+    "/api/cancellations/bookings/{bookingId}/apply": {
+      "post": {
+        "operationId": "CancellationController_apply",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Cancellation"
         ]
       }
     },
@@ -2051,6 +2883,53 @@
         "parameters": [],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/quotes/me": {
+      "get": {
+        "operationId": "PaymentsController_listMyQuotes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/{paymentId}/mark-paid": {
+      "post": {
+        "operationId": "PaymentsController_markPaid",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkPaymentPaidDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
             "description": ""
           }
         },
@@ -2191,6 +3070,31 @@
         "type": "object",
         "properties": {}
       },
+      "BanUserDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateSupportTicketStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "resolved",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
       "UpdateDriverLocationDto": {
         "type": "object",
         "properties": {}
@@ -2199,6 +3103,43 @@
         "type": "object",
         "properties": {}
       },
+      "CreatePoiReportDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "speed_camera",
+              "hazard",
+              "police",
+              "school_zone",
+              "toll",
+              "fuel",
+              "other"
+            ]
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lon": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "radiusMeters": {
+            "type": "number",
+            "minimum": 100,
+            "maximum": 3000,
+            "default": 1200
+          }
+        },
+        "required": [
+          "type",
+          "lat",
+          "lon"
+        ]
+      },
       "CreatePoiDto": {
         "type": "object",
         "properties": {}
@@ -2206,6 +3147,71 @@
       "UpdatePoiDto": {
         "type": "object",
         "properties": {}
+      },
+      "ImportPoiItemDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "speed_camera",
+              "hazard",
+              "police",
+              "school_zone",
+              "toll",
+              "fuel",
+              "other"
+            ]
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lon": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "radiusMeters": {
+            "type": "number",
+            "default": 1200
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "lat",
+          "lon"
+        ]
+      },
+      "ImportPoiDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportPoiItemDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ModeratePoiReportDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string"
+          }
+        }
       },
       "CreateTicketDto": {
         "type": "object",
@@ -2218,6 +3224,14 @@
       "PaymentQuoteDto": {
         "type": "object",
         "properties": {}
+      },
+      "MarkPaymentPaidDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string"
+          }
+        }
       }
     }
   }

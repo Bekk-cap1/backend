@@ -47,6 +47,7 @@ import { RoutingModule } from './modules/routing/routing.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { PoiModule } from './modules/poi/poi.module';
 import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
+import { CancellationModule } from './modules/cancellation/cancellation.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { SupportTicketsModule } from './modules/support-tickets/support-tickets.
     GeoModule,
     PoiModule,
     SupportTicketsModule,
+    CancellationModule,
 
     PaymentsModule,
   ],

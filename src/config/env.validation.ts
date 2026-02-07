@@ -30,6 +30,7 @@ export const envValidationSchema = Joi.object({
   SWAGGER_ENABLED: Joi.boolean().default(false),
   REALTIME_ENABLED: Joi.boolean().default(false),
   METRICS_ENABLED: Joi.boolean().default(true),
+  GEO_MAX_UPDATES_PER_SEC: Joi.number().integer().min(1).max(100).default(5),
 
   BOOKING_CANCEL_FEE_PERCENT: Joi.number().min(0).max(100).default(10),
 

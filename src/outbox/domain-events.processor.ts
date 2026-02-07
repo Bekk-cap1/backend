@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
-import { OutboxStatus, Prisma } from '@prisma/client';
+import { OutboxStatus, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../infrastructure/prisma/prisma.service';
 import { OutboxTopic, type OutboxTopicType } from './outbox.topics';
 import { ConfigService } from '@nestjs/config';
@@ -254,6 +254,71 @@ export class DomainEventsProcessor extends WorkerHost {
           'Роль обновлена',
           'Ваша роль была изменена.',
         );
+      case OutboxTopic.PaymentPaid:
+      case OutboxTopic.PaymentMarkedPaid:
+        return this.notifyBookingPassenger(
+          payload,
+          outboxId,
+          topic,
+          'Payment update',
+          'Booking payment was confirmed.',
+        );
+      case OutboxTopic.PoiRadarAlert:
+        return this.notifyUsersList(
+          payload,
+          outboxId,
+          topic,
+          'Radar alert',
+          'Radar POI detected on your route.',
+        );
+      case OutboxTopic.PoiReportCreated:
+        return this.notifyAdmins(
+          payload,
+          outboxId,
+          topic,
+          'New POI report',
+          'A community POI report requires moderation.',
+        );
+      case OutboxTopic.PoiReportApproved:
+        return this.notifyUser(
+          payload,
+          outboxId,
+          topic,
+          'POI report approved',
+          'Your POI report has been approved.',
+        );
+      case OutboxTopic.PoiReportRejected:
+        return this.notifyUser(
+          payload,
+          outboxId,
+          topic,
+          'POI report rejected',
+          'Your POI report has been rejected.',
+        );
+      case OutboxTopic.SupportTicketCreated:
+        return this.notifyAdmins(
+          payload,
+          outboxId,
+          topic,
+          'New support ticket',
+          'A new support ticket has been created.',
+        );
+      case OutboxTopic.UserBanned:
+        return this.notifyUser(
+          payload,
+          outboxId,
+          topic,
+          'Account banned',
+          'Your account was banned by administrator.',
+        );
+      case OutboxTopic.UserUnbanned:
+        return this.notifyUser(
+          payload,
+          outboxId,
+          topic,
+          'Account unbanned',
+          'Your account access has been restored.',
+        );
       default:
         return [];
     }
@@ -459,6 +524,81 @@ export class DomainEventsProcessor extends WorkerHost {
         outboxId,
       }),
     ];
+  }
+
+  private async notifyBookingPassenger(
+    payload: Prisma.InputJsonObject,
+    outboxId: string,
+    type: OutboxTopicType,
+    title: string,
+    message: string,
+  ) {
+    const bookingId = asString(payload.bookingId);
+    if (!bookingId) return [];
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { passengerId: true },
+    });
+    if (!booking) return [];
+
+    return [
+      this.buildNotification({
+        userId: booking.passengerId,
+        type,
+        title,
+        message,
+        payload,
+        outboxId,
+      }),
+    ];
+  }
+
+  private notifyUsersList(
+    payload: Prisma.InputJsonObject,
+    outboxId: string,
+    type: OutboxTopicType,
+    title: string,
+    message: string,
+  ) {
+    const raw = payload.userIds;
+    if (!Array.isArray(raw)) return [];
+
+    const userIds = raw.filter((v): v is string => typeof v === 'string');
+    return userIds.map((userId) =>
+      this.buildNotification({
+        userId,
+        type,
+        title,
+        message,
+        payload,
+        outboxId,
+      }),
+    );
+  }
+
+  private async notifyAdmins(
+    payload: Prisma.InputJsonObject,
+    outboxId: string,
+    type: OutboxTopicType,
+    title: string,
+    message: string,
+  ) {
+    const admins = await this.prisma.user.findMany({
+      where: { role: { in: [Role.admin, Role.moderator] } },
+      select: { id: true },
+    });
+
+    return admins.map((user) =>
+      this.buildNotification({
+        userId: user.id,
+        type,
+        title,
+        message,
+        payload,
+        outboxId,
+      }),
+    );
   }
 
   private buildNotification(input: {

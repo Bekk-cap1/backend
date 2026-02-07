@@ -3,7 +3,12 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { DriversService } from '../drivers/drivers.service';
 import { AdminDriversQueryDto } from './dto/admin-drivers-query.dto';
 import { AdminAuditQueryDto } from './dto/admin-audit-query.dto';
-import { Role, Prisma } from '@prisma/client';
+import {
+  PaymentStatus,
+  Role,
+  SupportTicketStatus,
+  Prisma,
+} from '@prisma/client';
 
 import { AuditService } from '../../audit/audit.service';
 import { AuditAction } from '../../audit/audit.actions';
@@ -254,5 +259,208 @@ export class AdminService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+  }
+
+  async listUsers(params: {
+    role?: Role;
+    isBanned?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 20;
+
+    const where: Prisma.UserWhereInput = {
+      ...(params.role ? { role: params.role } : {}),
+      ...(params.isBanned !== undefined ? { isBanned: params.isBanned } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          phone: true,
+          role: true,
+          isBanned: true,
+          bannedAt: true,
+          banReason: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize };
+  }
+
+  async banUser(userId: string, reason?: string) {
+    return this.prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        const updated = await tx.user.update({
+          where: { id: userId },
+          data: {
+            isBanned: true,
+            bannedAt: new Date(),
+            banReason: reason ?? null,
+          },
+          select: {
+            id: true,
+            phone: true,
+            role: true,
+            isBanned: true,
+            bannedAt: true,
+            banReason: true,
+          },
+        });
+
+        await this.audit.logTx(tx, {
+          action: AuditAction.UserBan,
+          entityType: 'user',
+          entityId: userId,
+          severity: 'critical',
+          metadata: { userId, reason: reason ?? null },
+        });
+
+        await this.outbox.enqueueTx(tx, {
+          topic: OutboxTopic.UserBanned,
+          aggregateType: 'user',
+          aggregateId: userId,
+          idempotencyKey: `user:${userId}:banned`,
+          payload: { userId, reason: reason ?? null },
+        });
+
+        return { ok: true, user: updated };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async unbanUser(userId: string) {
+    return this.prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        const updated = await tx.user.update({
+          where: { id: userId },
+          data: {
+            isBanned: false,
+            bannedAt: null,
+            banReason: null,
+          },
+          select: {
+            id: true,
+            phone: true,
+            role: true,
+            isBanned: true,
+            bannedAt: true,
+            banReason: true,
+          },
+        });
+
+        await this.audit.logTx(tx, {
+          action: AuditAction.UserUnban,
+          entityType: 'user',
+          entityId: userId,
+          severity: 'warning',
+          metadata: { userId },
+        });
+
+        await this.outbox.enqueueTx(tx, {
+          topic: OutboxTopic.UserUnbanned,
+          aggregateType: 'user',
+          aggregateId: userId,
+          idempotencyKey: `user:${userId}:unbanned`,
+          payload: { userId },
+        });
+
+        return { ok: true, user: updated };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async listPayments(params: {
+    status?: PaymentStatus;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 20;
+    const where: Prisma.PaymentWhereInput = {
+      ...(params.status ? { status: params.status } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          booking: {
+            select: {
+              id: true,
+              passengerId: true,
+              tripId: true,
+            },
+          },
+        },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize };
+  }
+
+  async listSupportTickets(params: {
+    status?: SupportTicketStatus;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 20;
+    const where: Prisma.SupportTicketWhereInput = {
+      ...(params.status ? { status: params.status } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.supportTicket.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          user: { select: { id: true, phone: true, role: true } },
+          booking: { select: { id: true, tripId: true } },
+        },
+      }),
+      this.prisma.supportTicket.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize };
+  }
+
+  async updateSupportTicketStatus(
+    ticketId: string,
+    status: SupportTicketStatus,
+  ) {
+    const exists = await this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      select: { id: true },
+    });
+    if (!exists) throw new NotFoundException('Support ticket not found');
+
+    return this.prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: { status },
+    });
   }
 }

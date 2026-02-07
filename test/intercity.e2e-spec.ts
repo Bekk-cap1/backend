@@ -24,6 +24,15 @@ type OfferPayload = { id: string };
 type NegotiationPayload = { state: string };
 type AcceptOfferPayload = { bookingId: string; requestId?: string };
 type BookingsPayload = { items: Array<{ id: string }> };
+type PoiPayload = { id: string; type: string; lat: number; lon: number };
+type PoiReportPayload = { id: string; status: string };
+type FareQuotePayload = {
+  quoteId: string;
+  provider: string;
+  amount: number;
+  distanceMeters: number;
+  durationSeconds: number;
+};
 
 type PgError = { code?: string; message?: string };
 type RequestApp = Parameters<typeof request>[0];
@@ -115,6 +124,7 @@ describe('Intercity (e2e)', () => {
   let driverToken: string;
   let passengerToken: string;
   let cancelPassengerToken: string;
+  let adminToken: string;
   let driverId: string;
   let tripId: string;
   let requestId: string;
@@ -128,6 +138,7 @@ describe('Intercity (e2e)', () => {
   const driverUser = makeUniqueUser('driver');
   const passengerUser = makeUniqueUser('passenger');
   const cancelPassengerUser = makeUniqueUser('cancel');
+  const adminUser = makeUniqueUser('admin');
   const apiPath = (path: string) => `${basePath}${path}`;
 
   beforeAll(async () => {
@@ -352,6 +363,42 @@ describe('Intercity (e2e)', () => {
     cancelPassengerToken = loginData.accessToken;
   });
 
+  it('registers and logs in admin', async () => {
+    const register = await api.post(apiPath('/auth/register')).send({
+      phone: adminUser.phone,
+      password: adminUser.password,
+    });
+    if (register.status !== 201) {
+      throw new Error(
+        `register admin failed: ${register.status} ${formatResponseBody(
+          register.body,
+        )}`,
+      );
+    }
+
+    const adminRecord = await prisma.user.findUnique({
+      where: { phone: adminUser.phone },
+    });
+    if (!adminRecord) {
+      throw new Error('Admin not created');
+    }
+
+    await prisma.user.update({
+      where: { id: adminRecord.id },
+      data: { role: Role.admin },
+    });
+
+    const login = await api
+      .post(apiPath('/auth/login'))
+      .send({
+        phone: adminUser.phone,
+        password: adminUser.password,
+      })
+      .expect(201);
+
+    adminToken = getData<AuthLoginPayload>(login).accessToken;
+  });
+
   it('creates vehicle for verified driver', async () => {
     await api
       .post(apiPath('/vehicles'))
@@ -407,6 +454,30 @@ describe('Intercity (e2e)', () => {
       .expect(403);
   });
 
+  it('builds deterministic route via mock provider', async () => {
+    const route = await api
+      .get(apiPath('/routing/route'))
+      .query({
+        fromLat: 41.2995,
+        fromLon: 69.2401,
+        toLat: 39.6542,
+        toLon: 66.9597,
+      })
+      .expect(200);
+
+    const data = getData<{
+      provider: string;
+      polyline: string;
+      distanceMeters: number;
+      durationSeconds: number;
+    }>(route);
+
+    expect(data.provider).toBe('mock');
+    expect(data.polyline).toContain(';');
+    expect(data.distanceMeters).toBeGreaterThan(0);
+    expect(data.durationSeconds).toBeGreaterThan(0);
+  });
+
   it('searches trips and creates request', async () => {
     const search = await api.get(apiPath('/trips/search')).expect(200);
     const searchData = getData<TripSearchPayload>(search);
@@ -428,6 +499,42 @@ describe('Intercity (e2e)', () => {
 
     const requestData = getData<RequestPayload>(reqRes);
     requestId = requestData.id;
+  });
+
+  it('updates and fetches driver location + eta', async () => {
+    const lat = 41.3123;
+    const lon = 69.2781;
+
+    const update = await api
+      .patch(apiPath(`/geo/trips/${tripId}/location`))
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({ lat, lon, speedKmh: 60, headingDeg: 90 })
+      .expect(200);
+
+    const updated = getData<{ lat: number; lon: number }>(update);
+    expect(updated.lat).toBe(lat);
+    expect(updated.lon).toBe(lon);
+
+    const fetched = await api
+      .get(apiPath(`/geo/trips/${tripId}/location`))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .expect(200);
+    const fetchedData = getData<{ lat: number; lon: number }>(fetched);
+    expect(fetchedData.lat).toBe(lat);
+    expect(fetchedData.lon).toBe(lon);
+
+    const eta = await api
+      .get(apiPath(`/routing/trip/${tripId}/eta`))
+      .expect(200);
+    const etaData = getData<{
+      tripId: string;
+      provider: string;
+      etaSeconds: number;
+      distanceMeters: number;
+    }>(eta);
+    expect(etaData.tripId).toBe(tripId);
+    expect(etaData.provider).toBe('mock');
+    expect(etaData.etaSeconds).toBeGreaterThan(0);
   });
 
   it('creates and cancels a passenger request', async () => {
@@ -527,6 +634,119 @@ describe('Intercity (e2e)', () => {
     expect(trip?.seatsAvailable).toBe(3);
   });
 
+  it('creates poi, searches nearby and along route', async () => {
+    const createPoi = await api
+      .post(apiPath('/admin/poi'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Camera #1',
+        type: 'speed_camera',
+        description: 'Test radar',
+        lat: 41.3123,
+        lon: 69.2781,
+        radiusMeters: 1000,
+      })
+      .expect(201);
+    const poi = getData<PoiPayload>(createPoi);
+    expect(poi.id).toBeTruthy();
+
+    const nearby = await api
+      .get(apiPath('/poi/nearby'))
+      .query({ lat: 41.3123, lon: 69.2781, radiusMeters: 1500 })
+      .expect(200);
+    const nearbyData = getData<Array<{ id: string }>>(nearby);
+    expect(nearbyData.some((x) => x.id === poi.id)).toBe(true);
+
+    const alongRoute = await api
+      .post(apiPath('/poi/route'))
+      .send({
+        polyline: '41.3123,69.2781;41.3000,69.2400',
+        bufferMeters: 1500,
+      })
+      .expect(201);
+    const alongData = getData<Array<{ id: string }>>(alongRoute);
+    expect(alongData.some((x) => x.id === poi.id)).toBe(true);
+  });
+
+  it('creates and moderates poi report', async () => {
+    const report = await api
+      .post(apiPath('/poi/reports'))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({
+        type: 'hazard',
+        lat: 41.321,
+        lon: 69.286,
+        description: 'Road works',
+      })
+      .expect(201);
+    const reportData = getData<PoiReportPayload>(report);
+    expect(reportData.status).toBe('pending');
+
+    const reports = await api
+      .get(apiPath('/admin/poi/reports'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    const listData = getData<{ items: Array<{ id: string }> }>(reports);
+    expect(listData.items.some((r) => r.id === reportData.id)).toBe(true);
+
+    await api
+      .post(apiPath(`/admin/poi/reports/${reportData.id}/approve`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ note: 'Looks valid' })
+      .expect(201);
+  });
+
+  it('creates fare quote and exposes cancellation quote', async () => {
+    const quote = await api
+      .post(apiPath('/payments/quote'))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ tripId, seats: 1 })
+      .expect(201);
+    const quoteData = getData<FareQuotePayload>(quote);
+    expect(quoteData.provider).toBe('mock');
+    expect(quoteData.amount).toBeGreaterThan(0);
+
+    const quotes = await api
+      .get(apiPath('/payments/quotes/me'))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .expect(200);
+    const quotesData = getData<Array<{ id: string }>>(quotes);
+    expect(quotesData.length).toBeGreaterThan(0);
+
+    const cancelQuote = await api
+      .get(apiPath(`/cancellations/bookings/${bookingId}/quote`))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .expect(200);
+    const cancelQuoteData = getData<{
+      feePercent: number;
+      feeAmount: number;
+      refundAmount: number;
+    }>(cancelQuote);
+    expect(cancelQuoteData.feePercent).toBeGreaterThanOrEqual(0);
+    expect(cancelQuoteData.refundAmount).toBeGreaterThanOrEqual(0);
+  });
+
+  it('creates support ticket and admin can list it', async () => {
+    await api
+      .post(apiPath('/support/tickets'))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({
+        bookingId,
+        subject: 'Need help',
+        message: 'Please check booking details',
+      })
+      .expect(201);
+
+    const tickets = await api
+      .get(apiPath('/v1/admin/tickets'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    const ticketsData = getData<{ items: Array<{ bookingId: string | null }> }>(
+      tickets,
+    );
+    expect(ticketsData.items.some((t) => t.bookingId === bookingId)).toBe(true);
+  });
+
   it('lists bookings via aliases', async () => {
     const passengerBookings = await api
       .get(apiPath('/bookings/my'))
@@ -572,6 +792,7 @@ async function resetDatabase(prisma: PrismaClient) {
       "PaymentLedgerEntry",
       "PaymentAttempt",
       "Payment",
+      "FareQuote",
       "Booking",
       "SupportTicket",
       "Offer",
@@ -579,6 +800,7 @@ async function resetDatabase(prisma: PrismaClient) {
       "TripRequest",
       "DriverLocationSample",
       "TripRoute",
+      "PoiReport",
       "Poi",
       "OtpCode",
       "Trip",

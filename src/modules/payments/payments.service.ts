@@ -21,6 +21,7 @@ import { OutboxTopic } from '../../outbox/outbox.topics';
 import type { WebhookResult } from './providers/payment-provider.interface';
 import { PaymentQuoteDto } from './dto/payment-quote.dto';
 import { RoutingService } from '../routing/routing.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 @Injectable()
 export class PaymentsService {
@@ -30,6 +31,7 @@ export class PaymentsService {
     private readonly registry: PaymentProviderRegistry,
     private readonly outbox: OutboxService,
     private readonly routing: RoutingService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async quote(userId: string, dto: PaymentQuoteDto) {
@@ -69,8 +71,29 @@ export class PaymentsService {
     );
     const distanceKm = route.distanceMeters / 1000;
     const amount = Math.round((5000 + distanceKm * 1200) * dto.seats);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    const quote = await this.prisma.fareQuote.create({
+      data: {
+        userId,
+        tripId: dto.tripId,
+        seats: dto.seats,
+        amount,
+        currency: 'UZS',
+        distanceMeters: route.distanceMeters,
+        durationSeconds: route.durationSeconds,
+        provider: route.provider,
+        expiresAt,
+      },
+      select: {
+        id: true,
+        expiresAt: true,
+      },
+    });
+    this.metrics.incFeature('fare_quote_created');
 
     return {
+      quoteId: quote.id,
       tripId: dto.tripId,
       seats: dto.seats,
       amount,
@@ -79,6 +102,7 @@ export class PaymentsService {
       durationSeconds: route.durationSeconds,
       provider: route.provider,
       calculatedForUserId: userId,
+      expiresAt: quote.expiresAt,
     };
   }
 
@@ -170,6 +194,71 @@ export class PaymentsService {
 
     const [items, total] = await this.repo.list(where, page, pageSize);
     return { items, total, page, pageSize };
+  }
+
+  async listMyQuotes(userId: string) {
+    return this.prisma.fareQuote.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  async markPaid(paymentId: string, note?: string) {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const payment = await tx.payment.findUnique({
+        where: { id: paymentId },
+      });
+      if (!payment) throw new NotFoundException('Payment not found');
+      if (
+        payment.status !== PaymentStatus.created &&
+        payment.status !== PaymentStatus.pending
+      ) {
+        throw new BadRequestException('Payment is not in payable state');
+      }
+
+      const updated = await tx.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: PaymentStatus.paid,
+          paidAt: payment.paidAt ?? new Date(),
+        },
+      });
+
+      await tx.booking.updateMany({
+        where: { id: payment.bookingId, status: BookingStatus.confirmed },
+        data: { status: BookingStatus.paid },
+      });
+
+      await tx.paymentLedgerEntry.create({
+        data: {
+          paymentId: payment.id,
+          bookingId: payment.bookingId,
+          entryType: 'payment_marked_paid',
+          amount: payment.amount,
+          currency: payment.currency,
+          note: note ?? 'Marked paid from admin endpoint',
+        },
+      });
+
+      await this.outbox.enqueueTx(tx, {
+        topic: OutboxTopic.PaymentMarkedPaid,
+        aggregateType: 'payment',
+        aggregateId: payment.id,
+        idempotencyKey: `payment:${payment.id}:marked-paid`,
+        payload: {
+          paymentId: payment.id,
+          bookingId: payment.bookingId,
+          amount: payment.amount,
+          currency: payment.currency,
+          paidAt: updated.paidAt,
+          note: note ?? null,
+        },
+      });
+      this.metrics.incFeature('payment_marked_paid');
+
+      return { ok: true, payment: updated };
+    });
   }
 
   /**

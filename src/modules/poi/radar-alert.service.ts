@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { RedisService } from '../../infrastructure/redis/redis.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { OutboxService } from '../../outbox/outbox.service';
+import { OutboxTopic } from '../../outbox/outbox.topics';
+import { MetricsService } from '../metrics/metrics.service';
 import { PoiService } from './poi.service';
 
 @Injectable()
@@ -11,6 +14,8 @@ export class RadarAlertService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly realtime: RealtimeGateway,
+    private readonly outbox: OutboxService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async handleLocation(tripId: string, lat: number, lon: number) {
@@ -30,6 +35,19 @@ export class RadarAlertService {
         tripId,
         poi: p,
       });
+      await this.outbox.enqueue({
+        topic: OutboxTopic.PoiRadarAlert,
+        aggregateType: 'trip',
+        aggregateId: tripId,
+        idempotencyKey: `radar:${tripId}:${p.id}`,
+        payload: {
+          tripId,
+          poiId: p.id,
+          poiType: p.type,
+          userIds,
+        },
+      });
+      this.metrics.incFeature('radar_alert_sent');
       emitted.push(p.id);
     }
     return emitted;

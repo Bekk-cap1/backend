@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +13,7 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { RoutingService } from '../routing/routing.service';
 import { RadarAlertService } from '../poi/radar-alert.service';
 import { UpdateDriverLocationDto } from './dto/update-driver-location.dto';
+import { MetricsService } from '../metrics/metrics.service';
 
 type LastLocation = {
   tripId: string;
@@ -30,6 +33,7 @@ export class GeoService {
     private readonly realtime: RealtimeGateway,
     private readonly routing: RoutingService,
     private readonly radar: RadarAlertService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async updateDriverLocationByDriver(
@@ -37,6 +41,8 @@ export class GeoService {
     tripId: string,
     dto: UpdateDriverLocationDto,
   ) {
+    await this.assertUpdateRateLimit(tripId, driverId);
+
     const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
       select: { id: true, driverId: true },
@@ -83,6 +89,7 @@ export class GeoService {
     const users = await this.getTripParticipantIds(tripId);
     this.realtime.emitToUsers(users, 'trip.driver.location', payload);
     await this.radar.handleLocation(tripId, dto.lat, dto.lon);
+    this.metrics.incFeature('geo_location_update');
 
     return payload;
   }
@@ -193,5 +200,21 @@ export class GeoService {
 
   private lastLocationKey(tripId: string) {
     return `geo:last:trip:${tripId}`;
+  }
+
+  private async assertUpdateRateLimit(tripId: string, driverId: string) {
+    const maxPerSecond = Number(process.env.GEO_MAX_UPDATES_PER_SEC ?? 5);
+    const key = `geo:throttle:${tripId}:${driverId}`;
+    const count = await this.redis.raw.incr(key);
+    if (count === 1) {
+      await this.redis.raw.expire(key, 1);
+    }
+
+    if (count > maxPerSecond) {
+      throw new HttpException(
+        'Too many location updates',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 }

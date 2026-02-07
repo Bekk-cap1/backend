@@ -51,6 +51,59 @@ export class RoutingService {
     return route;
   }
 
+  async getOrBuildTripRoute(tripId: string) {
+    const existing = await this.prisma.tripRoute.findUnique({
+      where: { tripId },
+      select: {
+        provider: true,
+        polyline: true,
+        distanceMeters: true,
+        durationSeconds: true,
+        bbox: true,
+      },
+    });
+
+    if (existing) {
+      return {
+        provider: existing.provider,
+        polyline: existing.polyline,
+        distanceMeters: existing.distanceMeters,
+        durationSeconds: existing.durationSeconds,
+        bbox: this.parseBbox(existing.bbox),
+      };
+    }
+
+    const { from, to } = await this.getTripEndpoints(tripId);
+    return this.routeAndStoreForTrip(tripId, from, to);
+  }
+
+  async getTripEta(tripId: string) {
+    const [last] = await this.prisma.$queryRaw<
+      Array<{ lat: number; lon: number }>
+    >`
+      SELECT
+        ST_Y(d."point"::geometry) AS "lat",
+        ST_X(d."point"::geometry) AS "lon"
+      FROM "DriverLocationSample" d
+      WHERE d."tripId" = ${tripId}
+      ORDER BY d."capturedAt" DESC
+      LIMIT 1
+    `;
+
+    const destination = await this.getTripDestination(tripId);
+    const from = last ?? (await this.getTripEndpoints(tripId)).from;
+    const route = await this.routeAndStoreForTrip(tripId, from, destination);
+
+    return {
+      tripId,
+      provider: route.provider,
+      etaSeconds: route.durationSeconds,
+      distanceMeters: route.distanceMeters,
+      polyline: route.polyline,
+      bbox: route.bbox,
+    };
+  }
+
   async getTripDestination(tripId: string): Promise<Coordinate> {
     const rows = await this.prisma.$queryRaw<
       Array<{ lat: number; lon: number }>
@@ -68,5 +121,45 @@ export class RoutingService {
       throw new NotFoundException('Trip destination location not found');
     }
     return row;
+  }
+
+  async getTripEndpoints(tripId: string): Promise<{
+    from: Coordinate;
+    to: Coordinate;
+  }> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{ fromLat: number; fromLon: number; toLat: number; toLon: number }>
+    >`
+      SELECT
+        ST_Y(COALESCE(t."fromPoint", cf."location")::geometry) AS "fromLat",
+        ST_X(COALESCE(t."fromPoint", cf."location")::geometry) AS "fromLon",
+        ST_Y(COALESCE(t."toPoint", ct."location")::geometry) AS "toLat",
+        ST_X(COALESCE(t."toPoint", ct."location")::geometry) AS "toLon"
+      FROM "Trip" t
+      LEFT JOIN "City" cf ON cf."id" = t."fromCityId"
+      LEFT JOIN "City" ct ON ct."id" = t."toCityId"
+      WHERE t."id" = ${tripId}
+      LIMIT 1
+    `;
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    return {
+      from: { lat: row.fromLat, lon: row.fromLon },
+      to: { lat: row.toLat, lon: row.toLon },
+    };
+  }
+
+  private parseBbox(value: unknown): [number, number, number, number] {
+    if (
+      Array.isArray(value) &&
+      value.length === 4 &&
+      value.every((v) => typeof v === 'number')
+    ) {
+      return [value[0], value[1], value[2], value[3]];
+    }
+    return [0, 0, 0, 0];
   }
 }
