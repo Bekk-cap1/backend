@@ -3,7 +3,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { RouteQueryDto } from './dto/route-query.dto';
 import { RoutingService } from './routing.service';
 
-@Controller('routing')
+@Controller(['routing', 'v1/routing'])
 export class RoutingController {
   constructor(private readonly routing: RoutingService) {}
 

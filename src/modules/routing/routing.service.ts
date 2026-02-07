@@ -90,7 +90,22 @@ export class RoutingService {
       LIMIT 1
     `;
 
-    const destination = await this.getTripDestination(tripId);
+    let destination: Coordinate;
+    try {
+      destination = await this.getTripDestination(tripId);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException &&
+        error.message === 'Trip destination location not found' &&
+        last
+      ) {
+        // Fallback for trips without city geo points: keep ETA endpoint reachable.
+        destination = { lat: last.lat, lon: last.lon };
+      } else {
+        throw error;
+      }
+    }
+
     const from = last ?? (await this.getTripEndpoints(tripId)).from;
     const route = await this.routeAndStoreForTrip(tripId, from, destination);
 

@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import {
   envValidationSchema,
@@ -118,6 +123,6 @@ export class AppModule implements NestModule {
     // логируем все http запросы
     consumer
       .apply(RequestContextMiddleware, LoggerMiddleware, MetricsMiddleware)
-      .forRoutes('*');
+      .forRoutes({ path: '*path', method: RequestMethod.ALL });
   }
 }

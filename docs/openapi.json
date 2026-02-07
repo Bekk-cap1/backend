@@ -2075,7 +2075,21 @@
     },
     "/api/routing/route": {
       "get": {
-        "operationId": "RoutingController_route",
+        "operationId": "RoutingController_route[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Routing"
+        ]
+      }
+    },
+    "/api/v1/routing/route": {
+      "get": {
+        "operationId": "RoutingController_route[1]",
         "parameters": [],
         "responses": {
           "200": {
@@ -2089,7 +2103,30 @@
     },
     "/api/routing/trip/{tripId}": {
       "get": {
-        "operationId": "RoutingController_tripRoute",
+        "operationId": "RoutingController_tripRoute[0]",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Routing"
+        ]
+      }
+    },
+    "/api/v1/routing/trip/{tripId}": {
+      "get": {
+        "operationId": "RoutingController_tripRoute[1]",
         "parameters": [
           {
             "name": "tripId",
@@ -2112,7 +2149,30 @@
     },
     "/api/routing/trip/{tripId}/eta": {
       "get": {
-        "operationId": "RoutingController_tripEta",
+        "operationId": "RoutingController_tripEta[0]",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Routing"
+        ]
+      }
+    },
+    "/api/v1/routing/trip/{tripId}/eta": {
+      "get": {
+        "operationId": "RoutingController_tripEta[1]",
         "parameters": [
           {
             "name": "tripId",

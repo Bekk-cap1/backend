@@ -78,3 +78,41 @@ without local Docker Desktop.
 - Cancellation quote/apply endpoints
 - Admin v1 endpoints for user bans, payments, tickets, driver moderation
 - Worker entrypoint (`npm run start:worker`)
+
+## Routing ETA 404 fix verification
+- Date: `2026-02-07`
+- Goal: fix `GET /api/routing/trip/:tripId/eta` (`updates and fetches driver location + eta`) returning `404`.
+
+Code changes:
+- `src/modules/routing/routing.controller.ts`
+  - controller prefixes changed to `['routing', 'v1/routing']`
+  - now both paths are valid under global prefix:
+  - `/api/routing/*`
+  - `/api/v1/routing/*`
+- `src/modules/routing/routing.service.ts`
+  - `getTripEta()` now gracefully falls back when trip destination point is missing:
+  - if city/trip geo destination is absent but driver last location exists, ETA is computed from last location instead of throwing `404`.
+
+Commands run:
+```bash
+npm run lint
+npm run test:e2e
+```
+
+Result:
+- `lint`: PASS
+- `test:e2e`: PASS
+
+E2E output summary:
+```text
+PASS test/intercity.e2e-spec.ts
+Test Suites: 1 passed, 1 total
+Tests:       20 passed, 20 total
+```
+
+Additional hardening:
+- Replaced legacy wildcard middleware route pattern to avoid `LegacyRouteConverter` warning:
+  - `forRoutes('*')` -> `forRoutes({ path: '*path', method: RequestMethod.ALL })`
+
+Note:
+- Endpoint mapping is available on both `/api/routing/trip/:tripId/eta` and `/api/v1/routing/trip/:tripId/eta`.
