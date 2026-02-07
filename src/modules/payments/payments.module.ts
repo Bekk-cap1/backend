@@ -8,9 +8,10 @@ import { PaymeProvider } from './providers/payme.provider';
 import { StripeProvider } from './providers/stripe.provider';
 import { PaymentsWebhookController } from './webhooks/payments.webhook.controller';
 import { OutboxModule } from '../../outbox/outbox.module';
+import { RoutingModule } from '../routing/routing.module';
 
 @Module({
-  imports: [OutboxModule],
+  imports: [OutboxModule, RoutingModule],
   controllers: [PaymentsController, PaymentsWebhookController],
   providers: [
     PaymentsService,

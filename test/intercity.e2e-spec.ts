@@ -3,6 +3,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Queue } from 'bullmq';
 import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { PrismaClient, DriverStatus, OutboxStatus, Role } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -27,6 +28,7 @@ type BookingsPayload = { items: Array<{ id: string }> };
 type PgError = { code?: string; message?: string };
 type RequestApp = Parameters<typeof request>[0];
 type ApiClient = ReturnType<typeof request>;
+const requireModule = createRequire(__filename);
 
 const getData = <T>(res: Response): T => {
   const body = res.body as unknown as Partial<ApiEnvelope<unknown>>;
@@ -173,16 +175,15 @@ describe('Intercity (e2e)', () => {
       },
     });
 
-    const [{ AppModule }, { bootstrapApp }, { OutboxDispatcher }] =
-      (await Promise.all([
-        import('../src/app.module'),
-        import('../src/app.bootstrap'),
-        import('../src/outbox/outbox.dispatcher'),
-      ])) as [
-        typeof import('../src/app.module'),
-        typeof import('../src/app.bootstrap'),
-        typeof import('../src/outbox/outbox.dispatcher'),
-      ];
+    const { AppModule } = requireModule(
+      '../src/app.module',
+    ) as typeof import('../src/app.module');
+    const { bootstrapApp } = requireModule(
+      '../src/app.bootstrap',
+    ) as typeof import('../src/app.bootstrap');
+    const { OutboxDispatcher } = requireModule(
+      '../src/outbox/outbox.dispatcher',
+    ) as typeof import('../src/outbox/outbox.dispatcher');
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -568,12 +569,18 @@ async function resetDatabase(prisma: PrismaClient) {
       "Notification",
       "OutboxEvent",
       "PaymentEvent",
+      "PaymentLedgerEntry",
       "PaymentAttempt",
       "Payment",
       "Booking",
+      "SupportTicket",
       "Offer",
       "NegotiationSession",
       "TripRequest",
+      "DriverLocationSample",
+      "TripRoute",
+      "Poi",
+      "OtpCode",
       "Trip",
       "Vehicle",
       "DriverProfile",

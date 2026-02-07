@@ -43,6 +43,10 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { MetricsMiddleware } from './modules/metrics/metrics.middleware';
 import { HealthModule } from './modules/health/health.module';
+import { RoutingModule } from './modules/routing/routing.module';
+import { GeoModule } from './modules/geo/geo.module';
+import { PoiModule } from './modules/poi/poi.module';
+import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
 
 @Module({
   imports: [
@@ -88,6 +92,10 @@ import { HealthModule } from './modules/health/health.module';
     NotificationsModule,
     MetricsModule,
     HealthModule,
+    RoutingModule,
+    GeoModule,
+    PoiModule,
+    SupportTicketsModule,
 
     PaymentsModule,
   ],

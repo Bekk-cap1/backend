@@ -7,11 +7,13 @@ import { AuthService } from './auth.service';
 import { AuthStrategiesService } from './strategies/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
+import { RedisModule } from '../../infrastructure/redis/redis.module';
 
 @Module({
   imports: [
     ConfigModule, // важно
     PrismaModule,
+    RedisModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

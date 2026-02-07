@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Ip,
+  Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -11,6 +13,12 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import {
+  ResetPasswordConfirmDto,
+  ResetPasswordRequestDto,
+} from './dto/reset-password.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -56,9 +64,61 @@ export class AuthController {
     return { ok: true, data: await this.auth.logout(dto.refreshToken) };
   }
 
+  @Public()
+  @Post('otp/send')
+  async sendOtp(@Body() dto: SendOtpDto) {
+    return {
+      ok: true,
+      data: await this.auth.sendOtp(dto.phone, dto.purpose),
+    };
+  }
+
+  @Public()
+  @Post('otp/verify')
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return {
+      ok: true,
+      data: await this.auth.verifyOtp(dto.phone, dto.purpose, dto.code),
+    };
+  }
+
+  @Public()
+  @Post('password/reset/request')
+  async requestPasswordReset(@Body() dto: ResetPasswordRequestDto) {
+    return {
+      ok: true,
+      data: await this.auth.requestPasswordReset(dto.phone),
+    };
+  }
+
+  @Public()
+  @Post('password/reset/confirm')
+  async confirmPasswordReset(@Body() dto: ResetPasswordConfirmDto) {
+    return {
+      ok: true,
+      data: await this.auth.confirmPasswordReset(
+        dto.phone,
+        dto.code,
+        dto.newPassword,
+      ),
+    };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return { ok: true, data: { user } };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('sessions')
+  async sessions(@CurrentUser() user: AuthUser) {
+    return { ok: true, data: await this.auth.listSessions(user.sub) };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('sessions/:id')
+  async revokeSession(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return { ok: true, data: await this.auth.revokeSession(user.sub, id) };
   }
 }

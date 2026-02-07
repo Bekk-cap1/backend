@@ -8,7 +8,7 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { isRecord } from '../../common/utils/type-guards';
 
-@WebSocketGateway({ namespace: '/realtime', cors: { origin: '*' } })
+@WebSocketGateway({ namespace: '/ws', cors: { origin: '*' } })
 export class RealtimeGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
@@ -39,6 +39,13 @@ export class RealtimeGateway
 
   emitToUser(userId: string, event: string, payload: unknown) {
     this.server.to(this.userRoom(userId)).emit(event, payload);
+  }
+
+  emitToUsers(userIds: string[], event: string, payload: unknown) {
+    const unique = new Set(userIds.filter((x) => typeof x === 'string' && x));
+    for (const userId of unique) {
+      this.emitToUser(userId, event, payload);
+    }
   }
 
   private resolveUserId(client: Socket): string | undefined {

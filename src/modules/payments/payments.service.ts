@@ -19,6 +19,8 @@ import { ListPaymentsDto } from './dto/list-payments.dto';
 import { OutboxService } from '../../outbox/outbox.service';
 import { OutboxTopic } from '../../outbox/outbox.topics';
 import type { WebhookResult } from './providers/payment-provider.interface';
+import { PaymentQuoteDto } from './dto/payment-quote.dto';
+import { RoutingService } from '../routing/routing.service';
 
 @Injectable()
 export class PaymentsService {
@@ -27,7 +29,58 @@ export class PaymentsService {
     private readonly repo: PaymentsRepository,
     private readonly registry: PaymentProviderRegistry,
     private readonly outbox: OutboxService,
+    private readonly routing: RoutingService,
   ) {}
+
+  async quote(userId: string, dto: PaymentQuoteDto) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: dto.tripId },
+      select: {
+        id: true,
+        status: true,
+        driverId: true,
+        fromCityId: true,
+        toCityId: true,
+      },
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const coords = await this.prisma.$queryRaw<
+      Array<{ fromLat: number; fromLon: number; toLat: number; toLon: number }>
+    >`
+      SELECT
+        ST_Y(COALESCE(t."fromPoint", cf."location")::geometry) AS "fromLat",
+        ST_X(COALESCE(t."fromPoint", cf."location")::geometry) AS "fromLon",
+        ST_Y(COALESCE(t."toPoint", ct."location")::geometry) AS "toLat",
+        ST_X(COALESCE(t."toPoint", ct."location")::geometry) AS "toLon"
+      FROM "Trip" t
+      LEFT JOIN "City" cf ON cf."id" = t."fromCityId"
+      LEFT JOIN "City" ct ON ct."id" = t."toCityId"
+      WHERE t."id" = ${dto.tripId}
+      LIMIT 1
+    `;
+    const c = coords[0];
+    if (!c)
+      throw new BadRequestException('Trip coordinates are not configured');
+
+    const route = await this.routing.route(
+      { lat: c.fromLat, lon: c.fromLon },
+      { lat: c.toLat, lon: c.toLon },
+    );
+    const distanceKm = route.distanceMeters / 1000;
+    const amount = Math.round((5000 + distanceKm * 1200) * dto.seats);
+
+    return {
+      tripId: dto.tripId,
+      seats: dto.seats,
+      amount,
+      currency: 'UZS',
+      distanceMeters: route.distanceMeters,
+      durationSeconds: route.durationSeconds,
+      provider: route.provider,
+      calculatedForUserId: userId,
+    };
+  }
 
   async createIntent(
     userId: string,
@@ -210,6 +263,17 @@ export class PaymentsService {
         await tx.booking.updateMany({
           where: { id: payment.bookingId, status: BookingStatus.confirmed },
           data: { status: BookingStatus.paid },
+        });
+
+        await tx.paymentLedgerEntry.create({
+          data: {
+            paymentId: payment.id,
+            bookingId: payment.bookingId,
+            entryType: 'payment_paid',
+            amount: payment.amount,
+            currency: payment.currency,
+            note: 'Webhook marked payment as paid',
+          },
         });
 
         await this.outbox.enqueueTx(tx, {

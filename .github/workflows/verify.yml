@@ -45,6 +45,24 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Install tools (psql + redis-cli)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client redis-tools
+      - name: Wait for services
+        shell: bash
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -U postgres && break
+            sleep 2
+          done
+          pg_isready -h localhost -U postgres || exit 1
+
+          for i in {1..30}; do
+            redis-cli -h localhost ping >/dev/null 2>&1 && break
+            sleep 2
+          done
+          redis-cli -h localhost ping >/dev/null 2>&1 || exit 1
       - name: Install dependencies
         run: npm ci --include=dev
       - name: Generate OpenAPI
@@ -105,6 +123,24 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Install tools (psql + redis-cli)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client redis-tools
+      - name: Wait for services
+        shell: bash
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -U postgres && break
+            sleep 2
+          done
+          pg_isready -h localhost -U postgres || exit 1
+
+          for i in {1..30}; do
+            redis-cli -h localhost ping >/dev/null 2>&1 && break
+            sleep 2
+          done
+          redis-cli -h localhost ping >/dev/null 2>&1 || exit 1
       - name: Install dependencies
         run: npm ci --include=dev
       - name: Prepare databases
@@ -171,6 +207,24 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Install tools (psql + redis-cli)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client redis-tools
+      - name: Wait for services
+        shell: bash
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -U postgres && break
+            sleep 2
+          done
+          pg_isready -h localhost -U postgres || exit 1
+
+          for i in {1..30}; do
+            redis-cli -h localhost ping >/dev/null 2>&1 && break
+            sleep 2
+          done
+          redis-cli -h localhost ping >/dev/null 2>&1 || exit 1
       - name: Install dependencies
         run: npm ci --include=dev
       - name: Prepare databases

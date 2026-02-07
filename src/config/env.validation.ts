@@ -37,8 +37,15 @@ export const envValidationSchema = Joi.object({
   OFFERS_MAX_PASSENGER: Joi.number().integer().min(1).default(3),
 
   SENTRY_ENABLED: Joi.boolean().default(true),
-  SENTRY_DSN: Joi.string().uri().optional(),
+  SENTRY_DSN: Joi.string().uri().allow('').optional(),
   SENTRY_ENV: Joi.string().optional(),
   SENTRY_RELEASE: Joi.string().optional(),
   SENTRY_TRACES_SAMPLE_RATE: Joi.number().min(0).max(1).default(0),
+
+  ROUTING_PROVIDER: Joi.string().valid('osrm', 'mock').optional(),
+  OSRM_BASE_URL: Joi.string().uri().allow('').optional(),
+
+  TELEGRAM_ENABLED: Joi.boolean().default(false),
+  TELEGRAM_BOT_TOKEN: Joi.string().allow('').optional(),
+  TELEGRAM_CHAT_ID: Joi.string().allow('').optional(),
 }).unknown(true);

@@ -7,6 +7,7 @@ import { OutboxTopic, type OutboxTopicType } from './outbox.topics';
 import { ConfigService } from '@nestjs/config';
 import { RealtimeGateway } from '../modules/realtime/realtime.gateway';
 import { isPrismaError } from '../common/utils/prisma-error';
+import { TelegramNotifierService } from './telegram-notifier.service';
 
 type NotificationDraft = {
   userId: string;
@@ -30,6 +31,7 @@ export class DomainEventsProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly telegram: TelegramNotifierService,
   ) {
     super();
   }
@@ -60,13 +62,21 @@ export class DomainEventsProcessor extends WorkerHost {
 
       for (const notification of notifications) {
         const created = await this.createNotification(notification);
-        if (created && realtimeEnabled) {
+        if (!created) continue;
+
+        if (realtimeEnabled) {
           this.realtimeGateway.emitToUser(
             created.userId,
             'notification',
             created,
           );
         }
+
+        await this.telegram.send({
+          userId: created.userId,
+          title: created.title ?? created.type,
+          message: created.message,
+        });
       }
 
       await this.markOutboxDone(outboxId);

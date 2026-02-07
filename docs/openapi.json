@@ -115,10 +115,143 @@
         ]
       }
     },
+    "/api/auth/otp/send": {
+      "post": {
+        "operationId": "AuthController_sendOtp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/otp/verify": {
+      "post": {
+        "operationId": "AuthController_verifyOtp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/password/reset/request": {
+      "post": {
+        "operationId": "AuthController_requestPasswordReset",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/password/reset/confirm": {
+      "post": {
+        "operationId": "AuthController_confirmPasswordReset",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/auth/me": {
       "get": {
         "operationId": "AuthController_me",
         "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/sessions": {
+      "get": {
+        "operationId": "AuthController_sessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/sessions/{id}": {
+      "delete": {
+        "operationId": "AuthController_revokeSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1598,6 +1731,263 @@
         ]
       }
     },
+    "/api/routing/route": {
+      "get": {
+        "operationId": "RoutingController_route",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Routing"
+        ]
+      }
+    },
+    "/api/geo/trips/{tripId}/location": {
+      "patch": {
+        "operationId": "GeoController_updateTripDriverLocation",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDriverLocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Geo"
+        ]
+      },
+      "get": {
+        "operationId": "GeoController_getTripDriverLocation",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Geo"
+        ]
+      }
+    },
+    "/api/geo/trip/{tripId}/eta": {
+      "get": {
+        "operationId": "GeoController_getTripEta",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Geo"
+        ]
+      }
+    },
+    "/api/poi/nearby": {
+      "get": {
+        "operationId": "PoiController_nearby",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Poi"
+        ]
+      }
+    },
+    "/api/poi/route": {
+      "post": {
+        "operationId": "PoiController_route",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutePoiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Poi"
+        ]
+      }
+    },
+    "/api/admin/poi": {
+      "post": {
+        "operationId": "AdminPoiController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePoiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      },
+      "get": {
+        "operationId": "AdminPoiController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/admin/poi/{id}": {
+      "patch": {
+        "operationId": "AdminPoiController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePoiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminPoiController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "AdminPoi"
+        ]
+      }
+    },
+    "/api/support/tickets": {
+      "post": {
+        "operationId": "SupportTicketsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicketDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "SupportTickets"
+        ]
+      }
+    },
+    "/api/support/tickets/my": {
+      "get": {
+        "operationId": "SupportTicketsController_listMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "SupportTickets"
+        ]
+      }
+    },
     "/api/payments/booking/{bookingId}/intent": {
       "post": {
         "operationId": "PaymentsController_createIntent",
@@ -1631,6 +2021,30 @@
         ]
       }
     },
+    "/api/payments/quote": {
+      "post": {
+        "operationId": "PaymentsController_quote",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentQuoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
     "/api/payments/me": {
       "get": {
         "operationId": "PaymentsController_listMy",
@@ -1648,16 +2062,7 @@
     "/api/payments/webhooks/{provider}": {
       "post": {
         "operationId": "PaymentsWebhookController_handle",
-        "parameters": [
-          {
-            "name": "provider",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "201": {
             "description": ""
@@ -1695,6 +2100,22 @@
         "properties": {}
       },
       "RefreshDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SendOtpDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VerifyOtpDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ResetPasswordRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ResetPasswordConfirmDto": {
         "type": "object",
         "properties": {}
       },
@@ -1770,7 +2191,31 @@
         "type": "object",
         "properties": {}
       },
+      "UpdateDriverLocationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RoutePoiDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreatePoiDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdatePoiDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateTicketDto": {
+        "type": "object",
+        "properties": {}
+      },
       "CreatePaymentIntentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PaymentQuoteDto": {
         "type": "object",
         "properties": {}
       }

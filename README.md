@@ -73,6 +73,12 @@ Auth:
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `POST /api/auth/otp/send`
+- `POST /api/auth/otp/verify`
+- `POST /api/auth/password/reset/request`
+- `POST /api/auth/password/reset/confirm`
+- `GET /api/auth/sessions`
+- `DELETE /api/auth/sessions/:id`
 
 Cities:
 - `GET /api/cities`
@@ -116,7 +122,30 @@ Bookings:
 Notifications & Realtime:
 - `GET /api/notifications/my`
 - `POST /api/notifications/:id/read`
-- WS: `/realtime` (socket.io namespace)
+- WS: `/ws` (socket.io namespace)
+
+Routing & Geo:
+- `GET /api/routing/route`
+- `PATCH /api/geo/trips/:tripId/location`
+- `GET /api/geo/trips/:tripId/location`
+- `GET /api/geo/trip/:tripId/eta`
+
+POI / Radar:
+- `GET /api/poi/nearby`
+- `POST /api/poi/route`
+- `POST /api/admin/poi`
+- `GET /api/admin/poi`
+- `PATCH /api/admin/poi/:id`
+- `DELETE /api/admin/poi/:id`
+
+Payments:
+- `POST /api/payments/quote`
+- `POST /api/payments/booking/:bookingId/intent`
+- `GET /api/payments/me`
+
+Support:
+- `POST /api/support/tickets`
+- `GET /api/support/tickets/my`
 
 Admin:
 - `GET /api/admin/drivers?status=pending`
@@ -163,6 +192,7 @@ See `docs/diagrams.md`.
 - Architecture: `docs/architecture.md`
 - API overview: `docs/api.md`
 - Observability: `docs/observability.md`
+- Geo/Routing/Radar: `docs/geo-routing-radar.md`
 - Runbooks: `docs/runbooks/`
 
 ## Notes

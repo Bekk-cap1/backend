@@ -1,17 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import {
   PaymentProviderAdapter,
   CreateIntentResult,
   WebhookResult,
 } from './payment-provider.interface';
 
+type WebhookStatus = NonNullable<WebhookResult['status']>;
+
 @Injectable()
 export class ClickProvider implements PaymentProviderAdapter {
   readonly provider = PaymentProvider.click;
 
   createIntent(): Promise<CreateIntentResult> {
-    // TODO: позже добавим генерацию счета/URL по API Click
     return Promise.resolve({
       redirectUrl: undefined,
       form: undefined,
@@ -23,16 +25,50 @@ export class ClickProvider implements PaymentProviderAdapter {
     headers: Record<string, string | string[] | undefined>;
     rawBody: Buffer;
   }): Promise<WebhookResult> {
-    // TODO: позже — проверка подписи (секрет из env)
-    // Сейчас просто шаблон
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(params.rawBody.toString('utf8')) as Record<
+        string,
+        unknown
+      >;
+    } catch {
+      // keep empty payload
+    }
+
+    const status = normalizeStatus(parsed.status);
+    const externalId =
+      typeof parsed.externalId === 'string' ? parsed.externalId : undefined;
+    const externalEventId =
+      typeof parsed.externalEventId === 'string'
+        ? parsed.externalEventId
+        : undefined;
+
+    const raw: Prisma.InputJsonValue = {
+      stub: true,
+      provider: 'click',
+      body: params.rawBody.toString('utf8'),
+    };
+
     return Promise.resolve({
-      status: 'pending',
-      raw: {
-        stub: true,
-        provider: 'click',
-        headers: params.headers,
-        body: params.rawBody.toString('utf8'),
-      },
+      status,
+      externalId,
+      externalEventId,
+      raw,
     });
   }
+}
+
+function normalizeStatus(value: unknown): WebhookStatus {
+  if (
+    value === 'created' ||
+    value === 'pending' ||
+    value === 'paid' ||
+    value === 'failed' ||
+    value === 'refunded' ||
+    value === 'succeeded' ||
+    value === 'canceled'
+  ) {
+    return value;
+  }
+  return 'pending';
 }
