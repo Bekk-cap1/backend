@@ -12,6 +12,10 @@ import { AuthStrategiesService } from './strategies/auth.service';
 import { OtpPurpose, Role } from '@prisma/client';
 import { RedisService } from '../../infrastructure/redis/redis.service';
 
+function normalizePhone(phone: string): string {
+  return phone.replace(/\s+/g, '').trim();
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -21,16 +25,19 @@ export class AuthService {
   ) {}
 
   async register(phone: string, password: string) {
-    const existing = await this.prisma.user.findUnique({ where: { phone } });
+    const normalizedPhone = normalizePhone(phone);
+    const existing = await this.prisma.user.findUnique({
+      where: { phone: normalizedPhone },
+    });
     if (existing) throw new BadRequestException('User already exists');
 
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await this.prisma.user.create({
       data: {
-        phone,
+        phone: normalizedPhone,
         passwordHash,
-        role: Role.passenger, // по умолчанию
+        role: Role.passenger,
       },
       select: { id: true, phone: true, role: true },
     });
@@ -39,8 +46,9 @@ export class AuthService {
   }
 
   async validateUser(phone: string, password: string) {
+    const normalizedPhone = normalizePhone(phone);
     const user = await this.prisma.user.findUnique({
-      where: { phone },
+      where: { phone: normalizedPhone },
       select: { id: true, phone: true, role: true, passwordHash: true },
     });
 
@@ -79,7 +87,8 @@ export class AuthService {
   }
 
   async sendOtp(phone: string, purpose: OtpPurpose) {
-    const key = `otp:send:${phone}`;
+    const normalizedPhone = normalizePhone(phone);
+    const key = `otp:send:${normalizedPhone}`;
     const sent = await this.redis.raw.incr(key);
     if (sent === 1) {
       await this.redis.raw.expire(key, 10 * 60);
@@ -100,7 +109,7 @@ export class AuthService {
 
     await this.prisma.otpCode.create({
       data: {
-        phone,
+        phone: normalizedPhone,
         purpose,
         codeHash,
         expiresAt,
@@ -115,9 +124,10 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, purpose: OtpPurpose, code: string) {
+    const normalizedPhone = normalizePhone(phone);
     const otp = await this.prisma.otpCode.findFirst({
       where: {
-        phone,
+        phone: normalizedPhone,
         purpose,
         consumedAt: null,
         expiresAt: { gt: new Date() },
@@ -146,15 +156,16 @@ export class AuthService {
   }
 
   async requestPasswordReset(phone: string) {
-    return this.sendOtp(phone, OtpPurpose.reset_password);
+    return this.sendOtp(normalizePhone(phone), OtpPurpose.reset_password);
   }
 
   async confirmPasswordReset(phone: string, code: string, newPassword: string) {
-    await this.verifyOtp(phone, OtpPurpose.reset_password, code);
+    const normalizedPhone = normalizePhone(phone);
+    await this.verifyOtp(normalizedPhone, OtpPurpose.reset_password, code);
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     const updated = await this.prisma.user.updateMany({
-      where: { phone },
+      where: { phone: normalizedPhone },
       data: { passwordHash },
     });
     if (!updated.count) throw new BadRequestException('User not found');

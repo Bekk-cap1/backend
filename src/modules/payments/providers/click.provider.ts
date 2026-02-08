@@ -6,6 +6,7 @@ import {
   CreateIntentResult,
   WebhookResult,
 } from './payment-provider.interface';
+import { verifyWebhookHmac } from './webhook-signature.util';
 
 type WebhookStatus = NonNullable<WebhookResult['status']>;
 
@@ -25,6 +26,15 @@ export class ClickProvider implements PaymentProviderAdapter {
     headers: Record<string, string | string[] | undefined>;
     rawBody: Buffer;
   }): Promise<WebhookResult> {
+    verifyWebhookHmac({
+      provider: 'click',
+      headers: params.headers,
+      rawBody: params.rawBody,
+      secret:
+        process.env.CLICK_WEBHOOK_SECRET ?? process.env.PAYMENT_WEBHOOK_SECRET,
+      signatureHeaders: ['x-click-signature'],
+    });
+
     let parsed: Record<string, unknown> = {};
     try {
       parsed = JSON.parse(params.rawBody.toString('utf8')) as Record<

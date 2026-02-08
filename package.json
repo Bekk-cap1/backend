@@ -12,6 +12,7 @@
     "migrate": "prisma migrate deploy",
     "migrate:dev": "prisma migrate dev",
     "seed": "prisma db seed",
+    "superadmin:reset": "node scripts/reset-superadmin.js",
     "prisma:validate": "prisma validate",
     "prisma:generate": "node scripts/prisma-generate.js && node scripts/ensure-prisma-client.js",
     "postinstall": "npm run prisma:generate",

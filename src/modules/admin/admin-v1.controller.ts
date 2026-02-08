@@ -17,6 +17,7 @@ import { AdminPaymentsQueryDto } from './dto/admin-payments-query.dto';
 import { AdminSupportTicketsQueryDto } from './dto/admin-support-tickets-query.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { BanUserDto } from './dto/ban-user.dto';
+import { AdminPaymentsReconciliationQueryDto } from './dto/admin-payments-reconciliation-query.dto';
 import { RejectDriverDto } from './dto/reject-driver.dto';
 import { UpdateSupportTicketStatusDto } from './dto/update-support-ticket-status.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
@@ -68,6 +69,11 @@ export class AdminV1Controller {
   @Get('payments')
   listPayments(@Query() q: AdminPaymentsQueryDto) {
     return this.admin.listPayments(q);
+  }
+
+  @Get('payments/reconciliation')
+  getPaymentsReconciliation(@Query() q: AdminPaymentsReconciliationQueryDto) {
+    return this.admin.getPaymentsReconciliation(q);
   }
 
   @Get('tickets')

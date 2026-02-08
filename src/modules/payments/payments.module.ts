@@ -9,13 +9,17 @@ import { StripeProvider } from './providers/stripe.provider';
 import { PaymentsWebhookController } from './webhooks/payments.webhook.controller';
 import { OutboxModule } from '../../outbox/outbox.module';
 import { RoutingModule } from '../routing/routing.module';
+import { AuditModule } from '../../audit/audit.module';
+import { RedisModule } from '../../infrastructure/redis/redis.module';
+import { PaymentsReconciliationService } from './payments.reconciliation.service';
 
 @Module({
-  imports: [OutboxModule, RoutingModule],
+  imports: [OutboxModule, RoutingModule, AuditModule, RedisModule],
   controllers: [PaymentsController, PaymentsWebhookController],
   providers: [
     PaymentsService,
     PaymentsRepository,
+    PaymentsReconciliationService,
     PaymentProviderRegistry,
 
     ClickProvider,

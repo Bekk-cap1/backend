@@ -499,12 +499,16 @@ model AuditLog {
   // payload
   metadata Json?
 
+  prevHash String?
+  hash     String? @unique
+
   createdAt DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([actorId, createdAt])
   @@index([action, createdAt])
   @@index([requestId])
+  @@index([createdAt, id])
 }
 
 model OutboxEvent {

@@ -54,6 +54,6 @@ export class PaymentsController {
     @Param('paymentId') paymentId: string,
     @Body() dto: MarkPaymentPaidDto,
   ) {
-    return this.payments.markPaid(paymentId, dto.note);
+    return this.payments.markPaid(paymentId, dto.note, dto.idempotencyKey);
   }
 }

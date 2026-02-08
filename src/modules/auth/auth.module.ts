@@ -8,6 +8,7 @@ import { AuthStrategiesService } from './strategies/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { RedisModule } from '../../infrastructure/redis/redis.module';
+import { LoginAttemptsService } from '../../security/login-attempts.service';
 
 @Module({
   imports: [
@@ -35,7 +36,12 @@ import { RedisModule } from '../../infrastructure/redis/redis.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthStrategiesService, JwtStrategy],
+  providers: [
+    AuthService,
+    AuthStrategiesService,
+    JwtStrategy,
+    LoginAttemptsService,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

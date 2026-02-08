@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { DriversService } from '../drivers/drivers.service';
 import { AdminDriversQueryDto } from './dto/admin-drivers-query.dto';
@@ -15,6 +19,10 @@ import { AuditAction } from '../../audit/audit.actions';
 
 import { OutboxService } from '../../outbox/outbox.service';
 import { OutboxTopic } from '../../outbox/outbox.topics';
+import {
+  isSuperAdminImmutable,
+  isSuperAdminPhone,
+} from '../../common/auth/super-admin.util';
 
 @Injectable()
 export class AdminService {
@@ -24,6 +32,23 @@ export class AdminService {
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
   ) {}
+
+  private assertSuperAdminNotBannedOrDemoted(params: {
+    phone: string;
+    nextRole?: Role;
+    action: 'ban' | 'role-change';
+  }) {
+    if (!isSuperAdminImmutable()) return;
+    if (!isSuperAdminPhone(params.phone)) return;
+
+    if (params.action === 'ban') {
+      throw new ForbiddenException('Superadmin cannot be banned');
+    }
+
+    if (params.nextRole && params.nextRole !== Role.admin) {
+      throw new ForbiddenException('Superadmin role cannot be changed');
+    }
+  }
 
   async listDrivers(q: AdminDriversQueryDto) {
     const page = q.page ?? 1;
@@ -223,6 +248,11 @@ export class AdminService {
           select: { id: true, phone: true, role: true },
         });
         if (!before) throw new NotFoundException('User not found');
+        this.assertSuperAdminNotBannedOrDemoted({
+          phone: before.phone,
+          nextRole: role,
+          action: 'role-change',
+        });
 
         const updated = await tx.user.update({
           where: { id: userId },
@@ -302,6 +332,10 @@ export class AdminService {
       async (tx: Prisma.TransactionClient) => {
         const user = await tx.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
+        this.assertSuperAdminNotBannedOrDemoted({
+          phone: user.phone,
+          action: 'ban',
+        });
 
         const updated = await tx.user.update({
           where: { id: userId },
@@ -420,6 +454,86 @@ export class AdminService {
     return { items, total, page, pageSize };
   }
 
+  async getPaymentsReconciliation(params: {
+    from?: string;
+    to?: string;
+    staleMinutes?: number;
+  }) {
+    const fromDate = params.from ? new Date(params.from) : undefined;
+    const toDate = params.to ? new Date(params.to) : undefined;
+    const staleMinutes =
+      params.staleMinutes ??
+      Number(process.env.PAYMENT_RECONCILE_STALE_MINUTES ?? 60);
+    const staleCutoff = new Date(Date.now() - staleMinutes * 60_000);
+
+    const where: Prisma.PaymentWhereInput = {
+      ...(fromDate || toDate
+        ? {
+            createdAt: {
+              ...(fromDate ? { gte: fromDate } : {}),
+              ...(toDate ? { lte: toDate } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [payments, stalePending, paidWithoutPaidAt] =
+      await this.prisma.$transaction([
+        this.prisma.payment.findMany({
+          where,
+          select: { status: true, amount: true },
+        }),
+        this.prisma.payment.count({
+          where: {
+            ...where,
+            status: { in: [PaymentStatus.created, PaymentStatus.pending] },
+            createdAt: { lt: staleCutoff },
+          },
+        }),
+        this.prisma.payment.count({
+          where: {
+            ...where,
+            status: PaymentStatus.paid,
+            paidAt: null,
+          },
+        }),
+      ]);
+
+    const grouped = new Map<PaymentStatus, { count: number; amount: number }>();
+    for (const payment of payments) {
+      const current = grouped.get(payment.status) ?? { count: 0, amount: 0 };
+      current.count += 1;
+      current.amount += Number(payment.amount);
+      grouped.set(payment.status, current);
+    }
+    const byStatus = Array.from(grouped.entries()).map(([status, values]) => ({
+      status,
+      count: values.count,
+      amount: values.amount,
+    }));
+
+    const totalCount = byStatus.reduce((acc, row) => acc + row.count, 0);
+    const totalAmount = byStatus.reduce((acc, row) => acc + row.amount, 0);
+
+    return {
+      window: {
+        from: fromDate?.toISOString() ?? null,
+        to: toDate?.toISOString() ?? null,
+      },
+      staleThresholdMinutes: staleMinutes,
+      totals: {
+        count: totalCount,
+        amount: totalAmount,
+      },
+      byStatus,
+      mismatches: {
+        stalePending,
+        paidWithoutPaidAt,
+        total: stalePending + paidWithoutPaidAt,
+      },
+    };
+  }
+
   async listSupportTickets(params: {
     status?: SupportTicketStatus;
     page?: number;
@@ -452,15 +566,32 @@ export class AdminService {
     ticketId: string,
     status: SupportTicketStatus,
   ) {
-    const exists = await this.prisma.supportTicket.findUnique({
-      where: { id: ticketId },
-      select: { id: true },
-    });
-    if (!exists) throw new NotFoundException('Support ticket not found');
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const exists = await tx.supportTicket.findUnique({
+        where: { id: ticketId },
+        select: { id: true, status: true, userId: true },
+      });
+      if (!exists) throw new NotFoundException('Support ticket not found');
 
-    return this.prisma.supportTicket.update({
-      where: { id: ticketId },
-      data: { status },
+      const updated = await tx.supportTicket.update({
+        where: { id: ticketId },
+        data: { status },
+      });
+
+      await this.audit.logTx(tx, {
+        action: AuditAction.TicketStatusChange,
+        entityType: 'supportTicket',
+        entityId: ticketId,
+        severity: 'warning',
+        metadata: {
+          ticketId,
+          userId: exists.userId,
+          fromStatus: exists.status,
+          toStatus: status,
+        },
+      });
+
+      return updated;
     });
   }
 }

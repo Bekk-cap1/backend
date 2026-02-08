@@ -22,6 +22,9 @@ import type { WebhookResult } from './providers/payment-provider.interface';
 import { PaymentQuoteDto } from './dto/payment-quote.dto';
 import { RoutingService } from '../routing/routing.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { AuditService } from '../../audit/audit.service';
+import { AuditAction } from '../../audit/audit.actions';
+import { RedisService } from '../../infrastructure/redis/redis.service';
 
 @Injectable()
 export class PaymentsService {
@@ -32,6 +35,8 @@ export class PaymentsService {
     private readonly outbox: OutboxService,
     private readonly routing: RoutingService,
     private readonly metrics: MetricsService,
+    private readonly audit: AuditService,
+    private readonly redis: RedisService,
   ) {}
 
   async quote(userId: string, dto: PaymentQuoteDto) {
@@ -158,6 +163,7 @@ export class PaymentsService {
       status: PaymentStatus.created,
       amount: booking.price,
       currency: booking.currency,
+      idempotencyKey: dto.idempotencyKey ?? null,
       payload: dto.idempotencyKey
         ? { idempotencyKey: dto.idempotencyKey }
         : undefined,
@@ -204,7 +210,27 @@ export class PaymentsService {
     });
   }
 
-  async markPaid(paymentId: string, note?: string) {
+  async markPaid(paymentId: string, note?: string, idempotencyKey?: string) {
+    const dedupeKey = idempotencyKey
+      ? `payments:mark-paid:${idempotencyKey}`
+      : null;
+
+    if (dedupeKey) {
+      const existingId = await this.redis.raw.get(dedupeKey);
+      if (existingId) {
+        const existingPayment = await this.prisma.payment.findUnique({
+          where: { id: existingId },
+        });
+        if (
+          existingPayment &&
+          existingPayment.id === paymentId &&
+          existingPayment.status === PaymentStatus.paid
+        ) {
+          return { ok: true, payment: existingPayment, idempotent: true };
+        }
+      }
+    }
+
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
@@ -214,6 +240,10 @@ export class PaymentsService {
         payment.status !== PaymentStatus.created &&
         payment.status !== PaymentStatus.pending
       ) {
+        if (payment.status === PaymentStatus.paid && dedupeKey) {
+          await this.redis.raw.set(dedupeKey, payment.id, 'EX', 86_400);
+          return { ok: true, payment, idempotent: true };
+        }
         throw new BadRequestException('Payment is not in payable state');
       }
 
@@ -241,6 +271,20 @@ export class PaymentsService {
         },
       });
 
+      await this.audit.logTx(tx, {
+        action: AuditAction.PaymentMarkPaid,
+        entityType: 'payment',
+        entityId: payment.id,
+        severity: 'critical',
+        metadata: {
+          paymentId: payment.id,
+          bookingId: payment.bookingId,
+          amount: payment.amount,
+          currency: payment.currency,
+          note: note ?? null,
+        },
+      });
+
       await this.outbox.enqueueTx(tx, {
         topic: OutboxTopic.PaymentMarkedPaid,
         aggregateType: 'payment',
@@ -256,6 +300,10 @@ export class PaymentsService {
         },
       });
       this.metrics.incFeature('payment_marked_paid');
+
+      if (dedupeKey) {
+        await this.redis.raw.set(dedupeKey, updated.id, 'EX', 86_400);
+      }
 
       return { ok: true, payment: updated };
     });

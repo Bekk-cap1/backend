@@ -16,6 +16,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 
 import { AdminDriversQueryDto } from './dto/admin-drivers-query.dto';
 import { AdminAuditQueryDto } from './dto/admin-audit-query.dto';
+import { AdminPaymentsReconciliationQueryDto } from './dto/admin-payments-reconciliation-query.dto';
 import { RejectDriverDto } from './dto/reject-driver.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 
@@ -37,6 +38,11 @@ export class AdminController {
   @Get('audit')
   listAudit(@Query() q: AdminAuditQueryDto) {
     return this.admin.listAudit(q);
+  }
+
+  @Get('payments/reconciliation')
+  getPaymentsReconciliation(@Query() q: AdminPaymentsReconciliationQueryDto) {
+    return this.admin.getPaymentsReconciliation(q);
   }
 
   // POST /admin/drivers/:userId/verify

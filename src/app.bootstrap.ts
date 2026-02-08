@@ -30,10 +30,53 @@ function parseCorsOrigins(value: string | undefined): string[] | boolean {
   if (!value) return false;
   const v = value.trim();
   if (!v) return false;
+  if (v === '*') return true;
   return v
     .split(',')
     .map((x) => x.trim())
     .filter(Boolean);
+}
+
+function isLocalhostOrigin(origin: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
+function buildCorsOriginOption(
+  corsOrigins: string[] | boolean,
+):
+  | ((
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => void)
+  | boolean {
+  if (corsOrigins === true) {
+    return true;
+  }
+
+  if (corsOrigins === false) {
+    // Dev-friendly fallback: allow localhost/127.0.0.1 when CORS_ORIGIN is not set.
+    return (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      callback(null, isLocalhostOrigin(origin));
+    };
+  }
+
+  const allowed = new Set(corsOrigins);
+  return (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    callback(null, allowed.has(origin));
+  };
 }
 
 export function bootstrapApp(
@@ -71,10 +114,12 @@ export function bootstrapApp(
 
   app.use(helmet());
 
-  const corsOrigins =
-    options.corsOrigins ?? parseCorsOrigins(process.env.CORS_ORIGIN);
+  const corsDisabled = String(process.env.CORS_DISABLED ?? 'false') === 'true';
+  const corsOrigins = corsDisabled
+    ? true
+    : (options.corsOrigins ?? parseCorsOrigins(process.env.CORS_ORIGIN));
   app.enableCors({
-    origin: corsOrigins === false ? false : corsOrigins,
+    origin: buildCorsOriginOption(corsOrigins),
     credentials: true,
   });
 
@@ -88,6 +133,13 @@ export function bootstrapApp(
     const authMax =
       options.rateLimit?.authMax ??
       Number(process.env.RATE_LIMIT_AUTH_MAX ?? 20);
+    const authLoginMax = Number(
+      process.env.RATE_LIMIT_AUTH_LOGIN_MAX ??
+        Math.max(5, Math.floor(authMax / 2)),
+    );
+    const geoMax = Number(process.env.RATE_LIMIT_GEO_MAX ?? 60);
+    const offersMax = Number(process.env.RATE_LIMIT_OFFERS_MAX ?? 40);
+    const paymentsMax = Number(process.env.RATE_LIMIT_PAYMENTS_MAX ?? 30);
 
     const globalLimiter = rateLimit({
       windowMs,
@@ -101,13 +153,44 @@ export function bootstrapApp(
       standardHeaders: true,
       legacyHeaders: false,
     });
+    const authLoginLimiter = rateLimit({
+      windowMs,
+      max: authLoginMax,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+    const geoLimiter = rateLimit({
+      windowMs,
+      max: geoMax,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+    const offersLimiter = rateLimit({
+      windowMs,
+      max: offersMax,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+    const paymentsLimiter = rateLimit({
+      windowMs,
+      max: paymentsMax,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
 
     app.use(globalLimiter);
 
     const base = prefix ? `/${prefix}` : '';
+    app.use(`${base}/auth/login`, authLoginLimiter);
+    app.use(`${base}/auth/refresh`, authLoginLimiter);
+    app.use(`${base}/auth/web/login`, authLoginLimiter);
+    app.use(`${base}/auth/web/refresh`, authLoginLimiter);
     app.use(`${base}/auth`, authLimiter);
     app.use(`${base}/admin`, authLimiter);
     app.use(`${base}/v1/admin`, authLimiter);
+    app.use(`${base}/geo`, geoLimiter);
+    app.use(`${base}/requests`, offersLimiter);
+    app.use(`${base}/payments`, paymentsLimiter);
   }
 
   if (options.enableRequestId ?? true) {

@@ -6,4 +6,12 @@ export class MarkPaymentPaidDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Client-supplied idempotency key to safely retry mark-paid requests',
+  })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }

@@ -33,6 +33,9 @@ type FareQuotePayload = {
   distanceMeters: number;
   durationSeconds: number;
 };
+type PaymentIntentPayload = {
+  payment: { id: string; status: string };
+};
 
 type PgError = { code?: string; message?: string };
 type RequestApp = Parameters<typeof request>[0];
@@ -139,6 +142,7 @@ describe('Intercity (e2e)', () => {
   const passengerUser = makeUniqueUser('passenger');
   const cancelPassengerUser = makeUniqueUser('cancel');
   const adminUser = makeUniqueUser('admin');
+  const bruteForceUser = makeUniqueUser('bruteforce');
   const apiPath = (path: string) => `${basePath}${path}`;
 
   beforeAll(async () => {
@@ -169,6 +173,10 @@ describe('Intercity (e2e)', () => {
       process.env.BOOKING_CANCEL_FEE_PERCENT ?? '10';
     process.env.OFFERS_MAX_DRIVER = process.env.OFFERS_MAX_DRIVER ?? '3';
     process.env.OFFERS_MAX_PASSENGER = process.env.OFFERS_MAX_PASSENGER ?? '3';
+    process.env.RATE_LIMIT_MAX = process.env.RATE_LIMIT_MAX ?? '1000';
+    process.env.RATE_LIMIT_AUTH_MAX = process.env.RATE_LIMIT_AUTH_MAX ?? '1000';
+    process.env.RATE_LIMIT_AUTH_LOGIN_MAX =
+      process.env.RATE_LIMIT_AUTH_LOGIN_MAX ?? '1000';
     process.env.API_PREFIX = process.env.API_PREFIX ?? 'api';
 
     const prefix = process.env.API_PREFIX ?? 'api';
@@ -397,6 +405,33 @@ describe('Intercity (e2e)', () => {
       .expect(201);
 
     adminToken = getData<AuthLoginPayload>(login).accessToken;
+  });
+
+  it('rate-limits repeated failed logins with 429', async () => {
+    await api.post(apiPath('/auth/register')).send({
+      phone: bruteForceUser.phone,
+      password: bruteForceUser.password,
+    });
+
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      const res = await api.post(apiPath('/auth/login')).send({
+        phone: bruteForceUser.phone,
+        password: 'wrong_password',
+      });
+      expect(res.status).toBe(401);
+    }
+
+    const lock = await api.post(apiPath('/auth/login')).send({
+      phone: bruteForceUser.phone,
+      password: 'wrong_password',
+    });
+    expect(lock.status).toBe(429);
+
+    const whileLocked = await api.post(apiPath('/auth/login')).send({
+      phone: bruteForceUser.phone,
+      password: bruteForceUser.password,
+    });
+    expect(whileLocked.status).toBe(429);
   });
 
   it('creates vehicle for verified driver', async () => {
@@ -724,6 +759,47 @@ describe('Intercity (e2e)', () => {
     }>(cancelQuote);
     expect(cancelQuoteData.feePercent).toBeGreaterThanOrEqual(0);
     expect(cancelQuoteData.refundAmount).toBeGreaterThanOrEqual(0);
+  });
+
+  it('creates payment intent and marks payment as paid idempotently', async () => {
+    const intent = await api
+      .post(apiPath(`/payments/booking/${bookingId}/intent`))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ provider: 'click', idempotencyKey: `intent-${bookingId}` })
+      .expect(201);
+
+    const paymentId = getData<PaymentIntentPayload>(intent).payment.id;
+    expect(paymentId).toBeTruthy();
+
+    const markPaidFirst = await api
+      .post(apiPath(`/payments/${paymentId}/mark-paid`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        note: 'Paid in test',
+        idempotencyKey: `mark-paid-${paymentId}`,
+      })
+      .expect(201);
+    expect(
+      getData<{ payment: { status: string } }>(markPaidFirst).payment.status,
+    ).toBe('paid');
+
+    const markPaidSecond = await api
+      .post(apiPath(`/payments/${paymentId}/mark-paid`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        note: 'Paid in test retry',
+        idempotencyKey: `mark-paid-${paymentId}`,
+      })
+      .expect(201);
+    const idempotentData = getData<{ idempotent?: boolean }>(markPaidSecond);
+    expect(idempotentData.idempotent).toBe(true);
+
+    const reconciliation = await api
+      .get(apiPath('/v1/admin/payments/reconciliation'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    const recData = getData<{ totals: { count: number } }>(reconciliation);
+    expect(recData.totals.count).toBeGreaterThan(0);
   });
 
   it('creates support ticket and admin can list it', async () => {

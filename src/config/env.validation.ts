@@ -18,10 +18,14 @@ export const envValidationSchema = Joi.object({
   JWT_REFRESH_TTL: Joi.number().integer().min(1).default(2_592_000),
 
   CORS_ORIGIN: Joi.string().allow('').default(''),
+  CORS_DISABLED: Joi.boolean().default(false),
 
   RATE_LIMIT_WINDOW_MS: Joi.number().integer().min(1000).default(60_000),
   RATE_LIMIT_MAX: Joi.number().integer().min(1).default(200),
   RATE_LIMIT_AUTH_MAX: Joi.number().integer().min(1).default(20),
+  RATE_LIMIT_AUTH_LOGIN_MAX: Joi.number().integer().min(1).default(10),
+  LOGIN_LOCK_MAX_ATTEMPTS: Joi.number().integer().min(1).default(5),
+  LOGIN_LOCK_WINDOW_SEC: Joi.number().integer().min(30).default(600),
 
   LOG_LEVEL: Joi.string()
     .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
@@ -31,6 +35,14 @@ export const envValidationSchema = Joi.object({
   REALTIME_ENABLED: Joi.boolean().default(false),
   METRICS_ENABLED: Joi.boolean().default(true),
   GEO_MAX_UPDATES_PER_SEC: Joi.number().integer().min(1).max(100).default(5),
+  GEO_RETENTION_ENABLED: Joi.boolean().default(true),
+  GEO_RETENTION_CRON: Joi.string().default('0 3 * * *'),
+  GEO_LOCATION_RETENTION_DAYS: Joi.number()
+    .integer()
+    .min(1)
+    .max(365)
+    .default(30),
+  GEO_RETENTION_LOCK_SEC: Joi.number().integer().min(10).default(300),
 
   BOOKING_CANCEL_FEE_PERCENT: Joi.number().min(0).max(100).default(10),
 
@@ -45,6 +57,26 @@ export const envValidationSchema = Joi.object({
 
   ROUTING_PROVIDER: Joi.string().valid('osrm', 'mock').optional(),
   OSRM_BASE_URL: Joi.string().uri().allow('').optional(),
+
+  AUTH_COOKIE_SECURE: Joi.boolean().default(false),
+  AUTH_COOKIE_DOMAIN: Joi.string().allow('').optional(),
+  SUPERADMIN_PHONE: Joi.string().allow('').optional(),
+  SUPERADMIN_PASSWORD: Joi.string().allow('').optional(),
+  SUPERADMIN_IMMUTABLE: Joi.boolean().default(true),
+
+  PAYMENT_PROVIDER: Joi.string().valid('click', 'payme', 'stripe').optional(),
+  PAYMENT_WEBHOOK_SECRET: Joi.string().allow('').optional(),
+  CLICK_WEBHOOK_SECRET: Joi.string().allow('').optional(),
+  PAYME_WEBHOOK_SECRET: Joi.string().allow('').optional(),
+  STRIPE_WEBHOOK_SECRET: Joi.string().allow('').optional(),
+  PAYMENT_RECONCILE_ENABLED: Joi.boolean().default(true),
+  PAYMENT_RECONCILE_CRON: Joi.string().default('*/10 * * * *'),
+  PAYMENT_RECONCILE_STALE_MINUTES: Joi.number().integer().min(1).default(60),
+  PAYMENT_RECONCILE_BATCH: Joi.number().integer().min(1).max(1000).default(200),
+  PAYMENT_RECONCILE_LOCK_SEC: Joi.number().integer().min(10).default(120),
+
+  MIGRATION_LOCK_KEY: Joi.number().integer().default(87234123),
+  MIGRATION_LOCK_TIMEOUT_SEC: Joi.number().integer().min(1).default(60),
 
   TELEGRAM_ENABLED: Joi.boolean().default(false),
   TELEGRAM_BOT_TOKEN: Joi.string().allow('').optional(),
