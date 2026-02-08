@@ -1,0 +1,199 @@
+name: Verify Production Launch Pack
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  backend_verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_test?schema=public
+      SHADOW_DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/intercity_shadow?schema=public
+      REDIS_URL: redis://localhost:6379
+      REDIS_URL_TEST: redis://localhost:6379
+      JWT_ACCESS_SECRET: verify_access_secret_123456
+      JWT_REFRESH_SECRET: verify_refresh_secret_123456
+      JWT_SECRET: verify_jwt_secret_123456
+      JWT_ACCESS_TTL: "900"
+      JWT_REFRESH_TTL: "2592000"
+      SENTRY_DSN: "https://public@example.ingest.sentry.io/1"
+      METRICS_ENABLED: "true"
+      PAYMENT_WEBHOOK_SECRET: verify_webhook_secret
+      CLICK_WEBHOOK_SECRET: verify_webhook_secret
+      PAYME_WEBHOOK_SECRET: verify_webhook_secret
+      STRIPE_WEBHOOK_SECRET: verify_webhook_secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client redis-tools
+
+      - name: Wait for services
+        shell: bash
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -U postgres && break
+            sleep 2
+          done
+          pg_isready -h localhost -U postgres || exit 1
+          for i in {1..30}; do
+            redis-cli -h localhost ping >/dev/null 2>&1 && break
+            sleep 2
+          done
+          redis-cli -h localhost ping >/dev/null 2>&1 || exit 1
+
+      - name: Prepare databases
+        shell: bash
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_test;' || true
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE intercity_shadow;' || true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Migrate
+        run: npx prisma migrate deploy
+
+      - name: Generate OpenAPI
+        run: npm run openapi:generate | tee backend-openapi.log
+
+      - name: Run e2e
+        run: npm run test:e2e | tee backend-e2e.log
+
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-prod-pack
+          path: |
+            docs/openapi.json
+            backend-openapi.log
+            backend-e2e.log
+
+  platform_verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.28.2 --activate
+
+      - name: Install platform deps
+        run: pnpm install --frozen-lockfile
+        working-directory: platform
+
+      - name: Platform checks
+        run: |
+          pnpm openapi:sync | tee platform-openapi.log
+          pnpm lint | tee platform-lint.log
+          pnpm test | tee platform-test.log
+          pnpm build | tee platform-build.log
+        working-directory: platform
+
+      - name: Install Playwright browser
+        run: pnpm --filter admin-web exec playwright install --with-deps chromium
+        working-directory: platform
+
+      - name: Admin web smoke e2e
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
+        run: pnpm --filter admin-web test:e2e | tee platform-admin-e2e.log
+        working-directory: platform
+
+      - name: Mobile tests
+        run: pnpm --filter mobile test | tee platform-mobile-test.log
+        working-directory: platform
+
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-prod-pack
+          path: |
+            platform/docs/API_CONTRACT.md
+            platform/docs/api-gaps.md
+            platform/docs/verification.md
+            platform/platform-openapi.log
+            platform/platform-lint.log
+            platform/platform-test.log
+            platform/platform-build.log
+            platform/platform-admin-e2e.log
+            platform/platform-mobile-test.log
+
+  k8s_verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render k8s overlays
+        run: |
+          kubectl kustomize k8s/overlays/staging > k8s-staging-rendered.yaml
+          kubectl kustomize k8s/overlays/prod > k8s-prod-rendered.yaml
+
+      - name: Upload k8s artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-prod-pack
+          path: |
+            k8s-staging-rendered.yaml
+            k8s-prod-rendered.yaml
+            docs/deploy.md
+            docs/runbooks/rollback.md
+            docs/observability-alert-rules.yml
+            docs/uptime-guidance.md
+
+  report:
+    runs-on: ubuntu-latest
+    needs: [backend_verify, platform_verify, k8s_verify]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload production verification document
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-verification-doc
+          path: docs/production-verification.md

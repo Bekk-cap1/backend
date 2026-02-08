@@ -1,0 +1,62 @@
+name: Platform CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'platform/**'
+      - 'docs/openapi.json'
+      - '.github/workflows/platform-ci.yml'
+  pull_request:
+    paths:
+      - 'platform/**'
+      - 'docs/openapi.json'
+      - '.github/workflows/platform-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  platform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: platform/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm -C platform i --frozen-lockfile
+
+      - name: OpenAPI sync
+        run: pnpm -C platform openapi:sync
+
+      - name: Lint
+        run: pnpm -C platform lint
+
+      - name: Test
+        run: pnpm -C platform test
+
+      - name: Install Playwright browser
+        run: pnpm -C platform --filter admin-web exec playwright install --with-deps chromium
+
+      - name: Admin web smoke e2e
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
+        run: pnpm -C platform --filter admin-web test:e2e
+
+      - name: Mobile unit tests
+        run: pnpm -C platform --filter mobile test
+
+      - name: Build
+        run: pnpm -C platform build

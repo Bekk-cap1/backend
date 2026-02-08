@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: intercity-migrate
+  namespace: intercity
+spec:
+  template:
+    spec:
+      containers:
+        - name: intercity-migrate
+          env:
+            - name: MIGRATION_LOCK_KEY
+              value: "87234124"
+            - name: MIGRATION_LOCK_TIMEOUT_SEC
+              value: "90"

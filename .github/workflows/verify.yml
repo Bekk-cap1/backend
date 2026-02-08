@@ -40,10 +40,10 @@ jobs:
       REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install tools (psql + redis-cli)
         run: |
@@ -118,10 +118,10 @@ jobs:
       JWT_REFRESH_TTL: 2592000
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install tools (psql + redis-cli)
         run: |
@@ -202,10 +202,10 @@ jobs:
       SWAGGER_ENABLED: false
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - name: Install tools (psql + redis-cli)
         run: |

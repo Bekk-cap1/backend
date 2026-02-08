@@ -17,6 +17,9 @@ fi
 if [[ -z "${JWT_REFRESH_SECRET:-}" && -n "${JWT_SECRET:-}" ]]; then
   JWT_REFRESH_SECRET="${JWT_SECRET}"
 fi
+if [[ -z "${JWT_SECRET:-}" && -n "${JWT_ACCESS_SECRET:-}" ]]; then
+  JWT_SECRET="${JWT_ACCESS_SECRET}"
+fi
 
 require() {
   local name="$1"
@@ -30,12 +33,14 @@ require DATABASE_URL
 require REDIS_URL
 require JWT_ACCESS_SECRET
 require JWT_REFRESH_SECRET
+require JWT_SECRET
 
 args=(
   "--from-literal=DATABASE_URL=${DATABASE_URL}"
   "--from-literal=REDIS_URL=${REDIS_URL}"
   "--from-literal=JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}"
   "--from-literal=JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}"
+  "--from-literal=JWT_SECRET=${JWT_SECRET}"
 )
 
 if [[ -n "${SHADOW_DATABASE_URL:-}" ]]; then
@@ -44,6 +49,18 @@ fi
 
 if [[ -n "${SENTRY_DSN:-}" ]]; then
   args+=("--from-literal=SENTRY_DSN=${SENTRY_DSN}")
+fi
+if [[ -n "${PAYMENT_WEBHOOK_SECRET:-}" ]]; then
+  args+=("--from-literal=PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET}")
+fi
+if [[ -n "${CLICK_WEBHOOK_SECRET:-}" ]]; then
+  args+=("--from-literal=CLICK_WEBHOOK_SECRET=${CLICK_WEBHOOK_SECRET}")
+fi
+if [[ -n "${PAYME_WEBHOOK_SECRET:-}" ]]; then
+  args+=("--from-literal=PAYME_WEBHOOK_SECRET=${PAYME_WEBHOOK_SECRET}")
+fi
+if [[ -n "${STRIPE_WEBHOOK_SECRET:-}" ]]; then
+  args+=("--from-literal=STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}")
 fi
 if [[ -n "${SENTRY_ENV:-}" ]]; then
   args+=("--from-literal=SENTRY_ENV=${SENTRY_ENV}")
