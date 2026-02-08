@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Intercity Mobile",
+    "slug": "intercity-mobile",
+    "version": "1.0.0",
+    "scheme": "intercity",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Intercity to access location for active trips and ETA."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#4F7CFF"
+        }
+      ]
+    ]
+  }
+}

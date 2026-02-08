@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "outputs": ["coverage/**"]
+    },
+    "openapi:sync": {
+      "cache": false,
+      "outputs": [
+        ".cache/openapi.json",
+        "packages/shared/src/types/openapi.d.ts",
+        "docs/API_CONTRACT.md"
+      ]
+    }
+  }
+}

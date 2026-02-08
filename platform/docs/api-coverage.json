@@ -1,0 +1,1970 @@
+{
+  "generatedAt": "2026-02-07T23:22:32.993Z",
+  "source": "docs/openapi.json",
+  "totals": {
+    "total": 131,
+    "usedInUi": 34,
+    "wrappedOnly": 67,
+    "backendOnly": 7,
+    "unused": 23,
+    "overallUiCoveragePct": 25.95,
+    "functionalUiCoveragePct": 27.42,
+    "functionalWrapperCoveragePct": 81.45
+  },
+  "endpoints": [
+    {
+      "tag": "Accounts",
+      "method": "GET",
+      "path": "/api/accounts/me",
+      "operationId": "AccountsController_me",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Accounts",
+      "method": "PATCH",
+      "path": "/api/accounts/profile",
+      "operationId": "AccountsController_updateProfile",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Admin",
+      "method": "GET",
+      "path": "/api/admin/audit",
+      "operationId": "AdminController_listAudit",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 25
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/audit.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/audit/page.tsx",
+          "line": 25
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/dashboard/page.tsx",
+          "line": 31
+        }
+      ]
+    },
+    {
+      "tag": "Admin",
+      "method": "GET",
+      "path": "/api/admin/drivers",
+      "operationId": "AdminController_listDrivers",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Admin",
+      "method": "POST",
+      "path": "/api/admin/drivers/{userId}/reject",
+      "operationId": "AdminController_rejectDriver",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Admin",
+      "method": "POST",
+      "path": "/api/admin/drivers/{userId}/verify",
+      "operationId": "AdminController_verifyDriver",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Admin",
+      "method": "GET",
+      "path": "/api/admin/payments/reconciliation",
+      "operationId": "AdminController_getPaymentsReconciliation",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Admin",
+      "method": "PATCH",
+      "path": "/api/admin/users/{userId}/role",
+      "operationId": "AdminController_updateUserRole",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "GET",
+      "path": "/api/admin/poi",
+      "operationId": "AdminPoiController_list[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi/page.tsx",
+          "line": 47
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/admin/poi",
+      "operationId": "AdminPoiController_create[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi/page.tsx",
+          "line": 56
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "DELETE",
+      "path": "/api/admin/poi/{id}",
+      "operationId": "AdminPoiController_remove[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 14
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi/page.tsx",
+          "line": 106
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "PATCH",
+      "path": "/api/admin/poi/{id}",
+      "operationId": "AdminPoiController_update[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 13
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi/page.tsx",
+          "line": 75
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi/page.tsx",
+          "line": 123
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/admin/poi/import",
+      "operationId": "AdminPoiController_import[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 16
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi/page.tsx",
+          "line": 96
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "GET",
+      "path": "/api/admin/poi/reports",
+      "operationId": "AdminPoiController_listReports[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 18
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi-reports/page.tsx",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/admin/poi/reports/{id}/approve",
+      "operationId": "AdminPoiController_approve[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 20
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi-reports/page.tsx",
+          "line": 30
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/admin/poi/reports/{id}/reject",
+      "operationId": "AdminPoiController_reject[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 22
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/poi-reports/page.tsx",
+          "line": 31
+        }
+      ]
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "GET",
+      "path": "/api/v1/admin/poi",
+      "operationId": "AdminPoiController_list[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/v1/admin/poi",
+      "operationId": "AdminPoiController_create[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "DELETE",
+      "path": "/api/v1/admin/poi/{id}",
+      "operationId": "AdminPoiController_remove[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "PATCH",
+      "path": "/api/v1/admin/poi/{id}",
+      "operationId": "AdminPoiController_update[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/v1/admin/poi/import",
+      "operationId": "AdminPoiController_import[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "GET",
+      "path": "/api/v1/admin/poi/reports",
+      "operationId": "AdminPoiController_listReports[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/v1/admin/poi/reports/{id}/approve",
+      "operationId": "AdminPoiController_approve[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminPoi",
+      "method": "POST",
+      "path": "/api/v1/admin/poi/reports/{id}/reject",
+      "operationId": "AdminPoiController_reject[1]",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminV1",
+      "method": "GET",
+      "path": "/api/v1/admin/drivers",
+      "operationId": "AdminV1Controller_listDrivers",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 13
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/drivers.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/drivers/page.tsx",
+          "line": 25
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/drivers/[id]/page.tsx",
+          "line": 20
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "POST",
+      "path": "/api/v1/admin/drivers/{userId}/reject",
+      "operationId": "AdminV1Controller_rejectDriver",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 17
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/drivers.ts",
+          "line": 13
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/drivers/page.tsx",
+          "line": 43
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "POST",
+      "path": "/api/v1/admin/drivers/{userId}/verify",
+      "operationId": "AdminV1Controller_verifyDriver",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 15
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/drivers.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/drivers/page.tsx",
+          "line": 42
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "GET",
+      "path": "/api/v1/admin/payments",
+      "operationId": "AdminV1Controller_listPayments",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 19
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/payments.ts",
+          "line": 13
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/payments/page.tsx",
+          "line": 22
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/payments/[id]/page.tsx",
+          "line": 23
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "GET",
+      "path": "/api/v1/admin/payments/reconciliation",
+      "operationId": "AdminV1Controller_getPaymentsReconciliation",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "AdminV1",
+      "method": "GET",
+      "path": "/api/v1/admin/tickets",
+      "operationId": "AdminV1Controller_listSupportTickets",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 21
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/tickets.ts",
+          "line": 8
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/tickets/page.tsx",
+          "line": 22
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/tickets/[id]/page.tsx",
+          "line": 23
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/tickets/{ticketId}/status",
+      "operationId": "AdminV1Controller_updateSupportTicketStatus",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 23
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/tickets.ts",
+          "line": 10
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/tickets/page.tsx",
+          "line": 31
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/tickets/[id]/page.tsx",
+          "line": 36
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "operationId": "AdminV1Controller_listUsers",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 5
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/users.ts",
+          "line": 6
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/users/page.tsx",
+          "line": 40
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/users/[id]/page.tsx",
+          "line": 20
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userId}/ban",
+      "operationId": "AdminV1Controller_banUser",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 9
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/users.ts",
+          "line": 8
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/users/page.tsx",
+          "line": 60
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "PATCH",
+      "path": "/api/v1/admin/users/{userId}/role",
+      "operationId": "AdminV1Controller_updateUserRole",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 7
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/users.ts",
+          "line": 14
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/users/page.tsx",
+          "line": 72
+        }
+      ]
+    },
+    {
+      "tag": "AdminV1",
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userId}/unban",
+      "operationId": "AdminV1Controller_unbanUser",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/admin.ts",
+          "line": 11
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/users.ts",
+          "line": 10
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/users/page.tsx",
+          "line": 61
+        }
+      ]
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "operationId": "AuthController_login",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "operationId": "AuthController_logout",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 15
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "operationId": "AuthController_me",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 13
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/users.ts",
+          "line": 4
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/otp/send",
+      "operationId": "AuthController_sendOtp",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 18
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/otp/verify",
+      "operationId": "AuthController_verifyOtp",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 20
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/password/reset/confirm",
+      "operationId": "AuthController_confirmPasswordReset",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 24
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/password/reset/request",
+      "operationId": "AuthController_requestPasswordReset",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 22
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/refresh",
+      "operationId": "AuthController_refresh",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/register",
+      "operationId": "AuthController_register",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "GET",
+      "path": "/api/auth/sessions",
+      "operationId": "AuthController_sessions",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 25
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "DELETE",
+      "path": "/api/auth/sessions/{id}",
+      "operationId": "AuthController_revokeSession",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 26
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/web/login",
+      "operationId": "AuthController_webLogin",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/login/page.tsx",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/web/logout",
+      "operationId": "AuthController_webLogout",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 16
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/layout.tsx",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "tag": "Auth",
+      "method": "POST",
+      "path": "/api/auth/web/refresh",
+      "operationId": "AuthController_webRefresh",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/auth.ts",
+          "line": 12
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Bookings",
+      "method": "GET",
+      "path": "/api/bookings/{id}",
+      "operationId": "BookingsController_getOne",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 8
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/bookings/[id]/page.tsx",
+          "line": 22
+        }
+      ]
+    },
+    {
+      "tag": "Bookings",
+      "method": "POST",
+      "path": "/api/bookings/{id}/cancel",
+      "operationId": "BookingsController_cancel",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/bookings/[id]/page.tsx",
+          "line": 29
+        }
+      ]
+    },
+    {
+      "tag": "Bookings",
+      "method": "POST",
+      "path": "/api/bookings/{id}/cancel-by-driver",
+      "operationId": "BookingsController_cancelByDriver",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Bookings",
+      "method": "POST",
+      "path": "/api/bookings/{id}/complete",
+      "operationId": "BookingsController_complete",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 12
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Bookings",
+      "method": "GET",
+      "path": "/api/bookings/driver",
+      "operationId": "BookingsController_myDriver",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/bookings/page.tsx",
+          "line": 26
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/cancellations/page.tsx",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "tag": "Bookings",
+      "method": "GET",
+      "path": "/api/bookings/me",
+      "operationId": "BookingsController_my",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Bookings",
+      "method": "GET",
+      "path": "/api/bookings/my",
+      "operationId": "BookingsController_myAlias",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 4
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Cancellation",
+      "method": "POST",
+      "path": "/api/cancellations/bookings/{bookingId}/apply",
+      "operationId": "CancellationController_apply",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/cancellations.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/cancellations/page.tsx",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "tag": "Cancellation",
+      "method": "GET",
+      "path": "/api/cancellations/bookings/{bookingId}/quote",
+      "operationId": "CancellationController_quote",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/cancellations.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/cancellations/page.tsx",
+          "line": 63
+        }
+      ]
+    },
+    {
+      "tag": "Cities",
+      "method": "POST",
+      "path": "/api/admin/cities",
+      "operationId": "CitiesController_create",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Cities",
+      "method": "DELETE",
+      "path": "/api/admin/cities/{id}",
+      "operationId": "CitiesController_remove",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Cities",
+      "method": "PATCH",
+      "path": "/api/admin/cities/{id}",
+      "operationId": "CitiesController_update",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Cities",
+      "method": "GET",
+      "path": "/api/cities",
+      "operationId": "CitiesController_list",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/cities.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Cities",
+      "method": "GET",
+      "path": "/api/cities/{id}",
+      "operationId": "CitiesController_get",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/cities.ts",
+          "line": 6
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "DriverBookings",
+      "method": "GET",
+      "path": "/api/driver/bookings",
+      "operationId": "DriverBookingsController_myDriver",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/bookings.ts",
+          "line": 6
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "DriverRequests",
+      "method": "GET",
+      "path": "/api/driver/requests",
+      "operationId": "DriverRequestsController_list",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/requests.ts",
+          "line": 13
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/live/page.tsx",
+          "line": 62
+        }
+      ]
+    },
+    {
+      "tag": "Drivers",
+      "method": "GET",
+      "path": "/api/drivers/me",
+      "operationId": "DriversController_me",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/drivers.ts",
+          "line": 4
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Drivers",
+      "method": "POST",
+      "path": "/api/drivers/profile",
+      "operationId": "DriversController_upsert",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/drivers.ts",
+          "line": 6
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Drivers",
+      "method": "POST",
+      "path": "/api/drivers/submit",
+      "operationId": "DriversController_submit",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/drivers.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Geo",
+      "method": "GET",
+      "path": "/api/geo/trip/{tripId}/eta",
+      "operationId": "GeoController_getTripEta",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/geo.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Geo",
+      "method": "GET",
+      "path": "/api/geo/trips/{tripId}/location",
+      "operationId": "GeoController_getTripDriverLocation",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/geo.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/live/page.tsx",
+          "line": 41
+        }
+      ]
+    },
+    {
+      "tag": "Geo",
+      "method": "PATCH",
+      "path": "/api/geo/trips/{tripId}/location",
+      "operationId": "GeoController_updateTripDriverLocation",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/geo.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Health",
+      "method": "GET",
+      "path": "/api/health",
+      "operationId": "HealthController_health",
+      "status": "BACKEND_ONLY",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Health",
+      "method": "GET",
+      "path": "/api/ready",
+      "operationId": "HealthController_readyAlias",
+      "status": "BACKEND_ONLY",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Health",
+      "method": "GET",
+      "path": "/health/live",
+      "operationId": "HealthController_live",
+      "status": "BACKEND_ONLY",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Health",
+      "method": "GET",
+      "path": "/health/ready",
+      "operationId": "HealthController_ready",
+      "status": "BACKEND_ONLY",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Metrics",
+      "method": "GET",
+      "path": "/metrics",
+      "operationId": "MetricsController_metricsEndpoint",
+      "status": "BACKEND_ONLY",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Notifications",
+      "method": "POST",
+      "path": "/api/notifications/{id}/read",
+      "operationId": "NotificationsController_markRead",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/notifications.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/notifications/page.tsx",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "tag": "Notifications",
+      "method": "POST",
+      "path": "/api/notifications/devices",
+      "operationId": "NotificationsController_registerDevice",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/notifications.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Notifications",
+      "method": "GET",
+      "path": "/api/notifications/my",
+      "operationId": "NotificationsController_listMine",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/notifications.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/notifications/page.tsx",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "tag": "Offers",
+      "method": "PATCH",
+      "path": "/api/offers/{offerId}/accept",
+      "operationId": "OffersController_accept",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/offers.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Offers",
+      "method": "PATCH",
+      "path": "/api/offers/{offerId}/cancel",
+      "operationId": "OffersController_cancel",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/offers.ts",
+          "line": 13
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Offers",
+      "method": "PATCH",
+      "path": "/api/offers/{offerId}/reject",
+      "operationId": "OffersController_reject",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/offers.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Offers",
+      "method": "GET",
+      "path": "/api/offers/requests/{requestId}",
+      "operationId": "OffersController_list",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Offers",
+      "method": "POST",
+      "path": "/api/offers/requests/{requestId}",
+      "operationId": "OffersController_create",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Payments",
+      "method": "POST",
+      "path": "/api/payments/{paymentId}/mark-paid",
+      "operationId": "PaymentsController_markPaid",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/payments.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/payments/page.tsx",
+          "line": 30
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/payments/[id]/page.tsx",
+          "line": 36
+        }
+      ]
+    },
+    {
+      "tag": "Payments",
+      "method": "POST",
+      "path": "/api/payments/booking/{bookingId}/intent",
+      "operationId": "PaymentsController_createIntent",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/payments.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Payments",
+      "method": "GET",
+      "path": "/api/payments/me",
+      "operationId": "PaymentsController_listMy",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/payments.ts",
+          "line": 8
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Payments",
+      "method": "POST",
+      "path": "/api/payments/quote",
+      "operationId": "PaymentsController_quote",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/payments.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Payments",
+      "method": "GET",
+      "path": "/api/payments/quotes/me",
+      "operationId": "PaymentsController_listMyQuotes",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/payments.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "PaymentsWebhook",
+      "method": "POST",
+      "path": "/api/payments/webhooks/{provider}",
+      "operationId": "PaymentsWebhookController_handle",
+      "status": "BACKEND_ONLY",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Poi",
+      "method": "GET",
+      "path": "/api/poi/nearby",
+      "operationId": "PoiController_nearby",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Poi",
+      "method": "POST",
+      "path": "/api/poi/reports",
+      "operationId": "PoiController_report",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 24
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Poi",
+      "method": "POST",
+      "path": "/api/poi/route",
+      "operationId": "PoiController_route",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/poi.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Requests",
+      "method": "POST",
+      "path": "/api/trips/{tripId}/requests",
+      "operationId": "RequestsController_create",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 23
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Requests",
+      "method": "POST",
+      "path": "/api/trips/{tripId}/requests/{requestId}/accept",
+      "operationId": "RequestsController_accept",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 27
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Requests",
+      "method": "POST",
+      "path": "/api/trips/{tripId}/requests/{requestId}/reject",
+      "operationId": "RequestsController_reject",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 29
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Requests",
+      "method": "GET",
+      "path": "/api/trips/{tripId}/requests/me",
+      "operationId": "RequestsController_myRequest",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 25
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "RequestsById",
+      "method": "POST",
+      "path": "/api/requests/{requestId}/cancel",
+      "operationId": "RequestsByIdController_cancel",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/requests.ts",
+          "line": 12
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "RequestsById",
+      "method": "GET",
+      "path": "/api/requests/{requestId}/negotiation",
+      "operationId": "RequestsByIdController_getNegotiation",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/requests.ts",
+          "line": 10
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "RequestsById",
+      "method": "GET",
+      "path": "/api/requests/{requestId}/offers",
+      "operationId": "RequestsByIdController_listOffers",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/offers.ts",
+          "line": 5
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/requests.ts",
+          "line": 6
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "RequestsById",
+      "method": "POST",
+      "path": "/api/requests/{requestId}/offers",
+      "operationId": "RequestsByIdController_createOffer",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/offers.ts",
+          "line": 7
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/requests.ts",
+          "line": 8
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "RequestsById",
+      "method": "GET",
+      "path": "/api/requests/my",
+      "operationId": "RequestsByIdController_listMine",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/requests.ts",
+          "line": 4
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Routing",
+      "method": "GET",
+      "path": "/api/routing/route",
+      "operationId": "RoutingController_route[0]",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/routing.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Routing",
+      "method": "GET",
+      "path": "/api/routing/trip/{tripId}",
+      "operationId": "RoutingController_tripRoute[0]",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/routing.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Routing",
+      "method": "GET",
+      "path": "/api/routing/trip/{tripId}/eta",
+      "operationId": "RoutingController_tripEta[0]",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/geo.ts",
+          "line": 9
+        },
+        {
+          "file": "platform/packages/api-client/src/endpoints/routing.ts",
+          "line": 13
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/live/page.tsx",
+          "line": 52
+        }
+      ]
+    },
+    {
+      "tag": "Routing",
+      "method": "GET",
+      "path": "/api/v1/routing/route",
+      "operationId": "RoutingController_route[1]",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/routing.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Routing",
+      "method": "GET",
+      "path": "/api/v1/routing/trip/{tripId}",
+      "operationId": "RoutingController_tripRoute[1]",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/routing.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Routing",
+      "method": "GET",
+      "path": "/api/v1/routing/trip/{tripId}/eta",
+      "operationId": "RoutingController_tripEta[1]",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/routing.ts",
+          "line": 15
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "SupportTickets",
+      "method": "POST",
+      "path": "/api/support/tickets",
+      "operationId": "SupportTicketsController_create",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/tickets.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "SupportTickets",
+      "method": "GET",
+      "path": "/api/support/tickets/my",
+      "operationId": "SupportTicketsController_listMine",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/tickets.ts",
+          "line": 6
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "GET",
+      "path": "/api/trips",
+      "operationId": "TripsController_search",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 6
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/live/page.tsx",
+          "line": 20
+        },
+        {
+          "file": "platform/apps/admin-web/app/(protected)/trips/page.tsx",
+          "line": 26
+        }
+      ]
+    },
+    {
+      "tag": "Trips",
+      "method": "POST",
+      "path": "/api/trips",
+      "operationId": "TripsController_createTrip",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "GET",
+      "path": "/api/trips/{id}",
+      "operationId": "TripsController_getById",
+      "status": "USED_IN_UI",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": [
+        {
+          "file": "platform/apps/admin-web/app/(protected)/trips/[id]/page.tsx",
+          "line": 19
+        }
+      ]
+    },
+    {
+      "tag": "Trips",
+      "method": "PATCH",
+      "path": "/api/trips/{id}",
+      "operationId": "TripsController_updateTrip",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "PATCH",
+      "path": "/api/trips/{id}/cancel",
+      "operationId": "TripsController_cancel",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 20
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "POST",
+      "path": "/api/trips/{id}/cancel",
+      "operationId": "TripsController_cancelPost",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 21
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "PATCH",
+      "path": "/api/trips/{id}/complete",
+      "operationId": "TripsController_complete",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 18
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "POST",
+      "path": "/api/trips/{id}/complete",
+      "operationId": "TripsController_completePost",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 19
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "PATCH",
+      "path": "/api/trips/{id}/publish",
+      "operationId": "TripsController_publish",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 13
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "POST",
+      "path": "/api/trips/{id}/publish",
+      "operationId": "TripsController_publishPost",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 15
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "PATCH",
+      "path": "/api/trips/{id}/start",
+      "operationId": "TripsController_start",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 16
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "POST",
+      "path": "/api/trips/{id}/start",
+      "operationId": "TripsController_startPost",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 17
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Trips",
+      "method": "GET",
+      "path": "/api/trips/search",
+      "operationId": "TripsController_searchAlias",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/trips.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Users",
+      "method": "GET",
+      "path": "/api/users/count",
+      "operationId": "UsersController_count",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Users",
+      "method": "GET",
+      "path": "/api/users/health",
+      "operationId": "UsersController_health",
+      "status": "BACKEND_ONLY",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Vehicles",
+      "method": "GET",
+      "path": "/api/admin/vehicles",
+      "operationId": "VehiclesController_listAll",
+      "status": "UNUSED",
+      "wrapperRefs": [],
+      "uiRefs": []
+    },
+    {
+      "tag": "Vehicles",
+      "method": "GET",
+      "path": "/api/vehicles",
+      "operationId": "VehiclesController_listMine",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/vehicles.ts",
+          "line": 7
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Vehicles",
+      "method": "POST",
+      "path": "/api/vehicles",
+      "operationId": "VehiclesController_createMine",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/vehicles.ts",
+          "line": 9
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Vehicles",
+      "method": "DELETE",
+      "path": "/api/vehicles/{id}",
+      "operationId": "VehiclesController_removeMine",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/vehicles.ts",
+          "line": 12
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Vehicles",
+      "method": "PATCH",
+      "path": "/api/vehicles/{id}",
+      "operationId": "VehiclesController_updateMine",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/vehicles.ts",
+          "line": 11
+        }
+      ],
+      "uiRefs": []
+    },
+    {
+      "tag": "Vehicles",
+      "method": "GET",
+      "path": "/api/vehicles/my",
+      "operationId": "VehiclesController_listMineAlias",
+      "status": "WRAPPED_ONLY",
+      "wrapperRefs": [
+        {
+          "file": "platform/packages/api-client/src/endpoints/vehicles.ts",
+          "line": 5
+        }
+      ],
+      "uiRefs": []
+    }
+  ]
+}

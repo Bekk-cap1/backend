@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+.cache
+.turbo
+dist
+coverage
+.next
+.expo
+.env.local
+*.tsbuildinfo
+test-results
+playwright-report

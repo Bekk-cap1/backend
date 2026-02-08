@@ -1,0 +1,37 @@
+{
+  "name": "intercity-platform",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=22.0.0 <23",
+    "pnpm": ">=10.0.0 <11"
+  },
+  "scripts": {
+    "preinstall": "node ./scripts/check-engines.mjs",
+    "dev": "turbo run dev --parallel",
+    "dev:admin": "turbo run dev --filter=admin-web",
+    "dev:mobile": "turbo run dev --filter=mobile",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "openapi:fetch": "node ./scripts/fetch-openapi.mjs",
+    "openapi:types": "node ./scripts/generate-openapi-types.mjs",
+    "openapi:map": "node ./scripts/sync-api-map.mjs",
+    "openapi:gaps": "node ./scripts/generate-api-gaps.mjs",
+    "openapi:sync": "node ./scripts/fetch-openapi.mjs && node ./scripts/generate-openapi-types.mjs && node ./scripts/sync-api-map.mjs && node ./scripts/generate-api-gaps.mjs",
+    "api:coverage": "node ./scripts/api-coverage.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "openapi-typescript": "^7.6.1",
+    "turbo": "^2.4.2",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  }
+}
