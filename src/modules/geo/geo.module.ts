@@ -7,6 +7,7 @@ import { PoiModule } from '../poi/poi.module';
 import { GeoController } from './geo.controller';
 import { GeoService } from './geo.service';
 import { GeoGateway } from './geo.gateway';
+import { GeoRetentionService } from './geo-retention.service';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { GeoGateway } from './geo.gateway';
     PoiModule,
   ],
   controllers: [GeoController],
-  providers: [GeoService, GeoGateway],
+  providers: [GeoService, GeoGateway, GeoRetentionService],
   exports: [GeoService],
 })
 export class GeoModule {}

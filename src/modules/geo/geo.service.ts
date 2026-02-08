@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
@@ -27,6 +28,8 @@ type LastLocation = {
 
 @Injectable()
 export class GeoService {
+  private readonly logger = new Logger(GeoService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -42,6 +45,16 @@ export class GeoService {
     dto: UpdateDriverLocationDto,
   ) {
     await this.assertUpdateRateLimit(tripId, driverId);
+    const lastKnown = await this.getLastKnownLocation(tripId);
+    if (this.isTeleportJump(lastKnown, dto.lat, dto.lon)) {
+      this.logger.warn(
+        `Ignoring teleport-like location jump for trip=${tripId} driver=${driverId}`,
+      );
+      this.metrics.incFeature('geo_teleport_ignored');
+      if (lastKnown) {
+        return lastKnown;
+      }
+    }
 
     const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
@@ -200,6 +213,57 @@ export class GeoService {
 
   private lastLocationKey(tripId: string) {
     return `geo:last:trip:${tripId}`;
+  }
+
+  private async getLastKnownLocation(
+    tripId: string,
+  ): Promise<LastLocation | null> {
+    const cached = await this.redis.raw.get(this.lastLocationKey(tripId));
+    if (!cached) return null;
+    try {
+      return JSON.parse(cached) as LastLocation;
+    } catch {
+      return null;
+    }
+  }
+
+  private isTeleportJump(
+    last: LastLocation | null,
+    nextLat: number,
+    nextLon: number,
+  ): boolean {
+    if (!last) return false;
+
+    const lastTs = Date.parse(last.capturedAt);
+    if (!Number.isFinite(lastTs)) return false;
+
+    const elapsedSec = Math.max(1, (Date.now() - lastTs) / 1000);
+    const distanceMeters = this.haversineMeters(
+      last.lat,
+      last.lon,
+      nextLat,
+      nextLon,
+    );
+
+    // Ignore implausible spikes produced by bad GPS fixes.
+    const speedKmh = distanceMeters / 1000 / (elapsedSec / 3600);
+    const maxSpeedKmh = Number(process.env.GEO_MAX_SPEED_KMH ?? 220);
+    return speedKmh > maxSpeedKmh;
+  }
+
+  private haversineMeters(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * 6371_000 * Math.asin(Math.min(1, Math.sqrt(a)));
   }
 
   private async assertUpdateRateLimit(tripId: string, driverId: string) {

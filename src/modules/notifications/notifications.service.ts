@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
+import { RegisterDeviceDto } from './dto/register-device.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -39,5 +40,35 @@ export class NotificationsService {
     }
 
     return this.prisma.notification.findUnique({ where: { id } });
+  }
+
+  async registerDevice(userId: string, dto: RegisterDeviceDto) {
+    const existing = await this.prisma.device.findFirst({
+      where: { token: dto.token },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return this.prisma.device.update({
+        where: { id: existing.id },
+        data: {
+          userId,
+          platform: dto.platform ?? null,
+          model: dto.model ?? null,
+          token: dto.token,
+          lastSeenAt: new Date(),
+        },
+      });
+    }
+
+    return this.prisma.device.create({
+      data: {
+        userId,
+        platform: dto.platform ?? null,
+        model: dto.model ?? null,
+        token: dto.token,
+        lastSeenAt: new Date(),
+      },
+    });
   }
 }

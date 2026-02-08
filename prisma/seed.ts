@@ -10,6 +10,10 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
   return Math.floor(num);
 }
 
+function normalizePhone(phone: string) {
+  return phone.replace(/\s+/g, "");
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL, // обязательно
 });
@@ -19,6 +23,11 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  const superAdminPhone = normalizePhone(
+    process.env.SUPERADMIN_PHONE ?? "+998944692509",
+  );
+  const superAdminPassword = process.env.SUPERADMIN_PASSWORD ?? "bekk2006";
+
   const cities = [
     { name: "Tashkent", countryCode: "UZ", region: "Tashkent", timezone: "Asia/Tashkent" },
     { name: "Andijan", countryCode: "UZ", region: "Andijan", timezone: "Asia/Tashkent" },
@@ -43,6 +52,29 @@ async function main() {
   const driverPhone = "+998901112233";
   const passengerPhone = "+998901112244";
   const passwordHash = await bcrypt.hash("Password123!", 10);
+  const superAdminHash = await bcrypt.hash(superAdminPassword, 10);
+
+  const superAdmin = await prisma.user.upsert({
+    where: { phone: superAdminPhone },
+    update: {
+      role: Role.admin,
+      passwordHash: superAdminHash,
+      isBanned: false,
+      bannedAt: null,
+      banReason: null,
+    },
+    create: {
+      phone: superAdminPhone,
+      passwordHash: superAdminHash,
+      role: Role.admin,
+    },
+  });
+
+  await prisma.userProfile.upsert({
+    where: { userId: superAdmin.id },
+    update: { fullName: "Super Admin" },
+    create: { userId: superAdmin.id, fullName: "Super Admin" },
+  });
 
   const driver = await prisma.user.upsert({
     where: { phone: driverPhone },

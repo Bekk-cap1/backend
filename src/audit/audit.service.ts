@@ -1,10 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../infrastructure/prisma/prisma.service';
 import { getRequestContext } from '../infrastructure/request-context/request-context';
 import type { AuditActionType, AuditSeverity } from './audit.actions';
 
 type TxClient = Prisma.TransactionClient;
+type AuditLogReader = {
+  auditLog: {
+    findFirst(args: {
+      orderBy: Array<{ createdAt: 'desc' } | { id: 'desc' }>;
+      select: { hash: true };
+    }): Promise<{ hash: string | null } | null>;
+  };
+};
 
 export type AuditInput = {
   action: AuditActionType;
@@ -25,6 +34,7 @@ export class AuditService {
 
   async log(input: AuditInput) {
     const ctx = getRequestContext();
+    const hashes = await this.resolveHashes(this.prisma, input, ctx);
 
     return this.prisma.auditLog.create({
       data: {
@@ -41,13 +51,16 @@ export class AuditService {
         ip: ctx.ip ?? null,
         userAgent: ctx.userAgent ?? null,
 
-        metadata: input.metadata ?? Prisma.JsonNull,
+        metadata: input.metadata ?? Prisma.DbNull,
+        prevHash: hashes.prevHash,
+        hash: hashes.hash,
       },
     });
   }
 
   async logTx(tx: TxClient, input: AuditInput) {
     const ctx = getRequestContext();
+    const hashes = await this.resolveHashes(tx, input, ctx);
 
     return tx.auditLog.create({
       data: {
@@ -64,8 +77,60 @@ export class AuditService {
         ip: ctx.ip ?? null,
         userAgent: ctx.userAgent ?? null,
 
-        metadata: input.metadata ?? Prisma.JsonNull,
+        metadata: input.metadata ?? Prisma.DbNull,
+        prevHash: hashes.prevHash,
+        hash: hashes.hash,
       },
     });
   }
+
+  private async resolveHashes(
+    client: AuditLogReader,
+    input: AuditInput,
+    ctx: ReturnType<typeof getRequestContext>,
+  ) {
+    const previous = await client.auditLog.findFirst({
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { hash: true },
+    });
+    const prevHash = previous?.hash ?? null;
+
+    const payload = {
+      prevHash,
+      actorId: input.actorId ?? ctx.actorId ?? null,
+      actorRole: input.actorRole ?? ctx.actorRole ?? null,
+      actorType: input.actorType ?? 'user',
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId ?? null,
+      severity: input.severity ?? 'info',
+      requestId: ctx.requestId ?? null,
+      ip: ctx.ip ?? null,
+      userAgent: ctx.userAgent ?? null,
+      metadata: input.metadata ?? null,
+      createdAtIso: new Date().toISOString(),
+      nonce: randomUUID(),
+    };
+
+    const hash = createHash('sha256')
+      .update(stableStringify(payload))
+      .digest('hex');
+    return { prevHash, hash };
+  }
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  }
+
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
+    .join(',')}}`;
 }

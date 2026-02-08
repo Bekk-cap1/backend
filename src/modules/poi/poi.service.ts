@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { OutboxService } from '../../outbox/outbox.service';
 import { OutboxTopic } from '../../outbox/outbox.topics';
+import { AuditService } from '../../audit/audit.service';
+import { AuditAction } from '../../audit/audit.actions';
 import { CreatePoiDto } from './dto/create-poi.dto';
 import { CreatePoiReportDto } from './dto/create-poi-report.dto';
 import { ListPoiReportsQueryDto } from './dto/list-poi-reports.query.dto';
@@ -29,6 +31,7 @@ export class PoiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
+    private readonly audit: AuditService,
   ) {}
 
   async create(dto: CreatePoiDto) {
@@ -298,6 +301,19 @@ export class PoiService {
         },
       });
 
+      await this.audit.logTx(tx, {
+        action: AuditAction.PoiReportApprove,
+        entityType: 'poiReport',
+        entityId: reportId,
+        severity: 'warning',
+        metadata: {
+          reportId,
+          moderatorId,
+          poiId,
+          note: dto.note ?? null,
+        },
+      });
+
       return updated;
     });
   }
@@ -307,33 +323,47 @@ export class PoiService {
     moderatorId: string,
     dto: ModeratePoiReportDto,
   ) {
-    const report = await this.prisma.poiReport.findUnique({
-      where: { id: reportId },
-    });
-    if (!report) throw new NotFoundException('POI report not found');
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const report = await tx.poiReport.findUnique({
+        where: { id: reportId },
+      });
+      if (!report) throw new NotFoundException('POI report not found');
 
-    const updated = await this.prisma.poiReport.update({
-      where: { id: reportId },
-      data: {
-        status: PoiReportStatus.rejected,
-        moderatedById: moderatorId,
-        moderatedAt: new Date(),
-        moderationNote: dto.note ?? null,
-      },
-    });
+      const updated = await tx.poiReport.update({
+        where: { id: reportId },
+        data: {
+          status: PoiReportStatus.rejected,
+          moderatedById: moderatorId,
+          moderatedAt: new Date(),
+          moderationNote: dto.note ?? null,
+        },
+      });
 
-    await this.outbox.enqueue({
-      topic: OutboxTopic.PoiReportRejected,
-      aggregateType: 'poiReport',
-      aggregateId: reportId,
-      idempotencyKey: `poiReport:${reportId}:rejected`,
-      payload: {
-        reportId,
-        moderatorId,
-      },
-    });
+      await this.outbox.enqueueTx(tx, {
+        topic: OutboxTopic.PoiReportRejected,
+        aggregateType: 'poiReport',
+        aggregateId: reportId,
+        idempotencyKey: `poiReport:${reportId}:rejected`,
+        payload: {
+          reportId,
+          moderatorId,
+        },
+      });
 
-    return updated;
+      await this.audit.logTx(tx, {
+        action: AuditAction.PoiReportReject,
+        entityType: 'poiReport',
+        entityId: reportId,
+        severity: 'warning',
+        metadata: {
+          reportId,
+          moderatorId,
+          note: dto.note ?? null,
+        },
+      });
+
+      return updated;
+    });
   }
 
   private toLineStringWkt(polyline: string): string {

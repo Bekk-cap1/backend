@@ -1,8 +1,17 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
+import { RegisterDeviceDto } from './dto/register-device.dto';
 import type { AuthUser } from '../../common/types/auth-user';
 
 @UseGuards(JwtAuthGuard)
@@ -21,5 +30,13 @@ export class NotificationsController {
   @Post(':id/read')
   markRead(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.notifications.markRead(user.sub, id);
+  }
+
+  @Post('devices')
+  registerDevice(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RegisterDeviceDto,
+  ) {
+    return this.notifications.registerDevice(user.sub, dto);
   }
 }

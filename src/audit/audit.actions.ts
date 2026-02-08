@@ -17,6 +17,11 @@ export const AuditAction = {
   UserRoleChange: 'user.role.change',
   UserBan: 'user.ban',
   UserUnban: 'user.unban',
+  PaymentMarkPaid: 'payment.mark.paid',
+  PaymentReconcileTimeout: 'payment.reconcile.timeout',
+  TicketStatusChange: 'ticket.status.change',
+  PoiReportApprove: 'poi.report.approve',
+  PoiReportReject: 'poi.report.reject',
 
   OfferCreate: 'offer.create',
   OfferAccept: 'offer.accept',
