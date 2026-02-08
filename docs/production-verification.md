@@ -1,8 +1,8 @@
 ﻿# Production Verification
 
 ## Snapshot
-- Date: `2026-02-08 14:51 +05:00`
-- Commit (local HEAD): `d2e080f`
+- Date: `2026-02-08 15:07 +05:00`
+- Commit (local HEAD): `f7c6463`
 - Node: `v22.17.0`
 - npm: `11.4.2`
 - pnpm: `10.28.2`
@@ -11,6 +11,7 @@
 
 ### Backend
 ```bash
+npm ci
 npm run lint
 npm run build
 npm run openapi:generate
@@ -20,6 +21,7 @@ npm run test:e2e
 
 ### Platform
 ```bash
+pnpm -C platform i
 pnpm -C platform openapi:sync
 pnpm -C platform lint
 pnpm -C platform test
@@ -37,6 +39,7 @@ kubectl kustomize k8s/overlays/prod
 ## Results
 
 ### Backend status
+- `npm ci`: FAIL (local Windows `EPERM` unlink lock on native module file; known OS file-lock issue)
 - `npm run lint`: PASS
 - `npm run build`: PASS
 - `npm run openapi:generate`: PASS
@@ -49,6 +52,7 @@ kubectl kustomize k8s/overlays/prod
   - Tests: `22 passed`
 
 ### Platform status
+- `pnpm -C platform i`: PASS
 - `pnpm -C platform openapi:sync`: PASS
 - `pnpm -C platform lint`: PASS
 - `pnpm -C platform test`: PASS
@@ -112,3 +116,7 @@ Device verification checklist:
 - Platform CI run: `<ADD_GITHUB_ACTIONS_URL>`
 - Verify prod pack run: `<ADD_GITHUB_ACTIONS_URL>`
 - Verify workflow run: `<ADD_GITHUB_ACTIONS_URL>`
+
+## Notes
+- After `npm ci` failed due Windows file lock (`EPERM`), local dependencies were restored with `npm install`.
+- All required verification commands after restore (`lint/build/openapi/test:cov/test:e2e`) are green on this machine.
