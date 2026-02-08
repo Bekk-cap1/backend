@@ -3,7 +3,7 @@
 Production-grade API for intercity trips: trips, requests, price negotiation, bookings, outbox, audit.
 
 ## Requirements
-- Node.js 20+
+- Node.js 22+
 - Docker (for Postgres + Redis)
 
 ## Quick Start (local)
@@ -196,10 +196,14 @@ See `docs/diagrams.md`.
 - Architecture: `docs/architecture.md`
 - API overview: `docs/api.md`
 - Observability: `docs/observability.md`
+- Observability runbook: `docs/observability/runbook.md`
 - Geo/Routing/Radar: `docs/geo-routing-radar.md`
 - Product API map: `docs/product/api-map.md`
 - Product operations: `docs/product/operations.md`
 - Runbooks: `docs/runbooks/`
+- Privacy policy: `docs/policies/PRIVACY.md`
+- Terms: `docs/policies/TERMS.md`
+- Internal release process: `docs/release/RELEASE_PROCESS.md`
 
 ## Notes
 - Branch protection should require PRs and passing CI checks.

@@ -1,11 +1,12 @@
 # Verification
 
 ## Metadata
-- Date: 2026-02-07
+- Date: 2026-02-08
 - Base commit: `3aaf0ce` (plus working changes in this branch/worktree)
 - Local Node: `v22.17.0`
 - Local npm: `11.4.2`
-- CI run link: fill after push (`Actions -> CI` / `Actions -> Self Verification`)
+- Local pnpm: `10.28.2`
+- CI run link: fill after push (`Actions -> CI` / `Actions -> Verify Production Launch Pack`)
 
 ## Local checks
 
@@ -38,7 +39,7 @@ npm run test:cov
 Result: PASS
 
 Coverage summary:
-- lines: `98.61`
+- lines: `98.92`
 - branches: `80`
 - global gate (`lines >= 70`, `branches >= 60`): PASS
 
@@ -50,18 +51,22 @@ npm run openapi:generate
 Result: PASS (`docs/openapi.json` refreshed)
 
 ### E2E
-Commands attempted:
+Command:
 ```bash
-docker compose -f docker-compose.test.yml up -d
 npm run test:e2e
 ```
-Result: BLOCKED locally (Docker engine unavailable on this machine at run time).
+Result: PASS
 
-Error:
-- `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
+E2E summary:
+```text
+PASS test/intercity.e2e-spec.ts
+Test Suites: 1 passed, 1 total
+Tests:       22 passed, 22 total
+```
 
-Use GitHub Actions `verify_e2e_services` job for deterministic e2e verification
-without local Docker Desktop.
+Security check covered by e2e:
+- repeated invalid `/api/auth/login` attempts are locked with `429`.
+- repeated `mark-paid` with the same idempotency key returns idempotent success.
 
 ## Expected CI artifacts
 - `openapi` (`docs/openapi.json`)
@@ -79,40 +84,6 @@ without local Docker Desktop.
 - Admin v1 endpoints for user bans, payments, tickets, driver moderation
 - Worker entrypoint (`npm run start:worker`)
 
-## Routing ETA 404 fix verification
-- Date: `2026-02-07`
-- Goal: fix `GET /api/routing/trip/:tripId/eta` (`updates and fetches driver location + eta`) returning `404`.
-
-Code changes:
-- `src/modules/routing/routing.controller.ts`
-  - controller prefixes changed to `['routing', 'v1/routing']`
-  - now both paths are valid under global prefix:
-  - `/api/routing/*`
-  - `/api/v1/routing/*`
-- `src/modules/routing/routing.service.ts`
-  - `getTripEta()` now gracefully falls back when trip destination point is missing:
-  - if city/trip geo destination is absent but driver last location exists, ETA is computed from last location instead of throwing `404`.
-
-Commands run:
-```bash
-npm run lint
-npm run test:e2e
-```
-
-Result:
-- `lint`: PASS
-- `test:e2e`: PASS
-
-E2E output summary:
-```text
-PASS test/intercity.e2e-spec.ts
-Test Suites: 1 passed, 1 total
-Tests:       20 passed, 20 total
-```
-
-Additional hardening:
-- Replaced legacy wildcard middleware route pattern to avoid `LegacyRouteConverter` warning:
-  - `forRoutes('*')` -> `forRoutes({ path: '*path', method: RequestMethod.ALL })`
-
-Note:
-- Endpoint mapping is available on both `/api/routing/trip/:tripId/eta` and `/api/v1/routing/trip/:tripId/eta`.
+## Routing ETA and lockout verification
+- `GET /api/routing/trip/:tripId/eta` is covered by e2e test `updates and fetches driver location + eta` and returns `200`.
+- Login brute-force lockout is covered by e2e test `rate-limits repeated failed logins with 429`.

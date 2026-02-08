@@ -14,6 +14,7 @@
 - Roll back to previous image/tag if regression suspected.
 - Scale replicas if resource exhaustion detected.
 - Disable non-critical features via flags if needed.
+- Use `docs/runbooks/rollback.md` for Kubernetes rollback procedure.
 
 ## Resolution
 - Identify root cause and apply fix.

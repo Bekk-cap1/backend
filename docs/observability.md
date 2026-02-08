@@ -19,8 +19,11 @@ Prometheus metrics are exposed at `GET /metrics`. It includes:
 - Default process metrics (CPU, memory, event loop, etc.)
 - `http_requests_total{method,route,status}`
 - `http_request_duration_ms{method,route,status}`
+- `feature_events_total{feature,outcome}`
 
 Disable metrics with `METRICS_ENABLED=false`.
+
+Alert rules template: `docs/observability-alert-rules.yml`.
 
 ## Sentry (errors)
 Sentry is enabled when `SENTRY_DSN` is set (and `SENTRY_ENABLED=true`).
@@ -35,3 +38,6 @@ Exceptions are captured from the global exception filter. Request context is add
 - `requestId` tag
 - `role` tag
 - `user.id`
+
+## Uptime operations
+Uptime and SLO guidance is documented in `docs/uptime-guidance.md`.

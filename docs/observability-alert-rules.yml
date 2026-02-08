@@ -1,0 +1,47 @@
+groups:
+  - name: intercity-backend
+    rules:
+      - alert: IntercityHigh5xxRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) /
+            clamp_min(sum(rate(http_requests_total[5m])), 1)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx ratio on Intercity backend"
+          description: "5xx ratio is above 5% for 10 minutes."
+
+      - alert: IntercityHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_request_duration_ms_bucket[5m]))
+          ) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 latency"
+          description: "p95 latency is above 800ms for 10 minutes."
+
+      - alert: IntercityNoReadyPods
+        expr: |
+          sum(kube_deployment_status_replicas_available{deployment="intercity-backend"}) < 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No ready pods for intercity-backend"
+          description: "Deployment has no available replicas for 5 minutes."
+
+      - alert: IntercityOutboxBacklog
+        expr: feature_events_total{feature="outbox_dispatch_batch", outcome="error"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox dispatcher errors detected"
+          description: "Outbox dispatch error counter increased."
