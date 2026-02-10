@@ -43,6 +43,20 @@ export const CurrentUser = createParamDecorator(
         hasKey(user, 'sid') && typeof user.sid === 'string'
           ? user.sid
           : undefined,
+      impersonated:
+        hasKey(user, 'impersonated') && typeof user.impersonated === 'boolean'
+          ? user.impersonated
+          : undefined,
+      impersonatedBy:
+        hasKey(user, 'impersonatedBy') &&
+        typeof user.impersonatedBy === 'string'
+          ? user.impersonatedBy
+          : undefined,
+      impersonationReason:
+        hasKey(user, 'impersonationReason') &&
+        typeof user.impersonationReason === 'string'
+          ? user.impersonationReason
+          : undefined,
     };
   },
 );

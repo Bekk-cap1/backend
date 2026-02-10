@@ -7,4 +7,7 @@ export type AuthUser = {
   role?: Role;
   profile?: unknown;
   sid?: string;
+  impersonated?: boolean;
+  impersonatedBy?: string;
+  impersonationReason?: string;
 };

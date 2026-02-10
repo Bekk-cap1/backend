@@ -12,7 +12,7 @@ export const poiApi = (api: ApiClient) => ({
   update: (id: string, body: Record<string, unknown>) =>
     api.client.patch(`/api/admin/poi/${id}`, body).then((r) => r.data),
   remove: (id: string) => api.client.delete(`/api/admin/poi/${id}`).then((r) => r.data),
-  importCsv: (body: { rows: Array<Record<string, unknown>> }) =>
+  importCsv: (body: { items: Array<Record<string, unknown>> }) =>
     api.request('post', '/api/admin/poi/import', { body: body as never }),
   listReports: (params?: Record<string, unknown>) =>
     api.request('get', '/api/admin/poi/reports', { params }),

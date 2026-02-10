@@ -18,18 +18,46 @@ import { DriverNegotiationScreen } from '../../screens/driver/Negotiation';
 import { ActiveTripScreen } from '../../screens/driver/ActiveTrip';
 import { DriverBookingsScreen } from '../../screens/driver/DriverBookings';
 import { DriverSupportScreen } from '../../screens/driver/Support';
+import { BootstrappingScreen } from '../../screens/auth/Bootstrapping';
 
 const Stack = createNativeStackNavigator();
 
 export function RootNavigator() {
   const { state } = useAuth();
+  const isPassenger =
+    state.status === 'authenticated' && state.user?.role === 'passenger';
+  const isDriver =
+    state.status === 'authenticated' && state.user?.role === 'driver';
+  const isBlocked =
+    state.status === 'blocked' ||
+    (state.status === 'authenticated' && !isPassenger && !isDriver);
+
+  const rootRoute = (() => {
+    if (state.status === 'anonymous') return 'AuthStack' as const;
+    if (isBlocked) return 'AdminBlocked' as const;
+    if (isPassenger) return 'PassengerTabs' as const;
+    if (isDriver) return 'DriverTabs' as const;
+    return 'Bootstrapping' as const;
+  })();
 
   return (
     <AuthGate>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {state.status === 'anonymous' ? <Stack.Screen name="AuthStack" component={AuthStack} /> : null}
-        {state.status === 'blocked' ? <Stack.Screen name="AdminBlocked" component={AdminBlockedScreen} /> : null}
-        {state.status === 'authenticated' && state.user?.role === 'passenger' ? (
+      <Stack.Navigator
+        key={`${state.status}:${state.user?.role ?? 'none'}`}
+        initialRouteName={rootRoute}
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="Bootstrapping" component={BootstrappingScreen} />
+
+        {state.status === 'anonymous' ? (
+          <Stack.Screen name="AuthStack" component={AuthStack} />
+        ) : null}
+
+        {isBlocked ? (
+          <Stack.Screen name="AdminBlocked" component={AdminBlockedScreen} />
+        ) : null}
+
+        {isPassenger ? (
           <>
             <Stack.Screen name="PassengerTabs" component={PassengerTabs} />
             <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
@@ -40,7 +68,8 @@ export function RootNavigator() {
             <Stack.Screen name="Payments" component={PaymentsScreen} />
           </>
         ) : null}
-        {state.status === 'authenticated' && state.user?.role === 'driver' ? (
+
+        {isDriver ? (
           <>
             <Stack.Screen name="DriverTabs" component={DriverTabs} />
             <Stack.Screen name="DriverVerification" component={DriverVerificationScreen} />

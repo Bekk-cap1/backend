@@ -8,6 +8,7 @@ import { GeoController } from './geo.controller';
 import { GeoService } from './geo.service';
 import { GeoGateway } from './geo.gateway';
 import { GeoRetentionService } from './geo-retention.service';
+import { DriverVerifiedGuard } from '../../common/guards/driver-verified.guard';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { GeoRetentionService } from './geo-retention.service';
     PoiModule,
   ],
   controllers: [GeoController],
-  providers: [GeoService, GeoGateway, GeoRetentionService],
+  providers: [GeoService, GeoGateway, GeoRetentionService, DriverVerifiedGuard],
   exports: [GeoService],
 })
 export class GeoModule {}

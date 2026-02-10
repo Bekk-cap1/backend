@@ -30,6 +30,17 @@ const confirmedBookingStatuses: BookingStatus[] = [
   BookingStatus.paid,
 ];
 
+type Tx = Prisma.TransactionClient | PrismaService;
+
+type CityTerritoryRow = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  territoryRadiusKm: number | null;
+  lat: number | null;
+  lon: number | null;
+};
+
 @Injectable()
 export class TripsService {
   constructor(
@@ -38,6 +49,108 @@ export class TripsService {
     private readonly audit: AuditService,
     private readonly outbox: OutboxService,
   ) {}
+
+  private assertLatLonPair(
+    lat: number | undefined,
+    lon: number | undefined,
+    label: string,
+  ) {
+    const hasLat = lat !== undefined;
+    const hasLon = lon !== undefined;
+    if (hasLat !== hasLon) {
+      throw new BadRequestException(
+        `${label}Lat and ${label}Lon must be provided together`,
+      );
+    }
+  }
+
+  private async getCityTerritory(tx: Tx, cityId: string) {
+    const rows = await tx.$queryRaw<CityTerritoryRow[]>`
+      SELECT
+        c."id",
+        c."name",
+        c."isActive",
+        c."territoryRadiusKm",
+        ST_Y(c."location"::geometry) AS "lat",
+        ST_X(c."location"::geometry) AS "lon"
+      FROM "City" c
+      WHERE c."id" = ${cityId}
+      LIMIT 1
+    `;
+
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException(`City not found: ${cityId}`);
+    }
+    return row;
+  }
+
+  private async assertCityActive(tx: Tx, cityId: string, label: string) {
+    const city = await this.getCityTerritory(tx, cityId);
+    if (!city.isActive) {
+      throw new BadRequestException(
+        `${label} city "${city.name}" is inactive and cannot be used`,
+      );
+    }
+    return city;
+  }
+
+  private async assertPointInsideCityTerritory(
+    tx: Tx,
+    cityId: string,
+    lat: number,
+    lon: number,
+    label: string,
+  ) {
+    const city = await this.assertCityActive(tx, cityId, label);
+    if (city.lat === null || city.lon === null) {
+      throw new BadRequestException(
+        `${label} city "${city.name}" has no center coordinates configured`,
+      );
+    }
+
+    const [distanceRow] = await tx.$queryRaw<Array<{ meters: number }>>`
+      SELECT ST_Distance(
+        ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+        c."location"
+      ) AS meters
+      FROM "City" c
+      WHERE c."id" = ${cityId}
+      LIMIT 1
+    `;
+
+    const distanceMeters = Number(distanceRow?.meters ?? 0);
+    const maxMeters = Number(city.territoryRadiusKm ?? 80) * 1000;
+    if (distanceMeters > maxMeters) {
+      throw new BadRequestException(
+        `${label} point is outside "${city.name}" territory (${Math.round(
+          maxMeters,
+        )}m radius)`,
+      );
+    }
+  }
+
+  private async setTripPoint(
+    tx: Tx,
+    tripId: string,
+    point: 'fromPoint' | 'toPoint',
+    lat: number,
+    lon: number,
+  ) {
+    if (point === 'fromPoint') {
+      await tx.$executeRaw`
+        UPDATE "Trip"
+        SET "fromPoint" = ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography
+        WHERE "id" = ${tripId}
+      `;
+      return;
+    }
+    await tx.$executeRaw`
+      UPDATE "Trip"
+      SET "toPoint" = ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography
+      WHERE "id" = ${tripId}
+    `;
+  }
 
   private async assertVehicleOwnedByDriver(
     vehicleId: string,
@@ -56,6 +169,8 @@ export class TripsService {
 
   async createTrip(driverId: string, dto: CreateTripDto) {
     await this.drivers.assertVerifiedDriver(driverId);
+    this.assertLatLonPair(dto.fromLat, dto.fromLon, 'from');
+    this.assertLatLonPair(dto.toLat, dto.toLon, 'to');
 
     const seatsTotal = dto.seatsTotal ?? 4;
     if (seatsTotal <= 0)
@@ -77,6 +192,27 @@ export class TripsService {
 
     return this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
+        await this.assertCityActive(tx, dto.fromCityId, 'from');
+        await this.assertCityActive(tx, dto.toCityId, 'to');
+        if (dto.fromLat !== undefined && dto.fromLon !== undefined) {
+          await this.assertPointInsideCityTerritory(
+            tx,
+            dto.fromCityId,
+            dto.fromLat,
+            dto.fromLon,
+            'from',
+          );
+        }
+        if (dto.toLat !== undefined && dto.toLon !== undefined) {
+          await this.assertPointInsideCityTerritory(
+            tx,
+            dto.toCityId,
+            dto.toLat,
+            dto.toLon,
+            'to',
+          );
+        }
+
         const created = await tx.trip.create({
           data: {
             driverId,
@@ -98,6 +234,13 @@ export class TripsService {
           },
         });
 
+        if (dto.fromLat !== undefined && dto.fromLon !== undefined) {
+          await this.setTripPoint(tx, created.id, 'fromPoint', dto.fromLat, dto.fromLon);
+        }
+        if (dto.toLat !== undefined && dto.toLon !== undefined) {
+          await this.setTripPoint(tx, created.id, 'toPoint', dto.toLat, dto.toLon);
+        }
+
         await this.audit.logTx(tx, {
           action: AuditAction.TripCreate,
           entityType: 'trip',
@@ -113,6 +256,10 @@ export class TripsService {
             price: created.price,
             currency: created.currency,
             vehicleId: created.vehicleId,
+            fromLat: dto.fromLat ?? null,
+            fromLon: dto.fromLon ?? null,
+            toLat: dto.toLat ?? null,
+            toLon: dto.toLon ?? null,
           },
         });
 
@@ -477,6 +624,8 @@ export class TripsService {
 
   async updateTrip(driverId: string, tripId: string, dto: UpdateTripDto) {
     await this.drivers.assertVerifiedDriver(driverId);
+    this.assertLatLonPair(dto.fromLat, dto.fromLon, 'from');
+    this.assertLatLonPair(dto.toLat, dto.toLon, 'to');
 
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Trip not found');
@@ -533,9 +682,45 @@ export class TripsService {
       data.price = dto.price;
     }
 
-    return this.prisma.trip.update({
-      where: { id: tripId },
-      data,
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const fromCityId = dto.fromCityId ?? trip.fromCityId;
+      const toCityId = dto.toCityId ?? trip.toCityId;
+
+      await this.assertCityActive(tx, fromCityId, 'from');
+      await this.assertCityActive(tx, toCityId, 'to');
+
+      if (dto.fromLat !== undefined && dto.fromLon !== undefined) {
+        await this.assertPointInsideCityTerritory(
+          tx,
+          fromCityId,
+          dto.fromLat,
+          dto.fromLon,
+          'from',
+        );
+      }
+      if (dto.toLat !== undefined && dto.toLon !== undefined) {
+        await this.assertPointInsideCityTerritory(
+          tx,
+          toCityId,
+          dto.toLat,
+          dto.toLon,
+          'to',
+        );
+      }
+
+      const updated = await tx.trip.update({
+        where: { id: tripId },
+        data,
+      });
+
+      if (dto.fromLat !== undefined && dto.fromLon !== undefined) {
+        await this.setTripPoint(tx, tripId, 'fromPoint', dto.fromLat, dto.fromLon);
+      }
+      if (dto.toLat !== undefined && dto.toLon !== undefined) {
+        await this.setTripPoint(tx, tripId, 'toPoint', dto.toLat, dto.toLon);
+      }
+
+      return updated;
     });
   }
 }

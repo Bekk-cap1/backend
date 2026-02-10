@@ -6,6 +6,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { poiApi } from '@platform/api-client';
 import { isApiActionAvailable } from '@platform/shared';
 import { apiClient } from '../../../lib/api';
+import { getApiErrorMessage } from '../../../lib/api-error';
 import { unwrapData } from '../../../lib/unwrap';
 import { PageHeader } from '../../../components/shared/page-header';
 import { DataTable } from '../../../components/shared/data-table';
@@ -27,11 +28,21 @@ type PoiRow = {
 
 const DEFAULT_FORM = {
   name: '',
-  type: 'camera',
+  type: 'speed_camera',
   lat: '41.3123',
   lon: '69.2781',
   radiusMeters: '1200',
 };
+
+const POI_TYPES = [
+  'speed_camera',
+  'hazard',
+  'police',
+  'school_zone',
+  'toll',
+  'fuel',
+  'other',
+] as const;
 
 export default function PoiPage() {
   const queryClient = useQueryClient();
@@ -39,7 +50,9 @@ export default function PoiPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [editing, setEditing] = useState<PoiRow | null>(null);
-  const [importText, setImportText] = useState('[\n  {"name":"Camera #1","type":"camera","lat":41.3123,"lon":69.2781}\n]');
+  const [importText, setImportText] = useState(
+    '[\n  {"name":"Camera #1","type":"speed_camera","lat":41.3123,"lon":69.2781}\n]',
+  );
 
   const poiQuery = useQuery({
     queryKey: ['poi-admin'],
@@ -52,32 +65,52 @@ export default function PoiPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async () =>
-      poiApi(apiClient).create({
+    mutationFn: async () => {
+      const lat = Number(form.lat);
+      const lon = Number(form.lon);
+      const radiusMeters = Number(form.radiusMeters);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(radiusMeters)) {
+        throw new Error('Coordinates and radius must be valid numbers');
+      }
+      if (!POI_TYPES.includes(form.type as (typeof POI_TYPES)[number])) {
+        throw new Error(`Invalid POI type: ${form.type}`);
+      }
+      return poiApi(apiClient).create({
         name: form.name,
         type: form.type,
-        lat: Number(form.lat),
-        lon: Number(form.lon),
-        radiusMeters: Number(form.radiusMeters),
+        lat,
+        lon,
+        radiusMeters,
         isActive: true,
-      }),
+      });
+    },
     onSuccess: () => {
       appToast.success('POI created');
       queryClient.invalidateQueries({ queryKey: ['poi-admin'] });
       setForm(DEFAULT_FORM);
     },
-    onError: () => appToast.error('Failed to create POI'),
+    onError: (error) =>
+      appToast.error('Failed to create POI', getApiErrorMessage(error, 'Validation failed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!editing) throw new Error('No POI selected');
+      const lat = Number(form.lat);
+      const lon = Number(form.lon);
+      const radiusMeters = Number(form.radiusMeters);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(radiusMeters)) {
+        throw new Error('Coordinates and radius must be valid numbers');
+      }
+      if (!POI_TYPES.includes(form.type as (typeof POI_TYPES)[number])) {
+        throw new Error(`Invalid POI type: ${form.type}`);
+      }
       return poiApi(apiClient).update(editing.id, {
         name: form.name,
         type: form.type,
-        lat: Number(form.lat),
-        lon: Number(form.lon),
-        radiusMeters: Number(form.radiusMeters),
+        lat,
+        lon,
+        radiusMeters,
       });
     },
     onSuccess: () => {
@@ -86,20 +119,22 @@ export default function PoiPage() {
       setEditing(null);
       setForm(DEFAULT_FORM);
     },
-    onError: () => appToast.error('Failed to update POI'),
+    onError: (error) =>
+      appToast.error('Failed to update POI', getApiErrorMessage(error, 'Validation failed')),
   });
 
   const importMutation = useMutation({
     mutationFn: async () => {
       const parsed = JSON.parse(importText);
       if (!Array.isArray(parsed)) throw new Error('Import data must be array');
-      return poiApi(apiClient).importCsv({ rows: parsed });
+      return poiApi(apiClient).importCsv({ items: parsed });
     },
     onSuccess: () => {
       appToast.success('POI import completed');
       queryClient.invalidateQueries({ queryKey: ['poi-admin'] });
     },
-    onError: () => appToast.error('POI import failed'),
+    onError: (error) =>
+      appToast.error('POI import failed', getApiErrorMessage(error, 'Invalid import payload')),
   });
 
   const removeMutation = useMutation({
@@ -110,9 +145,9 @@ export default function PoiPage() {
       queryClient.setQueryData<any[]>(['poi-admin'], (old = []) => old.filter((x: any) => x.id !== id));
       return { previous };
     },
-    onError: (_err, _id, ctx) => {
+    onError: (error, _id, ctx) => {
       queryClient.setQueryData(['poi-admin'], ctx?.previous ?? []);
-      appToast.error('Delete failed');
+      appToast.error('Delete failed', getApiErrorMessage(error, 'Unable to delete POI'));
     },
     onSuccess: () => appToast.success('POI deleted'),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['poi-admin'] }),
@@ -125,7 +160,8 @@ export default function PoiPage() {
       appToast.success('POI status changed');
       queryClient.invalidateQueries({ queryKey: ['poi-admin'] });
     },
-    onError: () => appToast.error('Toggle failed'),
+    onError: (error) =>
+      appToast.error('Toggle failed', getApiErrorMessage(error, 'Unable to update POI status')),
   });
 
   const rows = useMemo<PoiRow[]>(
@@ -233,7 +269,17 @@ export default function PoiPage() {
 
       <div className="grid gap-3 rounded-md border p-3 lg:grid-cols-6">
         <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="Name" />
-        <Input value={form.type} onChange={(e) => setForm((s) => ({ ...s, type: e.target.value }))} placeholder="Type" />
+        <select
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none"
+          value={form.type}
+          onChange={(e) => setForm((s) => ({ ...s, type: e.target.value }))}
+        >
+          {POI_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
         <Input value={form.lat} onChange={(e) => setForm((s) => ({ ...s, lat: e.target.value }))} placeholder="Lat" />
         <Input value={form.lon} onChange={(e) => setForm((s) => ({ ...s, lon: e.target.value }))} placeholder="Lon" />
         <Input value={form.radiusMeters} onChange={(e) => setForm((s) => ({ ...s, radiusMeters: e.target.value }))} placeholder="Radius" />
@@ -252,6 +298,9 @@ export default function PoiPage() {
             Save
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground lg:col-span-6">
+          Allowed types: {POI_TYPES.join(', ')}
+        </p>
       </div>
 
       <div className="space-y-2 rounded-md border p-3">
@@ -276,7 +325,7 @@ export default function PoiPage() {
         columns={columns}
         data={filteredRows}
         loading={poiQuery.isLoading}
-        error={poiQuery.isError ? 'Unable to load POIs' : null}
+        error={poiQuery.isError ? getApiErrorMessage(poiQuery.error, 'Unable to load POIs') : null}
         onRetry={() => poiQuery.refetch()}
       />
 

@@ -28,7 +28,11 @@ export function SearchResultsScreen({ route, navigation }: { route: any; navigat
     return unwrapItems<Trip>(response);
   }, [JSON.stringify(params)]);
 
-  const title = useMemo(() => `Trips ${params.fromCityId ?? '-'} -> ${params.toCityId ?? '-'}`, [params.fromCityId, params.toCityId]);
+  const title = useMemo(() => {
+    const from = params.fromCityName ?? 'From';
+    const to = params.toCityName ?? 'To';
+    return `${from} -> ${to}`;
+  }, [params.fromCityName, params.toCityName]);
 
   return (
     <Screen>
@@ -49,7 +53,7 @@ export function SearchResultsScreen({ route, navigation }: { route: any; navigat
           contentContainerStyle={{ gap: 10 }}
           renderItem={({ item }) => (
             <Card>
-              <Text style={{ fontSize: 16, fontWeight: '700' }}>Trip #{item.id.slice(0, 8)}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700' }}>Trip option</Text>
               <Text>Departure: {item.departureAt ? formatDateTime(item.departureAt) : 'n/a'}</Text>
               <Text>Seats: {item.seatsAvailable ?? item.seatsTotal ?? 0}</Text>
               <Text>Driver: {item.driver?.phone ?? 'n/a'}</Text>

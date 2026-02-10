@@ -10,6 +10,9 @@ type AccessPayload = {
   phone?: string;
   role?: string;
   typ?: 'access';
+  impersonated?: boolean;
+  impersonatedBy?: string;
+  impersonationReason?: string;
 };
 
 @Injectable()
@@ -61,6 +64,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: user.role,
       profile: user.profile,
       sid: payload.sid,
+      impersonated: payload.impersonated === true,
+      impersonatedBy: payload.impersonatedBy,
+      impersonationReason: payload.impersonationReason,
     };
   }
 }

@@ -5,10 +5,14 @@ export const AUTH_REFRESH_COOKIE = 'refresh_token';
 export const AUTH_SESSION_COOKIE = 'admin_session';
 export const AUTH_CSRF_COOKIE = 'csrf_token';
 export const AUTH_CSRF_HEADER = 'x-csrf-token';
+export const AUTH_USER_ROLE_COOKIE = 'user_role';
+export const AUTH_IMPERSONATING_COOKIE = 'impersonating_user_id';
 
 type AuthCookieInput = {
   refreshToken: string;
   csrfToken: string;
+  userRole?: string;
+  impersonatingUserId?: string;
 };
 
 function cookieBaseOptions() {
@@ -55,6 +59,26 @@ export function setWebAuthCookies(res: Response, input: AuthCookieInput) {
     path: '/',
     maxAge: refreshTtlSec * 1000,
   });
+  if (input.userRole) {
+    res.cookie(AUTH_USER_ROLE_COOKIE, input.userRole, {
+      httpOnly: false,
+      secure,
+      sameSite,
+      domain,
+      path: '/',
+      maxAge: refreshTtlSec * 1000,
+    });
+  }
+  if (input.impersonatingUserId) {
+    res.cookie(AUTH_IMPERSONATING_COOKIE, input.impersonatingUserId, {
+      httpOnly: false,
+      secure,
+      sameSite,
+      domain,
+      path: '/',
+      maxAge: refreshTtlSec * 1000,
+    });
+  }
 }
 
 export function clearWebAuthCookies(res: Response) {
@@ -63,6 +87,8 @@ export function clearWebAuthCookies(res: Response) {
   res.clearCookie(AUTH_REFRESH_COOKIE, base);
   res.clearCookie(AUTH_SESSION_COOKIE, base);
   res.clearCookie(AUTH_CSRF_COOKIE, base);
+  res.clearCookie(AUTH_USER_ROLE_COOKIE, base);
+  res.clearCookie(AUTH_IMPERSONATING_COOKIE, base);
 }
 
 export function parseCookies(req: Request): Record<string, string> {

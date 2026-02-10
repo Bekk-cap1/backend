@@ -16,6 +16,16 @@ function normalizePhone(phone: string): string {
   return phone.replace(/\s+/g, '').trim();
 }
 
+type RegisterInput = {
+  phone: string;
+  password: string;
+  fullName: string;
+  language?: 'ru' | 'uz' | 'en';
+  cityId?: string;
+  referralCode?: string;
+  acceptTerms: boolean;
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -24,22 +34,49 @@ export class AuthService {
     private readonly redis: RedisService,
   ) {}
 
-  async register(phone: string, password: string) {
-    const normalizedPhone = normalizePhone(phone);
+  async register(input: RegisterInput) {
+    if (!input.acceptTerms) {
+      throw new BadRequestException('Terms must be accepted');
+    }
+
+    const normalizedPhone = normalizePhone(input.phone);
     const existing = await this.prisma.user.findUnique({
       where: { phone: normalizedPhone },
     });
     if (existing) throw new BadRequestException('User already exists');
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(input.password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        phone: normalizedPhone,
-        passwordHash,
-        role: Role.passenger,
-      },
-      select: { id: true, phone: true, role: true },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          phone: normalizedPhone,
+          passwordHash,
+          role: Role.passenger,
+        },
+        select: { id: true, phone: true, role: true },
+      });
+
+      await tx.userProfile.upsert({
+        where: { userId: created.id },
+        create: {
+          userId: created.id,
+          fullName: input.fullName,
+          language: input.language ?? 'ru',
+          cityId: input.cityId ?? null,
+          referralCode: input.referralCode ?? null,
+          acceptTermsAt: new Date(),
+        },
+        update: {
+          fullName: input.fullName,
+          language: input.language ?? 'ru',
+          cityId: input.cityId ?? null,
+          referralCode: input.referralCode ?? null,
+          acceptTermsAt: new Date(),
+        },
+      });
+
+      return created;
     });
 
     return user;

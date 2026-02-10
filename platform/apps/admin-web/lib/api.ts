@@ -24,12 +24,22 @@ export const apiClient = new ApiClient({
   withCredentials: true,
   refreshPath: '/api/auth/web/refresh',
   getCsrfToken: () => getCookieValue('csrf_token'),
-  onUnauthorized: async () => {
-    await tokenStore.clear();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
-  },
+  onUnauthorized: (() => {
+    let redirecting = false;
+    return async () => {
+      if (redirecting) return;
+      redirecting = true;
+      await tokenStore.clear();
+      if (typeof document !== 'undefined') {
+        document.cookie = 'admin_session=; Max-Age=0; path=/';
+        document.cookie = 'csrf_token=; Max-Age=0; path=/';
+        document.cookie = 'user_role=; Max-Age=0; path=/';
+      }
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    };
+  })(),
 });
 
 export { tokenStore };

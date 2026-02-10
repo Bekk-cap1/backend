@@ -13,4 +13,5 @@ export type MapMarker = {
   description?: string;
   kind: MapMarkerKind;
   count?: number;
+  radiusMeters?: number;
 };

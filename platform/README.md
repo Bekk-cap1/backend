@@ -86,7 +86,7 @@ pnpm test
 ## Local Dev Topology
 
 - Backend API: `http://localhost:3000`
-- Admin web: `http://localhost:3001`
+- Admin web: `http://localhost:3100`
 - Expo mobile: `apps/mobile`
 
 Env files:

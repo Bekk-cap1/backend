@@ -6,6 +6,8 @@ export type RequestContextStore = {
   userAgent?: string;
   actorId?: string;
   actorRole?: string;
+  impersonated?: boolean;
+  impersonatedBy?: string;
 };
 
 export const requestContext = new AsyncLocalStorage<RequestContextStore>();

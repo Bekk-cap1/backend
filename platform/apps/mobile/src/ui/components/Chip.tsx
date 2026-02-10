@@ -1,12 +1,23 @@
-﻿import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 
-export function Chip({ label }: { label: string }) {
+export function Chip({ label, onPress }: { label: string; onPress?: () => void }) {
   const { theme } = useTheme();
-  return (
+
+  const content = (
     <View style={[styles.container, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}>
       <Text style={{ color: theme.colors.muted, fontSize: 12 }}>{label}</Text>
     </View>
+  );
+
+  if (!onPress) {
+    return content;
+  }
+
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button">
+      {content}
+    </Pressable>
   );
 }
 

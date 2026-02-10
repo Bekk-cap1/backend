@@ -98,7 +98,7 @@ Current status:
 ## Local run config
 
 - Backend: `http://localhost:3000`
-- Admin web: `http://localhost:3001`
+- Admin web: `http://localhost:3100`
 - Mobile API base (`EXPO_PUBLIC_API_BASE_URL`):
 - Android emulator: `http://10.0.2.2:3000`
 - iOS simulator: `http://127.0.0.1:3000`

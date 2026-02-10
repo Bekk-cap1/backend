@@ -6,6 +6,7 @@ export const mobileRoleSchema = z.enum(MOBILE_ROLES);
 export const userRoleSchema = z.enum(USER_ROLES);
 
 export type PermissionAction =
+  | '*'
   | 'users.list'
   | 'users.manage'
   | 'users.changeRole'
@@ -35,6 +36,7 @@ export type PermissionAction =
   | 'audit.read';
 
 const permissionMatrix: Record<PermissionAction, readonly UserRole[]> = {
+  '*': ['superadmin'],
   'users.list': ['admin', 'moderator', 'support', 'superadmin'],
   'users.manage': ['admin', 'moderator', 'superadmin'],
   'users.changeRole': ['admin', 'superadmin'],
@@ -65,6 +67,7 @@ const permissionMatrix: Record<PermissionAction, readonly UserRole[]> = {
 };
 
 export function canRole(role: UserRole, action: PermissionAction): boolean {
+  if (role === 'superadmin') return true;
   return permissionMatrix[action].includes(role);
 }
 

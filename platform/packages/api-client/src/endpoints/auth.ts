@@ -1,7 +1,15 @@
 import type { ApiClient } from '../core/http-client';
 
 export const authApi = (api: ApiClient) => ({
-  register: (body: { phone: string; password: string }) =>
+  register: (body: {
+    phone: string;
+    password: string;
+    fullName: string;
+    language?: 'ru' | 'uz' | 'en';
+    cityId?: string;
+    referralCode?: string;
+    acceptTerms: boolean;
+  }) =>
     api.request('post', '/api/auth/register', { body: body as never }),
   login: (body: { phone: string; password: string }) =>
     api.request('post', '/api/auth/login', { body: body as never }),

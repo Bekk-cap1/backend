@@ -35,6 +35,7 @@ export class AuditService {
   async log(input: AuditInput) {
     const ctx = getRequestContext();
     const hashes = await this.resolveHashes(this.prisma, input, ctx);
+    const metadata = withContextMetadata(input.metadata, ctx);
 
     return this.prisma.auditLog.create({
       data: {
@@ -51,7 +52,7 @@ export class AuditService {
         ip: ctx.ip ?? null,
         userAgent: ctx.userAgent ?? null,
 
-        metadata: input.metadata ?? Prisma.DbNull,
+        metadata,
         prevHash: hashes.prevHash,
         hash: hashes.hash,
       },
@@ -61,6 +62,7 @@ export class AuditService {
   async logTx(tx: TxClient, input: AuditInput) {
     const ctx = getRequestContext();
     const hashes = await this.resolveHashes(tx, input, ctx);
+    const metadata = withContextMetadata(input.metadata, ctx);
 
     return tx.auditLog.create({
       data: {
@@ -77,7 +79,7 @@ export class AuditService {
         ip: ctx.ip ?? null,
         userAgent: ctx.userAgent ?? null,
 
-        metadata: input.metadata ?? Prisma.DbNull,
+        metadata,
         prevHash: hashes.prevHash,
         hash: hashes.hash,
       },
@@ -117,6 +119,32 @@ export class AuditService {
       .digest('hex');
     return { prevHash, hash };
   }
+}
+
+function withContextMetadata(
+  metadata: Prisma.InputJsonValue | undefined,
+  ctx: ReturnType<typeof getRequestContext>,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  if (!ctx.impersonated) {
+    return metadata ?? Prisma.DbNull;
+  }
+
+  const contextMeta = {
+    impersonated: true,
+    impersonatedBy: ctx.impersonatedBy ?? null,
+  };
+
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    return {
+      ...(metadata as Prisma.InputJsonObject),
+      _context: contextMeta,
+    } satisfies Prisma.InputJsonObject;
+  }
+
+  return {
+    _context: contextMeta,
+    value: metadata ?? null,
+  } satisfies Prisma.InputJsonObject;
 }
 
 function stableStringify(value: unknown): string {

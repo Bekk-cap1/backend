@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { DriversService } from './drivers.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UpsertDriverProfileDto } from './dto/upsert-driver-profile.dto';
+import { SubmitDriverApplicationDto } from './dto/submit-driver-application.dto';
 import type { AuthUser } from '../../common/types/auth-user';
 
 @Controller('drivers')
@@ -19,7 +20,10 @@ export class DriversController {
   }
 
   @Post('submit')
-  submit(@CurrentUser() user: AuthUser) {
-    return this.drivers.submit(user.sub);
+  submit(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SubmitDriverApplicationDto,
+  ) {
+    return this.drivers.submit(user.sub, dto);
   }
 }

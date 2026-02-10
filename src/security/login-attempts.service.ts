@@ -12,6 +12,21 @@ type LoginLockContext = {
   ip?: string;
 };
 
+function isLocalOrPrivateIp(ip: string): boolean {
+  return (
+    ip === '127.0.0.1' ||
+    ip === '::1' ||
+    ip === 'localhost' ||
+    ip.startsWith('10.') ||
+    ip.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip) ||
+    ip.startsWith('::ffff:127.0.0.1') ||
+    ip.startsWith('::ffff:10.') ||
+    ip.startsWith('::ffff:192.168.') ||
+    /^::ffff:172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
+  );
+}
+
 function normalizePhone(phone: string): string {
   return phone.replace(/\s+/g, '').trim();
 }
@@ -27,10 +42,18 @@ export class LoginAttemptsService {
     process.env.LOGIN_LOCK_MAX_ATTEMPTS ?? 5,
   );
   private readonly windowSec = Number(process.env.LOGIN_LOCK_WINDOW_SEC ?? 600);
+  private readonly disableForLocal =
+    String(
+      process.env.LOGIN_LOCK_DISABLE_LOCAL ??
+        (process.env.NODE_ENV === 'production' ? 'false' : 'true'),
+    ) === 'true';
 
   constructor(private readonly redis: RedisService) {}
 
   async assertNotLocked(context: LoginLockContext): Promise<void> {
+    if (this.shouldSkipLocalLock(context)) {
+      return;
+    }
     const [phoneAttempts, phoneIpAttempts] = await this.getAttempts(context);
     if (
       phoneAttempts >= this.maxAttempts ||
@@ -44,6 +67,9 @@ export class LoginAttemptsService {
   }
 
   async onSuccess(context: LoginLockContext): Promise<void> {
+    if (this.shouldSkipLocalLock(context)) {
+      return;
+    }
     const keys = this.keys(context);
     if (keys.length > 0) {
       await this.redis.raw.del(...keys);
@@ -52,6 +78,10 @@ export class LoginAttemptsService {
 
   async onFailure(context: LoginLockContext, error: unknown): Promise<never> {
     if (!(error instanceof UnauthorizedException)) {
+      throw error;
+    }
+
+    if (this.shouldSkipLocalLock(context)) {
       throw error;
     }
 
@@ -87,5 +117,12 @@ export class LoginAttemptsService {
       `auth:login:fail:phone:${phoneHash}`,
       `auth:login:fail:phone-ip:${phoneIpHash}`,
     ];
+  }
+
+  private shouldSkipLocalLock(context: LoginLockContext): boolean {
+    if (!this.disableForLocal) return false;
+    const ip = normalizeIp(context.ip).replace(/\s+/g, '');
+    if (!ip || ip === 'unknown') return true;
+    return isLocalOrPrivateIp(ip);
   }
 }

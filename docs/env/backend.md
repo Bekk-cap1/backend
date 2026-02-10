@@ -26,9 +26,12 @@
 - `SUPERADMIN_PHONE` (optional seed/runtime guard)
 - `SUPERADMIN_PASSWORD` (optional seed/runtime guard)
 - `SUPERADMIN_IMMUTABLE` (`true|false`)
+- `BOOTSTRAP_SUPERADMIN_PHONE` (optional one-time startup bootstrap)
+- `BOOTSTRAP_SUPERADMIN_PASSWORD` (optional one-time startup bootstrap)
 
 ## CORS
 - `CORS_DISABLED` (`true` disables CORS origin checks; use only for local debug)
+- `CORS_STRICT_LOCAL` (`true` enforces `CORS_ORIGIN` in development/test; default is relaxed local CORS)
 - `CORS_ORIGIN` (comma-separated origins)
 
 ## Rate limiting and brute-force protection

@@ -42,6 +42,6 @@ import { LoginAttemptsService } from '../../security/login-attempts.service';
     JwtStrategy,
     LoginAttemptsService,
   ],
-  exports: [AuthService],
+  exports: [AuthService, AuthStrategiesService],
 })
 export class AuthModule {}

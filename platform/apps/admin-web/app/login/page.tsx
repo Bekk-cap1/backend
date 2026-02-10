@@ -15,7 +15,15 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setError(new URLSearchParams(window.location.search).get('error'));
+    const url = new URL(window.location.href);
+    setError(url.searchParams.get('error'));
+
+    // Safety: if page was submitted without JS, browser may append credentials to query.
+    if (url.searchParams.has('phone') || url.searchParams.has('password')) {
+      url.searchParams.delete('phone');
+      url.searchParams.delete('password');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
   }, []);
 
   const { register, handleSubmit, formState } = useForm<LoginInput>({
@@ -25,8 +33,9 @@ export default function LoginPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
+      const normalizedPhone = values.phone.replace(/\s+/g, '').trim();
       const normalized = {
-        phone: values.phone.trim(),
+        phone: normalizedPhone,
         password: values.password,
       };
       const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
@@ -38,6 +47,17 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
+        const retryAfterHeader = res.headers.get('retry-after');
+        const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+        if (res.status === 429) {
+          if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+            throw new Error(
+              `Too many login attempts. Try again in ${Math.ceil(retryAfterSeconds)} sec.`,
+            );
+          }
+          throw new Error('Too many login attempts. Please wait about a minute and retry.');
+        }
+
         let details = `status ${res.status}`;
         try {
           const errJson = (await res.json()) as {
@@ -72,12 +92,16 @@ export default function LoginPage() {
       const payload = json.data?.data ?? json.data;
       const role = payload?.user?.role ?? 'passenger';
       const accessToken = payload?.accessToken;
-      if (role !== 'admin' && role !== 'moderator') {
+      if (role !== 'admin' && role !== 'moderator' && role !== 'superadmin') {
+        await tokenStore.clear();
         appToast.error('Admin role required', 'Please use admin account.');
         return;
       }
       if (accessToken) {
         await tokenStore.setTokens({ accessToken });
+      } else {
+        // Avoid leaking stale bearer from a previous session.
+        await tokenStore.clear();
       }
 
       appToast.success('Welcome back');
@@ -102,7 +126,7 @@ export default function LoginPage() {
           </p>
         ) : null}
 
-        <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+        <form className="mt-5 space-y-4" onSubmit={onSubmit} method="post" action="/login" autoComplete="on">
           <div>
             <label className="mb-1 block text-sm">Phone</label>
             <Input placeholder="+998901234567" {...register('phone')} />

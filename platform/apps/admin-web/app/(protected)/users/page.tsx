@@ -26,11 +26,37 @@ type UserRow = {
   createdAt: string;
 };
 
+const ROLE_OPTIONS = [
+  'passenger',
+  'driver',
+  'admin',
+  'moderator',
+  'finance',
+  'support',
+  'ops',
+  'superadmin',
+] as const;
+
+function hasDriverDocs(docs: unknown): boolean {
+  if (!docs || typeof docs !== 'object') return false;
+  const record = docs as Record<string, unknown>;
+  const hasLicense =
+    typeof record.licenseFrontUrl === 'string' &&
+    record.licenseFrontUrl.trim().length > 0;
+  const hasPassport =
+    typeof record.passportFrontUrl === 'string' &&
+    record.passportFrontUrl.trim().length > 0;
+  return hasLicense && hasPassport;
+}
+
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
+  const [roleDraftByUserId, setRoleDraftByUserId] = useState<
+    Record<string, (typeof ROLE_OPTIONS)[number]>
+  >({});
   const [confirm, setConfirm] = useState<{ id: string; mode: 'ban' | 'unban' } | null>(null);
   const debouncedSearch = useDebouncedValue(search);
 
@@ -68,20 +94,35 @@ export default function UsersPage() {
   });
 
   const roleMutation = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: 'driver' | 'passenger' }) =>
-      adminApi(apiClient).changeUserRole(id, { role }),
+    mutationFn: async ({
+      id,
+      role: nextRole,
+    }: {
+      id: string;
+      role: (typeof ROLE_OPTIONS)[number];
+    }) =>
+      adminApi(apiClient).changeUserRole(id, { role: nextRole }),
     onSuccess: () => {
       appToast.success('Role updated');
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
-    onError: () => appToast.error('Role update failed'),
+    onError: (error: any) =>
+      appToast.error(
+        error?.response?.data?.error?.message ??
+          error?.message ??
+          'Role update failed',
+      ),
   });
 
   const rows: UserRow[] = useMemo(
     () =>
       (usersQuery.data ?? []).map((item: any) => ({
         id: item.id,
-        user: item.name ?? item.phone ?? item.id,
+        user:
+          item.profile?.fullName?.trim() ||
+          item.fullName?.trim() ||
+          item.phone ||
+          'Unknown user',
         emailPhone: item.email ?? item.phone ?? '-',
         role: item.role ?? '-',
         status: item.isBanned ? 'banned' : 'active',
@@ -89,6 +130,56 @@ export default function UsersPage() {
       })),
     [usersQuery.data],
   );
+
+  const applyRoleForUser = async (row: UserRow) => {
+    const nextRole =
+      roleDraftByUserId[row.id] ??
+      (row.role as (typeof ROLE_OPTIONS)[number]);
+
+    if (nextRole === 'driver' && row.role !== 'driver') {
+      try {
+        const response: any = await adminApi(apiClient).getUser(row.id);
+        const user = unwrapData<any>(response);
+        const profile = user?.driverProfile;
+
+        if (!profile) {
+          appToast.error(
+            'Driver profile is missing',
+            'User must submit driver application first.',
+          );
+          return;
+        }
+
+        if (String(profile.status ?? '').toLowerCase() !== 'verified') {
+          appToast.error(
+            'Driver profile is not verified',
+            'Verify driver documents before changing role.',
+          );
+          return;
+        }
+
+        if (!hasDriverDocs(profile.docs)) {
+          appToast.error(
+            'Driver documents are incomplete',
+            'Required: license front and passport front.',
+          );
+          return;
+        }
+      } catch (error: any) {
+        appToast.error(
+          error?.response?.data?.error?.message ??
+            error?.message ??
+            'Cannot validate driver profile',
+        );
+        return;
+      }
+    }
+
+    roleMutation.mutate({
+      id: row.id,
+      role: nextRole,
+    });
+  };
 
   const columns: Array<ColumnDef<UserRow>> = [
     { accessorKey: 'user', header: 'User' },
@@ -116,15 +207,29 @@ export default function UsersPage() {
             <Button
               className="bg-muted text-foreground"
               disabled={!isApiActionAvailable('users.changeRole')}
-              onClick={() =>
-                roleMutation.mutate({
-                  id: row.original.id,
-                  role: row.original.role === 'driver' ? 'passenger' : 'driver',
-                })
+              onClick={() => applyRoleForUser(row.original)}
+            >
+              Apply role
+            </Button>
+            <select
+              className="h-10 rounded-md border bg-background px-2 text-sm"
+              value={
+                roleDraftByUserId[row.original.id] ??
+                (row.original.role as (typeof ROLE_OPTIONS)[number])
+              }
+              onChange={(event) =>
+                setRoleDraftByUserId((prev) => ({
+                  ...prev,
+                  [row.original.id]: event.target.value as (typeof ROLE_OPTIONS)[number],
+                }))
               }
             >
-              Change role
-            </Button>
+              {ROLE_OPTIONS.map((roleOption) => (
+                <option key={roleOption} value={roleOption}>
+                  {roleOption}
+                </option>
+              ))}
+            </select>
             <Button
               onClick={() => setConfirm({ id: row.original.id, mode: isBanned ? 'unban' : 'ban' })}
               className={isBanned ? '' : 'bg-rose-600 text-white'}
@@ -148,8 +253,27 @@ export default function UsersPage() {
 
       <div className="grid gap-3 rounded-md border p-3 md:grid-cols-4">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search user" />
-        <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Filter role" />
-        <Input value={status} onChange={(e) => setStatus(e.target.value)} placeholder="Filter status" />
+        <select
+          className="h-10 rounded-md border bg-background px-3 text-sm"
+          value={role}
+          onChange={(event) => setRole(event.target.value)}
+        >
+          <option value="">All roles</option>
+          {ROLE_OPTIONS.map((roleOption) => (
+            <option key={roleOption} value={roleOption}>
+              {roleOption}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-10 rounded-md border bg-background px-3 text-sm"
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+        >
+          <option value="">All statuses</option>
+          <option value="active">active</option>
+          <option value="banned">banned</option>
+        </select>
         <Button className="bg-muted text-foreground" onClick={() => usersQuery.refetch()}>
           Refresh
         </Button>

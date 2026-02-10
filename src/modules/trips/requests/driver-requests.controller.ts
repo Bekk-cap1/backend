@@ -3,10 +3,12 @@ import { RequestsService } from './requests.service';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Role } from '@prisma/client';
 import type { AuthUser } from '../../../common/types/auth-user';
+import { DriverVerifiedGuard } from '../../../common/guards/driver-verified.guard';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, DriverVerifiedGuard)
 @Controller('driver/requests')
 export class DriverRequestsController {
   constructor(private readonly service: RequestsService) {}

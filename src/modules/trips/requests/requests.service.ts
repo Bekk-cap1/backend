@@ -20,6 +20,18 @@ import { OutboxService } from '../../../outbox/outbox.service';
 import { OutboxTopic } from '../../../outbox/outbox.topics';
 import { DriversService } from '../../drivers/drivers.service';
 import { isPrismaError } from '../../../common/utils/prisma-error';
+import { CreateTripRequestDto } from './dto/create-request.dto';
+
+type Tx = Prisma.TransactionClient | PrismaService;
+
+type CityTerritoryRow = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  territoryRadiusKm: number | null;
+  lat: number | null;
+  lon: number | null;
+};
 
 @Injectable()
 export class RequestsService {
@@ -40,6 +52,179 @@ export class RequestsService {
       maxPassengerOffers,
       maxPerSide: Math.max(maxDriverOffers, maxPassengerOffers),
     };
+  }
+
+  private assertLatLonPair(
+    lat: number | undefined,
+    lon: number | undefined,
+    label: string,
+  ) {
+    const hasLat = lat !== undefined;
+    const hasLon = lon !== undefined;
+    if (hasLat !== hasLon) {
+      throw new BadRequestException(
+        `${label}Lat and ${label}Lon must be provided together`,
+      );
+    }
+  }
+
+  private normalizeSeatNumbers(
+    seatNumbers: string[] | undefined,
+    seats: number,
+  ): string[] {
+    if (!seatNumbers?.length) {
+      return [];
+    }
+    const normalized = seatNumbers
+      .map((value) => value.trim().toUpperCase())
+      .filter((value) => value.length > 0);
+    const unique = [...new Set(normalized)];
+    if (unique.length !== normalized.length) {
+      throw new BadRequestException('Seat numbers must be unique');
+    }
+    if (unique.length > seats) {
+      throw new BadRequestException(
+        'Selected seat count cannot exceed requested seats',
+      );
+    }
+    return unique;
+  }
+
+  private async getCityTerritory(tx: Tx, cityId: string) {
+    const rows = await tx.$queryRaw<CityTerritoryRow[]>`
+      SELECT
+        c."id",
+        c."name",
+        c."isActive",
+        c."territoryRadiusKm",
+        ST_Y(c."location"::geometry) AS "lat",
+        ST_X(c."location"::geometry) AS "lon"
+      FROM "City" c
+      WHERE c."id" = ${cityId}
+      LIMIT 1
+    `;
+
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException(`City not found: ${cityId}`);
+    }
+    return row;
+  }
+
+  private async assertCityActive(tx: Tx, cityId: string, label: string) {
+    const city = await this.getCityTerritory(tx, cityId);
+    if (!city.isActive) {
+      throw new BadRequestException(
+        `${label} city "${city.name}" is inactive and cannot be used`,
+      );
+    }
+    return city;
+  }
+
+  private async assertPointInsideCityTerritory(
+    tx: Tx,
+    cityId: string,
+    lat: number,
+    lon: number,
+    label: string,
+  ) {
+    const city = await this.assertCityActive(tx, cityId, label);
+    if (city.lat === null || city.lon === null) {
+      throw new BadRequestException(
+        `${label} city "${city.name}" has no center coordinates configured`,
+      );
+    }
+
+    const [distanceRow] = await tx.$queryRaw<Array<{ meters: number }>>`
+      SELECT ST_Distance(
+        ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+        c."location"
+      ) AS meters
+      FROM "City" c
+      WHERE c."id" = ${cityId}
+      LIMIT 1
+    `;
+
+    const distanceMeters = Number(distanceRow?.meters ?? 0);
+    const maxMeters = Number(city.territoryRadiusKm ?? 80) * 1000;
+    if (distanceMeters > maxMeters) {
+      throw new BadRequestException(
+        `${label} point is outside "${city.name}" territory (${Math.round(
+          maxMeters,
+        )}m radius)`,
+      );
+    }
+  }
+
+  private async setRequestPoint(
+    tx: Tx,
+    requestId: string,
+    point: 'pickupPoint' | 'dropoffPoint',
+    lat: number,
+    lon: number,
+  ) {
+    if (point === 'pickupPoint') {
+      await tx.$executeRaw`
+        UPDATE "TripRequest"
+        SET "pickupPoint" = ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography
+        WHERE "id" = ${requestId}
+      `;
+      return;
+    }
+    await tx.$executeRaw`
+      UPDATE "TripRequest"
+      SET "dropoffPoint" = ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography
+      WHERE "id" = ${requestId}
+    `;
+  }
+
+  private extractLegacyRequestMeta(message: string | null) {
+    if (!message) {
+      return {
+        seatNumbers: [] as string[],
+        pickupAddress: undefined as string | undefined,
+        dropoffAddress: undefined as string | undefined,
+      };
+    }
+    const match = message.match(/\[request_meta\](.*?)\[\/request_meta\]/s);
+    if (!match) {
+      return {
+        seatNumbers: [] as string[],
+        pickupAddress: undefined as string | undefined,
+        dropoffAddress: undefined as string | undefined,
+      };
+    }
+    try {
+      const raw = JSON.parse(match[1]) as {
+        seatNumbers?: unknown;
+        pickupAddress?: unknown;
+        dropoffAddress?: unknown;
+      };
+      const seatNumbers = Array.isArray(raw.seatNumbers)
+        ? raw.seatNumbers.filter(
+            (value): value is string => typeof value === 'string',
+          )
+        : [];
+      return {
+        seatNumbers,
+        pickupAddress:
+          typeof raw.pickupAddress === 'string' ? raw.pickupAddress : undefined,
+        dropoffAddress:
+          typeof raw.dropoffAddress === 'string'
+            ? raw.dropoffAddress
+            : undefined,
+      };
+    } catch {
+      return {
+        seatNumbers: [] as string[],
+        pickupAddress: undefined as string | undefined,
+        dropoffAddress: undefined as string | undefined,
+      };
+    }
+  }
+
+  private buildRequestMessage(dto: CreateTripRequestDto): string | null {
+    return dto.message?.trim() || null;
   }
 
   async listMyRequests(passengerId: string) {
@@ -168,8 +353,14 @@ export class RequestsService {
   async createRequest(
     passengerId: string,
     tripId: string,
-    dto: { seats: number; price: number; currency: string; message?: string },
+    dto: CreateTripRequestDto,
   ) {
+    this.assertLatLonPair(dto.pickupLat, dto.pickupLon, 'pickup');
+    this.assertLatLonPair(dto.dropoffLat, dto.dropoffLon, 'dropoff');
+    const normalizedSeatNumbers = this.normalizeSeatNumbers(
+      dto.seatNumbers,
+      dto.seats,
+    );
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) throw new NotFoundException('Trip not found');
 
@@ -184,6 +375,27 @@ export class RequestsService {
     try {
       return await this.prisma.$transaction(
         async (tx: Prisma.TransactionClient) => {
+          await this.assertCityActive(tx, trip.fromCityId, 'from');
+          await this.assertCityActive(tx, trip.toCityId, 'to');
+          if (dto.pickupLat !== undefined && dto.pickupLon !== undefined) {
+            await this.assertPointInsideCityTerritory(
+              tx,
+              trip.fromCityId,
+              dto.pickupLat,
+              dto.pickupLon,
+              'pickup',
+            );
+          }
+          if (dto.dropoffLat !== undefined && dto.dropoffLon !== undefined) {
+            await this.assertPointInsideCityTerritory(
+              tx,
+              trip.toCityId,
+              dto.dropoffLat,
+              dto.dropoffLon,
+              'dropoff',
+            );
+          }
+
           const limits = this.getNegotiationLimits();
 
           const req = await tx.tripRequest.create({
@@ -193,10 +405,34 @@ export class RequestsService {
               seats: dto.seats,
               price: dto.price,
               currency: dto.currency,
-              message: dto.message ?? null,
+              message: this.buildRequestMessage(dto),
+              seatNumbers: normalizedSeatNumbers,
+              pickupAddress: dto.pickupAddress,
+              dropoffAddress: dto.dropoffAddress,
+              pickupPlaceId: dto.pickupPlaceId,
+              dropoffPlaceId: dto.dropoffPlaceId,
               status: RequestStatus.pending,
             },
           });
+
+          if (dto.pickupLat !== undefined && dto.pickupLon !== undefined) {
+            await this.setRequestPoint(
+              tx,
+              req.id,
+              'pickupPoint',
+              dto.pickupLat,
+              dto.pickupLon,
+            );
+          }
+          if (dto.dropoffLat !== undefined && dto.dropoffLon !== undefined) {
+            await this.setRequestPoint(
+              tx,
+              req.id,
+              'dropoffPoint',
+              dto.dropoffLat,
+              dto.dropoffLon,
+            );
+          }
 
           await tx.negotiationSession.create({
             data: {
@@ -215,7 +451,24 @@ export class RequestsService {
             topic: OutboxTopic.RequestCreated,
             aggregateType: 'TripRequest',
             aggregateId: req.id,
-            payload: { tripId, passengerId, seats: dto.seats },
+            payload: {
+              tripId,
+              passengerId,
+              seats: dto.seats,
+              seatNumbers: normalizedSeatNumbers,
+              pickupAddress: dto.pickupAddress,
+              dropoffAddress: dto.dropoffAddress,
+              pickupPlaceId: dto.pickupPlaceId,
+              dropoffPlaceId: dto.dropoffPlaceId,
+              pickupPoint:
+                dto.pickupLat !== undefined && dto.pickupLon !== undefined
+                  ? { lat: dto.pickupLat, lon: dto.pickupLon }
+                  : undefined,
+              dropoffPoint:
+                dto.dropoffLat !== undefined && dto.dropoffLon !== undefined
+                  ? { lat: dto.dropoffLat, lon: dto.dropoffLon }
+                  : undefined,
+            },
             idempotencyKey: `request.created:${req.id}`,
           });
 
@@ -291,12 +544,23 @@ export class RequestsService {
         },
       });
 
+      const legacyMeta = this.extractLegacyRequestMeta(updatedReq.message);
+      const seatNumbers =
+        updatedReq.seatNumbers.length > 0
+          ? updatedReq.seatNumbers
+          : legacyMeta.seatNumbers;
+      const normalizedSeatNumbers = this.normalizeSeatNumbers(
+        seatNumbers,
+        updatedReq.seats,
+      );
+
       const booking = await tx.booking.create({
         data: {
           requestId: updatedReq.id,
           tripId: tripId,
           passengerId: updatedReq.passengerId,
           seats: updatedReq.seats,
+          seatNumbers: normalizedSeatNumbers,
           price: updatedReq.price,
           currency: updatedReq.currency,
           status: BookingStatus.confirmed,

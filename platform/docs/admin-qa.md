@@ -44,3 +44,11 @@
 
 - [ ] theme toggle works (light/dark)
 - [ ] operational links accessible
+
+## Superadmin
+
+- [ ] superadmin sees `/superadmin/users`, `/superadmin/audit`, `/superadmin/impersonate` in sidebar
+- [ ] `POST /api/v1/admin/reauth` flow returns confirm token and dangerous actions require `X-Admin-Confirm`
+- [ ] grant `superadmin` role requires reason + confirm token
+- [ ] delete user requires reason + confirm token and action appears in audit
+- [ ] impersonation start stores impersonation banner context and stop clears it

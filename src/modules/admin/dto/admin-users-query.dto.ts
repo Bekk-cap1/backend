@@ -1,7 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  Min,
+} from 'class-validator';
 
 export class AdminUsersQueryDto {
   @ApiPropertyOptional({ enum: Role })
@@ -14,6 +21,24 @@ export class AdminUsersQueryDto {
   @Type(() => Boolean)
   @IsBoolean()
   isBanned?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Filter by verified drivers only (has driverProfile.verified)',
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  verified?: boolean;
+
+  @ApiPropertyOptional({ description: 'ISO date, createdAt >=' })
+  @IsOptional()
+  @IsDateString()
+  createdFrom?: string;
+
+  @ApiPropertyOptional({ description: 'ISO date, createdAt <=' })
+  @IsOptional()
+  @IsDateString()
+  createdTo?: string;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()

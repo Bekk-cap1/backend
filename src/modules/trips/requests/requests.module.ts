@@ -7,6 +7,7 @@ import { RequestsService } from './requests.service';
 import { OutboxModule } from '../../../outbox/outbox.module';
 import { DriversModule } from '../../drivers/drivers.module';
 import { OffersModule } from '../../offers/offers.module';
+import { DriverVerifiedGuard } from '../../../common/guards/driver-verified.guard';
 
 @Module({
   imports: [PrismaModule, OutboxModule, DriversModule, OffersModule],
@@ -15,7 +16,7 @@ import { OffersModule } from '../../offers/offers.module';
     RequestsByIdController,
     DriverRequestsController,
   ],
-  providers: [RequestsService],
+  providers: [RequestsService, DriverVerifiedGuard],
   exports: [RequestsService],
 })
 export class RequestsModule {}

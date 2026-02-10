@@ -1,6 +1,8 @@
 import {
   IsDateString,
   IsInt,
+  IsLatitude,
+  IsLongitude,
   IsOptional,
   IsString,
   IsUUID,
@@ -14,6 +16,22 @@ export class CreateTripDto {
 
   @IsUUID()
   toCityId!: string;
+
+  @IsOptional()
+  @IsLatitude()
+  fromLat?: number;
+
+  @IsOptional()
+  @IsLongitude()
+  fromLon?: number;
+
+  @IsOptional()
+  @IsLatitude()
+  toLat?: number;
+
+  @IsOptional()
+  @IsLongitude()
+  toLon?: number;
 
   @IsOptional()
   @IsUUID()
@@ -33,7 +51,7 @@ export class CreateTripDto {
   seatsTotal?: number;
 
   @IsInt()
-  @Min(0) // если хочешь запретить бесплатные — поставь Min(1)
+  @Min(0)
   price!: number;
 
   @IsOptional()

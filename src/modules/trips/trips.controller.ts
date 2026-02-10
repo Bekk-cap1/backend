@@ -20,6 +20,7 @@ import { CancelTripDto } from './dto/cancel-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { DriverVerifiedGuard } from '../../common/guards/driver-verified.guard';
 import type { AuthUser } from '../../common/types/auth-user';
 
 @Controller('trips')
@@ -46,12 +47,14 @@ export class TripsController {
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Post()
   async createTrip(@CurrentUser() user: AuthUser, @Body() dto: CreateTripDto) {
     return this.tripsService.createTrip(user.sub, dto);
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Patch(':id')
   async updateTrip(
     @CurrentUser() user: AuthUser,
@@ -62,6 +65,7 @@ export class TripsController {
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Patch(':id/publish')
   async publish(
     @CurrentUser() user: AuthUser,
@@ -72,6 +76,7 @@ export class TripsController {
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Post(':id/publish')
   async publishPost(
     @CurrentUser() user: AuthUser,
@@ -82,30 +87,35 @@ export class TripsController {
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Patch(':id/start')
   start(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.tripsService.startTrip(user.sub, id);
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Post(':id/start')
   startPost(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.tripsService.startTrip(user.sub, id);
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Patch(':id/complete')
   complete(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.tripsService.completeTrip(user.sub, id);
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Post(':id/complete')
   completePost(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.tripsService.completeTrip(user.sub, id);
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Patch(':id/cancel')
   cancel(
     @CurrentUser() user: AuthUser,
@@ -116,6 +126,7 @@ export class TripsController {
   }
 
   @Roles('driver')
+  @UseGuards(DriverVerifiedGuard)
   @Post(':id/cancel')
   cancelPost(
     @CurrentUser() user: AuthUser,

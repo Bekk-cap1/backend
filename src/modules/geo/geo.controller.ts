@@ -1,14 +1,16 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/types/auth-user';
 import { GeoService } from './geo.service';
 import { UpdateDriverLocationDto } from './dto/update-driver-location.dto';
+import { DriverVerifiedGuard } from '../../common/guards/driver-verified.guard';
 
 @Controller('geo')
 export class GeoController {
   constructor(private readonly geo: GeoService) {}
 
   @Patch('trips/:tripId/location')
+  @UseGuards(DriverVerifiedGuard)
   async updateTripDriverLocation(
     @Param('tripId') tripId: string,
     @CurrentUser() user: AuthUser,

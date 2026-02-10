@@ -1,8 +1,8 @@
 ﻿# Platform Verification
 
 ## Snapshot
-- Date: `2026-02-08 15:07 +05:00`
-- Commit (local HEAD): `f7c6463`
+- Date: `2026-02-08 17:20 +05:00`
+- Commit (local HEAD): `fe90c3c`
 - Node: `v22.17.0`
 - pnpm: `10.28.2`
 
@@ -30,6 +30,7 @@ pnpm -C platform --filter mobile test
 - `build`: PASS
 - `admin-web test:e2e`: PASS (`1 passed`)
 - `mobile test`: PASS (`5 files`, `16 tests`)
+- `admin-web test:e2e` runs isolated on port `3011` by default (`ADMIN_E2E_PORT` override supported).
 
 ## Admin Web smoke coverage
 

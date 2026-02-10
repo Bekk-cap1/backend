@@ -19,7 +19,8 @@
         {
           "color": "#4F7CFF"
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

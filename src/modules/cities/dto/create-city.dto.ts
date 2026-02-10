@@ -1,4 +1,28 @@
-import { IsOptional, IsString, Length } from 'class-validator';
+import {
+  Transform,
+  Type,
+} from 'class-transformer';
+import {
+  IsBoolean,
+  IsLatitude,
+  IsLongitude,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  Min,
+} from 'class-validator';
+
+const parseOptionalBool = (value: unknown): boolean | undefined => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'on') return true;
+    if (normalized === 'false' || normalized === '0' || normalized === 'off') return false;
+  }
+  return undefined;
+};
 
 export class CreateCityDto {
   @IsString()
@@ -8,7 +32,7 @@ export class CreateCityDto {
   @IsOptional()
   @IsString()
   @Length(2, 4)
-  countryCode?: string; // default UZ на уровне БД
+  countryCode?: string;
 
   @IsOptional()
   @IsString()
@@ -18,5 +42,27 @@ export class CreateCityDto {
   @IsOptional()
   @IsString()
   @Length(2, 80)
-  timezone?: string; // default может быть null, но у тебя в seed Asia/Tashkent
+  timezone?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  lat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  lon?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => parseOptionalBool(value))
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(1000)
+  territoryRadiusKm?: number;
 }

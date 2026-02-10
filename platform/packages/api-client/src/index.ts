@@ -33,3 +33,4 @@ export { cancellationsApi } from './endpoints/cancellations';
 export { ticketsApi } from './endpoints/tickets';
 export { notificationsApi } from './endpoints/notifications';
 export { auditApi } from './endpoints/audit';
+export { storageApi } from './endpoints/storage';

@@ -125,6 +125,30 @@ function mapPrismaKnownError(e: Prisma.PrismaClientKnownRequestError): {
     };
   }
 
+  // P2022 = Column does not exist (typically DB schema is behind code/migrations)
+  if (e.code === 'P2022') {
+    return {
+      status: HttpStatus.BAD_REQUEST,
+      code: 'PRISMA_P2022',
+      message:
+        'Database schema is outdated. Run migrations and restart backend.',
+      details:
+        process.env.NODE_ENV === 'production' ? undefined : { meta: e.meta },
+    };
+  }
+
+  // P2021 = Table does not exist (same class of migration drift)
+  if (e.code === 'P2021') {
+    return {
+      status: HttpStatus.BAD_REQUEST,
+      code: 'PRISMA_P2021',
+      message:
+        'Database schema is outdated. Run migrations and restart backend.',
+      details:
+        process.env.NODE_ENV === 'production' ? undefined : { meta: e.meta },
+    };
+  }
+
   return {
     status: HttpStatus.BAD_REQUEST,
     code: `PRISMA_${e.code}`,

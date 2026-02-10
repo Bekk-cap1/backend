@@ -1,29 +1,40 @@
-import {
+﻿import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DriverStatus, Prisma, Role } from '@prisma/client';
+import { AuditAction } from '../../audit/audit.actions';
+import { AuditService } from '../../audit/audit.service';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { DriverStatus, Role, Prisma } from '@prisma/client';
+import { OutboxService } from '../../outbox/outbox.service';
+import { OutboxTopic } from '../../outbox/outbox.topics';
+import type { SubmitDriverApplicationDto } from './dto/submit-driver-application.dto';
 
 type UpsertDriverProfileInput = {
   fullName?: string;
   licenseNo?: string;
   passportNo?: string;
-  docs?: Prisma.InputJsonValue;
+  docs?: unknown;
 };
 
 type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class DriversService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async getMe(userId: string) {
     return this.prisma.driverProfile.findUnique({ where: { userId } });
   }
 
   async upsert(userId: string, data: UpsertDriverProfileInput) {
+    const docs = data.docs as Prisma.InputJsonValue | undefined;
     return this.prisma.driverProfile.upsert({
       where: { userId },
       create: {
@@ -31,55 +42,76 @@ export class DriversService {
         fullName: data.fullName ?? null,
         licenseNo: data.licenseNo ?? null,
         passportNo: data.passportNo ?? null,
-        docs: data.docs ?? undefined,
+        docs,
         status: DriverStatus.draft,
       },
       update: {
         fullName: data.fullName ?? undefined,
         licenseNo: data.licenseNo ?? undefined,
         passportNo: data.passportNo ?? undefined,
-        docs: data.docs ?? undefined,
+        docs,
       },
     });
   }
 
-  async submit(userId: string) {
+  async submit(userId: string, input: SubmitDriverApplicationDto) {
     const profile = await this.prisma.driverProfile.findUnique({
       where: { userId },
     });
     if (!profile) throw new NotFoundException('Driver profile not found');
 
-    // Политика: verified не трогаем
+    if (!input?.docs?.licenseFrontUrl || !input?.docs?.passportFrontUrl) {
+      throw new BadRequestException(
+        'licenseFrontUrl and passportFrontUrl are required',
+      );
+    }
+
     if (profile.status === DriverStatus.verified) return profile;
 
-    return this.prisma.driverProfile.update({
-      where: { userId },
-      data: {
-        status: DriverStatus.pending,
-        rejectionReason: null,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.driverProfile.update({
+        where: { userId },
+        data: {
+          status: DriverStatus.pending,
+          rejectionReason: null,
+          docs: input.docs as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      await this.audit.logTx(tx, {
+        action: AuditAction.DriverSubmit,
+        entityType: 'driverProfile',
+        entityId: userId,
+        severity: 'info',
+        metadata: {
+          statusBefore: profile.status,
+          statusAfter: updated.status,
+          notes: input.notes ?? null,
+        },
+      });
+
+      await this.outbox.enqueueTx(tx, {
+        topic: OutboxTopic.DriverSubmitted,
+        aggregateType: 'driverProfile',
+        aggregateId: userId,
+        idempotencyKey: `driverProfile:${userId}:submitted:${Date.now()}`,
+        payload: {
+          userId,
+          statusBefore: profile.status,
+          statusAfter: updated.status,
+          notes: input.notes ?? null,
+        },
+      });
+
+      return updated;
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // NEW: tx-safe methods for AdminService outbox/audit composition
-  // ---------------------------------------------------------------------------
-
-  /**
-   * TX-safe verify:
-   * - driverProfile.status = verified
-   * - verifiedAt set
-   * - rejectionReason cleared
-   * - user.role = driver
-   *
-   * Idempotent: if already verified, just ensure role=driver.
-   */
   async verifyTx(tx: Tx, userId: string) {
     const profile = await tx.driverProfile.findUnique({ where: { userId } });
     if (!profile) throw new NotFoundException('Driver profile not found');
 
     if (profile.status === DriverStatus.verified) {
-      // Ensure role is correct (idempotency guarantee)
       await tx.user.update({
         where: { id: userId },
         data: { role: Role.driver },
@@ -104,20 +136,10 @@ export class DriversService {
     return updated;
   }
 
-  /**
-   * TX-safe reject:
-   * - driverProfile.status = rejected
-   * - rejectionReason set
-   * - verifiedAt cleared
-   *
-   * Idempotent: if already rejected, updates rejectionReason (keeps status).
-   * Role is NOT changed (your policy).
-   */
   async rejectTx(tx: Tx, userId: string, reason: string) {
     const profile = await tx.driverProfile.findUnique({ where: { userId } });
     if (!profile) throw new NotFoundException('Driver profile not found');
 
-    // if already rejected, allow updating reason (useful for admin corrections)
     if (profile.status === DriverStatus.rejected) {
       return tx.driverProfile.update({
         where: { userId },
@@ -138,10 +160,6 @@ export class DriversService {
 
     return updated;
   }
-
-  // ---------------------------------------------------------------------------
-  // Existing admin actions: keep them as wrappers (so old calls still work)
-  // ---------------------------------------------------------------------------
 
   async verify(userId: string) {
     return this.prisma.$transaction(

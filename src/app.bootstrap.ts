@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import type { Request } from 'express';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { RequestIdMiddleware } from './common/middlewares/request-id.middleware';
@@ -20,6 +21,7 @@ export type BootstrapOptions = {
     windowMs?: number;
     max?: number;
     authMax?: number;
+    adminMax?: number;
   };
   trustProxy?: boolean;
   enableRequestId?: boolean;
@@ -79,10 +81,51 @@ function buildCorsOriginOption(
   };
 }
 
+function isPrivateIp(value: string): boolean {
+  return (
+    value.startsWith('10.') ||
+    value.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(value)
+  );
+}
+
+function getRequestIp(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim().length > 0) {
+    return forwarded.split(',')[0]?.trim() ?? '';
+  }
+  return req.ip ?? '';
+}
+
+function shouldSkipRateLimitForLocal(req: Request): boolean {
+  const host = String(req.headers.host ?? '').toLowerCase();
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    return true;
+  }
+
+  const origin = String(req.headers.origin ?? '').toLowerCase();
+  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    return true;
+  }
+
+  const referer = String(req.headers.referer ?? '').toLowerCase();
+  if (referer.includes('localhost') || referer.includes('127.0.0.1')) {
+    return true;
+  }
+
+  const ip = getRequestIp(req).replace('::ffff:', '');
+  if (ip === '127.0.0.1' || ip === '::1') return true;
+  if (isPrivateIp(ip)) return true;
+
+  return false;
+}
+
 export function bootstrapApp(
   app: INestApplication,
   options: BootstrapOptions = {},
 ) {
+  const isProduction =
+    String(process.env.NODE_ENV ?? 'development') === 'production';
   const prefix = options.prefix ?? process.env.API_PREFIX ?? 'api';
 
   if (options.trustProxy ?? true) {
@@ -115,16 +158,22 @@ export function bootstrapApp(
   app.use(helmet());
 
   const corsDisabled = String(process.env.CORS_DISABLED ?? 'false') === 'true';
+  const strictLocalCors =
+    String(process.env.CORS_STRICT_LOCAL ?? 'false') === 'true';
+  const allowAllOriginsInLocal = !isProduction && !strictLocalCors;
   const corsOrigins = corsDisabled
     ? true
     : (options.corsOrigins ?? parseCorsOrigins(process.env.CORS_ORIGIN));
   app.enableCors({
-    origin: buildCorsOriginOption(corsOrigins),
+    origin: allowAllOriginsInLocal ? true : buildCorsOriginOption(corsOrigins),
     credentials: true,
   });
 
   const rateLimitEnabled = options.rateLimit?.enabled ?? true;
-  if (rateLimitEnabled) {
+  const disableLocalRateLimit =
+    String(process.env.RATE_LIMIT_DISABLE_LOCAL ?? (!isProduction ? 'true' : 'false')) ===
+    'true';
+  if (rateLimitEnabled && !disableLocalRateLimit) {
     const windowMs =
       options.rateLimit?.windowMs ??
       Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
@@ -133,6 +182,10 @@ export function bootstrapApp(
     const authMax =
       options.rateLimit?.authMax ??
       Number(process.env.RATE_LIMIT_AUTH_MAX ?? 20);
+    const adminMaxRaw =
+      options.rateLimit?.adminMax ??
+      Number(process.env.RATE_LIMIT_ADMIN_MAX ?? 300);
+    const adminMax = isProduction ? adminMaxRaw : Math.max(adminMaxRaw, 500);
     const authLoginMax = Number(
       process.env.RATE_LIMIT_AUTH_LOGIN_MAX ??
         Math.max(5, Math.floor(authMax / 2)),
@@ -146,36 +199,49 @@ export function bootstrapApp(
       max,
       standardHeaders: true,
       legacyHeaders: false,
+      skip: shouldSkipRateLimitForLocal,
     });
     const authLimiter = rateLimit({
       windowMs,
       max: authMax,
       standardHeaders: true,
       legacyHeaders: false,
+      skip: shouldSkipRateLimitForLocal,
+    });
+    const adminLimiter = rateLimit({
+      windowMs,
+      max: adminMax,
+      standardHeaders: true,
+      legacyHeaders: false,
+      skip: shouldSkipRateLimitForLocal,
     });
     const authLoginLimiter = rateLimit({
       windowMs,
       max: authLoginMax,
       standardHeaders: true,
       legacyHeaders: false,
+      skip: shouldSkipRateLimitForLocal,
     });
     const geoLimiter = rateLimit({
       windowMs,
       max: geoMax,
       standardHeaders: true,
       legacyHeaders: false,
+      skip: shouldSkipRateLimitForLocal,
     });
     const offersLimiter = rateLimit({
       windowMs,
       max: offersMax,
       standardHeaders: true,
       legacyHeaders: false,
+      skip: shouldSkipRateLimitForLocal,
     });
     const paymentsLimiter = rateLimit({
       windowMs,
       max: paymentsMax,
       standardHeaders: true,
       legacyHeaders: false,
+      skip: shouldSkipRateLimitForLocal,
     });
 
     app.use(globalLimiter);
@@ -186,8 +252,8 @@ export function bootstrapApp(
     app.use(`${base}/auth/web/login`, authLoginLimiter);
     app.use(`${base}/auth/web/refresh`, authLoginLimiter);
     app.use(`${base}/auth`, authLimiter);
-    app.use(`${base}/admin`, authLimiter);
-    app.use(`${base}/v1/admin`, authLimiter);
+    app.use(`${base}/admin`, adminLimiter);
+    app.use(`${base}/v1/admin`, adminLimiter);
     app.use(`${base}/geo`, geoLimiter);
     app.use(`${base}/requests`, offersLimiter);
     app.use(`${base}/payments`, paymentsLimiter);

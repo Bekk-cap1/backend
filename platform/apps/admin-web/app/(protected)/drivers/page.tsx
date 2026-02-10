@@ -13,10 +13,13 @@ import { StatusPill } from '../../../components/shared/status-pill';
 import { ConfirmDialog } from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
 import { appToast } from '../../../components/shared/toast';
+import { SuperadminConfirmBar } from '../../../components/shared/superadmin-confirm-bar';
 import { unwrapData } from '../../../lib/unwrap';
+import { getApiErrorMessage } from '../../../lib/api-error';
 
 export default function DriversPage() {
   const queryClient = useQueryClient();
+  const [confirmToken, setConfirmToken] = useState('');
   const [decision, setDecision] = useState<{ id: string; mode: 'verify' | 'reject' } | null>(null);
 
   const driversQuery = useQuery({
@@ -37,23 +40,39 @@ export default function DriversPage() {
     }: {
       id: string;
       mode: 'verify' | 'reject';
-      reason?: string;
+      reason: string;
     }) => {
-      if (mode === 'verify') return adminApi(apiClient).verifyDriver(id);
-      return adminApi(apiClient).rejectDriver(id, { reason: reason ?? 'Manual rejection' });
+      if (!confirmToken) {
+        throw new Error('Confirm token is required');
+      }
+      if (mode === 'verify') {
+        return adminApi(apiClient).verifyDriver(id, { reason }, confirmToken);
+      }
+      return adminApi(apiClient).rejectDriver(id, { reason }, confirmToken);
     },
     onSuccess: () => {
       appToast.success('Driver moderation updated');
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
     },
-    onError: () => appToast.error('Driver moderation failed'),
+    onError: (error: unknown) => {
+      if (error instanceof Error && error.message === 'Confirm token is required') {
+        appToast.error('Get confirm token first');
+        return;
+      }
+      appToast.error(getApiErrorMessage(error, 'Driver moderation failed'));
+    },
   });
 
   const rows = useMemo(
     () =>
       (driversQuery.data ?? []).map((item: any) => ({
         id: item.userId ?? item.id,
-        name: item.name ?? item.phone ?? item.userId,
+        name:
+          item.user?.profile?.fullName?.trim() ||
+          item.fullName?.trim() ||
+          item.user?.phone ||
+          item.phone ||
+          'Unknown driver',
         status: item.status ?? 'pending',
         submittedAt: item.createdAt ? new Date(item.createdAt).toLocaleString() : '-',
       })),
@@ -96,6 +115,7 @@ export default function DriversPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Drivers" description="Verification queue and moderation." />
+      <SuperadminConfirmBar confirmToken={confirmToken} setConfirmToken={setConfirmToken} />
       <DataTable
         columns={columns}
         data={rows}
@@ -108,13 +128,16 @@ export default function DriversPage() {
         title={decision?.mode === 'verify' ? 'Verify driver?' : 'Reject driver?'}
         description="Moderation action will be written to audit."
         confirmText={decision?.mode === 'verify' ? 'Verify' : 'Reject'}
-        requireReason={decision?.mode === 'reject'}
-        reasonLabel="Rejection reason"
+        requireReason
+        reasonLabel={decision?.mode === 'verify' ? 'Verification reason' : 'Rejection reason'}
         busy={moderationMutation.isPending}
         onClose={() => setDecision(null)}
         onConfirm={(reason) => {
           if (!decision) return;
-          moderationMutation.mutate({ ...decision, reason });
+          moderationMutation.mutate({
+            ...decision,
+            reason: reason ?? (decision.mode === 'verify' ? 'Verified by admin' : 'Rejected by admin'),
+          });
           setDecision(null);
         }}
       />

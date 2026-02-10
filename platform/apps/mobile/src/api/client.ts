@@ -1,4 +1,22 @@
-﻿import { ApiClient, authApi, bookingsApi, cancellationsApi, citiesApi, driversApi, geoApi, notificationsApi, offersApi, paymentsApi, poiApi, requestsApi, routingApi, ticketsApi, tripsApi, vehiclesApi } from '@platform/api-client';
+﻿import {
+  ApiClient,
+  authApi,
+  bookingsApi,
+  cancellationsApi,
+  citiesApi,
+  driversApi,
+  geoApi,
+  notificationsApi,
+  offersApi,
+  paymentsApi,
+  poiApi,
+  requestsApi,
+  routingApi,
+  storageApi,
+  ticketsApi,
+  tripsApi,
+  vehiclesApi,
+} from '@platform/api-client';
 import { appConfig } from '../core/config';
 import { mobileTokenStore } from './tokenStore';
 
@@ -29,6 +47,7 @@ export const api = {
   poi: poiApi(apiClient),
   requests: requestsApi(apiClient),
   routing: routingApi(apiClient),
+  storage: storageApi(apiClient),
   tickets: ticketsApi(apiClient),
   trips: tripsApi(apiClient),
   vehicles: vehiclesApi(apiClient),

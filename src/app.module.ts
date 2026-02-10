@@ -53,6 +53,8 @@ import { GeoModule } from './modules/geo/geo.module';
 import { PoiModule } from './modules/poi/poi.module';
 import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
 import { CancellationModule } from './modules/cancellation/cancellation.module';
+import { BootstrapSuperadminService } from './common/auth/bootstrap-superadmin.service';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -103,6 +105,7 @@ import { CancellationModule } from './modules/cancellation/cancellation.module';
     PoiModule,
     SupportTicketsModule,
     CancellationModule,
+    StorageModule,
 
     PaymentsModule,
   ],
@@ -112,6 +115,7 @@ import { CancellationModule } from './modules/cancellation/cancellation.module';
     LoggerMiddleware,
     RequestContextMiddleware,
     MetricsMiddleware,
+    BootstrapSuperadminService,
 
     // глобальная защита (по умолчанию закрыто всё; Public() открывает нужное)
     { provide: APP_GUARD, useClass: JwtAuthGuard },

@@ -9,7 +9,15 @@ import { authReducer, initialAuthState, resolveStatusByRole, type AuthUser } fro
 type AuthContextValue = {
   state: typeof initialAuthState;
   login: (phone: string, password: string) => Promise<void>;
-  register: (phone: string, password: string, role?: UserRole) => Promise<void>;
+  register: (input: {
+    phone: string;
+    password: string;
+    fullName: string;
+    language?: 'ru' | 'uz' | 'en';
+    cityId?: string;
+    referralCode?: string;
+    acceptTerms: boolean;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   sendOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, code: string) => Promise<void>;
@@ -20,6 +28,25 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const allowedRoles: UserRole[] = [
+  'passenger',
+  'driver',
+  'admin',
+  'moderator',
+  'finance',
+  'support',
+  'ops',
+  'superadmin',
+];
+
+function normalizeRole(role: unknown): UserRole {
+  const raw = String(role ?? '').trim().toLowerCase();
+  if (allowedRoles.includes(raw as UserRole)) {
+    return raw as UserRole;
+  }
+  return 'support';
+}
+
 function getUserFromPayload(payload: unknown): AuthUser {
   const data = unwrapPayload<any>(payload);
   const user = data?.user ?? data;
@@ -27,7 +54,7 @@ function getUserFromPayload(payload: unknown): AuthUser {
   return {
     id: String(user.id),
     phone: String(user.phone),
-    role: user.role as UserRole,
+    role: normalizeRole(user.role),
   };
 }
 
@@ -79,8 +106,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const bootstrap = async () => {
-      const access = await mobileTokenStore.getAccessToken();
-      const refresh = await mobileTokenStore.getRefreshToken();
+      let access = await mobileTokenStore.getAccessToken();
+      let refresh = await mobileTokenStore.getRefreshToken();
+
+      if (!access && refresh) {
+        try {
+          const refreshed = await api.auth.refresh({ refreshToken: refresh });
+          const nextTokens = getTokens(refreshed);
+          if (!nextTokens.accessToken) {
+            throw new Error('Refresh did not return access token');
+          }
+          await mobileTokenStore.setTokens(nextTokens);
+          access = nextTokens.accessToken;
+          refresh = nextTokens.refreshToken ?? refresh;
+        } catch {
+          await mobileTokenStore.clear();
+          dispatch({ type: 'bootstrap:anonymous' });
+          return;
+        }
+      }
 
       if (!access) {
         dispatch({ type: 'bootstrap:anonymous' });
@@ -117,13 +161,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (phone: string, password: string, role?: UserRole) => {
-      await api.auth.register({ phone, password });
-      await login(phone, password);
-
-      if (role === 'driver') {
-        await api.drivers.upsertProfile({ phone });
-      }
+    async (input: {
+      phone: string;
+      password: string;
+      fullName: string;
+      language?: 'ru' | 'uz' | 'en';
+      cityId?: string;
+      referralCode?: string;
+      acceptTerms: boolean;
+    }) => {
+      await api.auth.register(input);
+      await login(input.phone, input.password);
     },
     [login],
   );

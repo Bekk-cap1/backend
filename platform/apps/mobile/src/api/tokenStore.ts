@@ -1,23 +1,45 @@
-﻿import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import type { AuthTokens, TokenStore } from '@platform/api-client';
 
 const ACCESS_KEY = 'mobile_access_token';
 const REFRESH_KEY = 'mobile_refresh_token';
 
 async function getItem(key: string) {
-  const secure = await SecureStore.getItemAsync(key);
-  if (secure) return secure;
+  if (Platform.OS !== 'web') {
+    try {
+      const secure = await SecureStore.getItemAsync(key);
+      if (secure) return secure;
+    } catch {
+      // SecureStore can be unavailable in some runtimes.
+    }
+  }
+
   return AsyncStorage.getItem(key);
 }
 
 async function setItem(key: string, value: string) {
-  await SecureStore.setItemAsync(key, value);
+  if (Platform.OS !== 'web') {
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch {
+      // Fallback to AsyncStorage when SecureStore fails.
+    }
+  }
+
   await AsyncStorage.setItem(key, value);
 }
 
 async function removeItem(key: string) {
-  await SecureStore.deleteItemAsync(key);
+  if (Platform.OS !== 'web') {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {
+      // Fallback to AsyncStorage when SecureStore fails.
+    }
+  }
+
   await AsyncStorage.removeItem(key);
 }
 
@@ -34,6 +56,8 @@ class MobileTokenStore implements TokenStore {
     await setItem(ACCESS_KEY, tokens.accessToken);
     if (tokens.refreshToken) {
       await setItem(REFRESH_KEY, tokens.refreshToken);
+    } else {
+      await removeItem(REFRESH_KEY);
     }
   }
 

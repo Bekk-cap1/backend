@@ -29,9 +29,14 @@ export default function TicketsPage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       adminApi(apiClient).updateTicketStatus(id, { status }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       appToast.success('Ticket status updated');
-      queryClient.invalidateQueries({ queryKey: ['tickets-admin'] });
+      queryClient.setQueryData(['tickets-admin'], (prev: any) => {
+        if (!Array.isArray(prev)) return prev;
+        return prev.map((item: any) =>
+          item?.id === variables.id ? { ...item, status: variables.status } : item,
+        );
+      });
     },
     onError: () => appToast.error('Ticket update failed'),
   });

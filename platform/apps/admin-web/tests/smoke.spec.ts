@@ -1,13 +1,15 @@
 import { expect, test, type Route } from '@playwright/test';
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+const adminE2ePort = Number(process.env.ADMIN_E2E_PORT ?? 3011);
+const adminOrigin = `http://127.0.0.1:${adminE2ePort}`;
 
 function json(route: Route, payload: unknown, status = 200) {
   return route.fulfill({
     status,
     contentType: 'application/json',
     headers: {
-      'access-control-allow-origin': 'http://127.0.0.1:3001',
+      'access-control-allow-origin': adminOrigin,
       'access-control-allow-credentials': 'true',
     },
     body: JSON.stringify(payload),
@@ -24,7 +26,7 @@ function mockApi(route: Route) {
     return route.fulfill({
       status: 204,
       headers: {
-        'access-control-allow-origin': 'http://127.0.0.1:3001',
+        'access-control-allow-origin': adminOrigin,
         'access-control-allow-credentials': 'true',
         'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
         'access-control-allow-headers': 'content-type,authorization,x-csrf-token',
@@ -216,7 +218,7 @@ test('smoke: login and core admin routes', async ({ page }) => {
 
   await page.goto('/users');
   await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'View' }).first()).toBeVisible();
+  await expect(page.getByText('+998900000001').first()).toBeVisible();
 
   await page.goto('/users/u1');
   await expect(page.getByText(/User u1/i)).toBeVisible();

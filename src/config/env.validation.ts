@@ -19,6 +19,7 @@ export const envValidationSchema = Joi.object({
 
   CORS_ORIGIN: Joi.string().allow('').default(''),
   CORS_DISABLED: Joi.boolean().default(false),
+  CORS_STRICT_LOCAL: Joi.boolean().default(false),
 
   RATE_LIMIT_WINDOW_MS: Joi.number().integer().min(1000).default(60_000),
   RATE_LIMIT_MAX: Joi.number().integer().min(1).default(200),
@@ -63,6 +64,8 @@ export const envValidationSchema = Joi.object({
   SUPERADMIN_PHONE: Joi.string().allow('').optional(),
   SUPERADMIN_PASSWORD: Joi.string().allow('').optional(),
   SUPERADMIN_IMMUTABLE: Joi.boolean().default(true),
+  BOOTSTRAP_SUPERADMIN_PHONE: Joi.string().allow('').optional(),
+  BOOTSTRAP_SUPERADMIN_PASSWORD: Joi.string().allow('').optional(),
 
   PAYMENT_PROVIDER: Joi.string().valid('click', 'payme', 'stripe').optional(),
   PAYMENT_WEBHOOK_SECRET: Joi.string().allow('').optional(),
@@ -74,6 +77,16 @@ export const envValidationSchema = Joi.object({
   PAYMENT_RECONCILE_STALE_MINUTES: Joi.number().integer().min(1).default(60),
   PAYMENT_RECONCILE_BATCH: Joi.number().integer().min(1).max(1000).default(200),
   PAYMENT_RECONCILE_LOCK_SEC: Joi.number().integer().min(10).default(120),
+
+  STORAGE_PROVIDER: Joi.string()
+    .valid('s3', 'r2', 'minio', 'none')
+    .default('none'),
+  STORAGE_BUCKET: Joi.string().allow('').optional(),
+  STORAGE_ACCESS_KEY: Joi.string().allow('').optional(),
+  STORAGE_SECRET_KEY: Joi.string().allow('').optional(),
+  STORAGE_ENDPOINT: Joi.string().allow('').optional(),
+  STORAGE_PUBLIC_BASE_URL: Joi.string().allow('').optional(),
+  STORAGE_SIGNED_URL_TTL_SEC: Joi.number().integer().min(60).default(900),
 
   MIGRATION_LOCK_KEY: Joi.number().integer().default(87234123),
   MIGRATION_LOCK_TIMEOUT_SEC: Joi.number().integer().min(1).default(60),

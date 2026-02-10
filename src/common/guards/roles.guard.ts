@@ -1,8 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { hasKey, isRecord } from '../utils/type-guards';
+import { isSuperAdminRole } from '../auth/super-admin.util';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -26,6 +28,7 @@ export class RolesGuard implements CanActivate {
       hasKey(req, 'user') && isRecord(req.user) ? req.user : undefined;
     const role = typeof user?.role === 'string' ? user.role : undefined;
     if (!role) return false;
+    if (isSuperAdminRole(role as Role)) return true;
 
     return roles.includes(role);
   }

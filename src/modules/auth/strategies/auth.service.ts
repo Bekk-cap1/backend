@@ -63,6 +63,10 @@ export class AuthStrategiesService {
     sessionId: string;
     phone: string;
     role: Role;
+    impersonated?: boolean;
+    impersonatedBy?: string;
+    impersonationReason?: string;
+    expiresInSec?: number;
   }) {
     return this.jwt.sign(
       {
@@ -71,8 +75,14 @@ export class AuthStrategiesService {
         phone: params.phone,
         role: params.role,
         typ: 'access',
+        impersonated: params.impersonated === true,
+        impersonatedBy: params.impersonatedBy,
+        impersonationReason: params.impersonationReason,
       },
-      { secret: this.accessSecret(), expiresIn: this.accessTtlSec() },
+      {
+        secret: this.accessSecret(),
+        expiresIn: params.expiresInSec ?? this.accessTtlSec(),
+      },
     );
   }
 
@@ -178,6 +188,36 @@ export class AuthStrategiesService {
       accessToken,
       refreshToken,
       expiresAt,
+    };
+  }
+
+  issueImpersonationAccessToken(params: {
+    actorUserId: string;
+    targetUserId: string;
+    phone: string;
+    role: Role;
+    reason: string;
+    ttlSec?: number;
+  }) {
+    const sessionId = `imp_${randomUUID()}`;
+    const ttlSec = params.ttlSec ?? 30 * 60;
+    const accessToken = this.signAccessToken({
+      userId: params.targetUserId,
+      sessionId,
+      phone: params.phone,
+      role: params.role,
+      impersonated: true,
+      impersonatedBy: params.actorUserId,
+      impersonationReason: params.reason,
+      expiresInSec: ttlSec,
+    });
+
+    return {
+      accessToken,
+      expiresAt: new Date(Date.now() + ttlSec * 1000).toISOString(),
+      impersonated: true,
+      impersonatedBy: params.actorUserId,
+      impersonatedUserId: params.targetUserId,
     };
   }
 

@@ -10,6 +10,10 @@ import type { AuthTokens, TokenStore } from './token-store';
 
 type ApiPath = keyof paths & string;
 type LowerMethod = 'get' | 'post' | 'patch' | 'put' | 'delete';
+type RequestConfigWithRetry = AxiosRequestConfig & {
+  _retry?: boolean;
+  _fallbackTried?: string[];
+};
 
 type Operation<P extends ApiPath, M extends LowerMethod> =
   M extends keyof paths[P] ? paths[P][M] : never;
@@ -46,6 +50,60 @@ export type ApiClientConfig = {
   csrfHeaderName?: string;
 };
 
+function unwrapEnvelope(payload: unknown): unknown {
+  let current = payload;
+  for (let i = 0; i < 5; i += 1) {
+    if (!current || typeof current !== 'object') break;
+    if (!('data' in current)) break;
+    const record = current as Record<string, unknown>;
+    current = record.data;
+  }
+  return current;
+}
+
+function extractAuthTokens(payload: unknown): Partial<AuthTokens> {
+  const data = unwrapEnvelope(payload);
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const record = data as Record<string, unknown>;
+  const accessToken =
+    typeof record.accessToken === 'string' && record.accessToken.trim().length > 0
+      ? record.accessToken
+      : undefined;
+  const refreshToken =
+    typeof record.refreshToken === 'string' && record.refreshToken.trim().length > 0
+      ? record.refreshToken
+      : undefined;
+
+  return { accessToken, refreshToken };
+}
+
+function buildFallbackUrls(url: string): string[] {
+  const out: string[] = [];
+
+  if (url.startsWith('/api/v1/admin/')) {
+    const rest = url.slice('/api/v1/admin/'.length);
+    out.push(`/api/admin/${rest}`);
+  } else if (url.startsWith('/api/admin/')) {
+    const rest = url.slice('/api/admin/'.length);
+    out.push(`/api/v1/admin/${rest}`);
+  } else if (url.startsWith('/api/v1/')) {
+    const rest = url.slice('/api/v1/'.length);
+    out.push(`/api/${rest}`);
+  } else if (url.startsWith('/api/')) {
+    const rest = url.slice('/api/'.length);
+    out.push(`/api/v1/${rest}`);
+  }
+
+  return out;
+}
+
+function isAdminApiPath(url: string): boolean {
+  return url.startsWith('/api/admin/') || url.startsWith('/api/v1/admin/');
+}
+
 export class ApiClient {
   private readonly http: AxiosInstance;
   private readonly refreshQueue = new RefreshQueue();
@@ -70,7 +128,7 @@ export class ApiClient {
 
     this.http.interceptors.request.use(async (request) => {
       const token = await this.tokenStore.getAccessToken();
-      if (token) {
+      if (token && token !== 'undefined' && token !== 'null') {
         request.headers.Authorization = `Bearer ${token}`;
       }
       return request;
@@ -80,9 +138,28 @@ export class ApiClient {
       (response) => response,
       async (error: AxiosError) => {
         const status = error.response?.status;
-        const request = error.config as AxiosRequestConfig & {
-          _retry?: boolean;
-        };
+        const request = error.config as RequestConfigWithRetry;
+
+        const method = String(request?.method ?? 'get').toLowerCase();
+        const isSafeReadMethod = method === 'get' || method === 'head';
+        const requestUrl =
+          typeof request?.url === 'string' ? request.url : null;
+        // Do not fallback mutating requests (POST/PATCH/DELETE), otherwise
+        // the same action can be retried against another path and create
+        // duplicate writes or trigger rate limits.
+        const canFallback = requestUrl !== null && isSafeReadMethod;
+        if (status === 404 && requestUrl && canFallback) {
+          const alreadyTried = new Set(request._fallbackTried ?? []);
+          const fallbackUrl = buildFallbackUrls(requestUrl).find(
+            (candidate) => !alreadyTried.has(candidate),
+          );
+
+          if (fallbackUrl) {
+            request._fallbackTried = [...alreadyTried, fallbackUrl];
+            request.url = fallbackUrl;
+            return this.http.request(request);
+          }
+        }
 
         if (status !== 401 || request._retry || request.url === this.refreshPath) {
           throw error;
@@ -100,13 +177,12 @@ export class ApiClient {
             : undefined;
 
           try {
-            const response = await this.http.post<{ data?: AuthTokens }>(
+            const response = await this.http.post(
               this.refreshPath,
               refreshToken ? { refreshToken } : undefined,
               { headers: csrfHeaders },
             );
-
-            const tokenData = response.data?.data;
+            const tokenData = extractAuthTokens(response.data);
             if (!refreshToken) {
               // Cookie-based refresh flow (no JS-accessible refresh token).
               if (tokenData?.accessToken) {
@@ -116,7 +192,7 @@ export class ApiClient {
               return 'cookie_refreshed';
             }
             if (!tokenData?.accessToken) return null;
-            await this.tokenStore.setTokens(tokenData);
+            await this.tokenStore.setTokens(tokenData as AuthTokens);
             return tokenData.accessToken;
           } catch {
             await this.tokenStore.clear();

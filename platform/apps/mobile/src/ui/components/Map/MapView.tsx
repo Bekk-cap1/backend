@@ -5,6 +5,7 @@ import MapNativeView, { Marker, Polyline } from 'react-native-maps';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MapCoordinate, MapMarker } from './types';
 import { toLatLng } from '../../../core/location/polyline';
+import { RadarHeatOverlay } from './RadarHeatOverlay';
 
 function clusterMarkers(markers: MapMarker[], precision = 2): MapMarker[] {
   if (markers.length < 30) return markers;
@@ -49,6 +50,7 @@ export function MapView({
   radarMarkers = [],
   showPoi = true,
   showRadars = true,
+  showRadarHeat = false,
   children,
 }: {
   center?: MapCoordinate | null;
@@ -58,6 +60,7 @@ export function MapView({
   radarMarkers?: MapMarker[];
   showPoi?: boolean;
   showRadars?: boolean;
+  showRadarHeat?: boolean;
   children?: ReactNode;
 }) {
   const { theme } = useTheme();
@@ -133,6 +136,8 @@ export function MapView({
             description="Live location"
           />
         ) : null}
+
+        <RadarHeatOverlay radars={radarMarkers} visible={showRadarHeat && showRadars} />
 
         {mapMarkers.map((marker) => (
           <Marker

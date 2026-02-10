@@ -17,6 +17,7 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { ListVehiclesDto } from './dto/list-vehicles.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { DriverVerifiedGuard } from '../../common/guards/driver-verified.guard';
 import type { AuthUser } from '../../common/types/auth-user';
 
 @Controller()
@@ -37,12 +38,14 @@ export class VehiclesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @UseGuards(DriverVerifiedGuard)
   @Post('vehicles')
   createMine(@CurrentUser() user: AuthUser, @Body() dto: CreateVehicleDto) {
     return this.vehicles.createMine(user, dto);
   }
 
   @UseGuards(JwtAuthGuard)
+  @UseGuards(DriverVerifiedGuard)
   @Patch('vehicles/:id')
   updateMine(
     @CurrentUser() user: AuthUser,
@@ -53,6 +56,7 @@ export class VehiclesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @UseGuards(DriverVerifiedGuard)
   @Delete('vehicles/:id')
   removeMine(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.vehicles.removeMine(user, id);

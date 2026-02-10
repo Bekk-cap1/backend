@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpsertDriverProfileDto {
   @IsOptional()
@@ -17,5 +17,6 @@ export class UpsertDriverProfileDto {
   passportNo?: string;
 
   @IsOptional()
-  docs?: any;
+  @IsObject()
+  docs?: Record<string, unknown>;
 }

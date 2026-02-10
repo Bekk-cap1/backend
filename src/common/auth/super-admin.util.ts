@@ -1,3 +1,5 @@
+import { Role } from '@prisma/client';
+
 const DEFAULT_SUPERADMIN_PHONE = '+998944692509';
 
 function normalizePhone(phone: string): string {
@@ -12,6 +14,10 @@ export function getSuperAdminPhone(): string {
 export function isSuperAdminPhone(phone?: string | null): boolean {
   if (!phone) return false;
   return normalizePhone(phone) === getSuperAdminPhone();
+}
+
+export function isSuperAdminRole(role?: Role | null): boolean {
+  return role === Role.superadmin;
 }
 
 export function isSuperAdminImmutable(): boolean {

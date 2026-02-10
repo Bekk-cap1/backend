@@ -1,5 +1,4 @@
-﻿import { useEffect } from 'react';
-import { Linking } from 'react-native';
+import { useEffect } from 'react';
 import { RootNavigator } from './navigation/RootNavigator';
 import { ThemeProvider } from '../ui/theme/ThemeProvider';
 import { ToastProvider } from '../ui/components/Toast';
@@ -10,21 +9,11 @@ import { TripStoreProvider } from '../stores/trip/trip.store';
 import { NegotiationStoreProvider } from '../stores/negotiation/negotiation.store';
 import { useConnectivityStatus } from '../core/network/useConnectivityStatus';
 import { flushOfflineQueue } from '../api/critical-actions';
-import { registerPushToken, subscribePushDeepLinks } from '../core/notifications/push';
-import { appConfig } from '../core/config';
+import { useAppBootstrap } from './bootstrap/useAppBootstrap';
 
 function AppBoot() {
   const online = useConnectivityStatus();
-
-  useEffect(() => {
-    if (appConfig.enablePush) {
-      registerPushToken().catch(() => undefined);
-    }
-    const unsubscribe = subscribePushDeepLinks((url) => {
-      Linking.openURL(url).catch(() => undefined);
-    });
-    return unsubscribe;
-  }, []);
+  useAppBootstrap();
 
   useEffect(() => {
     if (!online) return;

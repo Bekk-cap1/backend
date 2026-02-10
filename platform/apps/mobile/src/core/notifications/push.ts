@@ -1,19 +1,33 @@
-﻿import * as Notifications from 'expo-notifications';
+import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { api } from '../../api/client';
 import { logger } from '../logger';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
 
 export async function registerPushToken() {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
   if (!Device.isDevice) {
+    return null;
+  }
+
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
+
+  if (!projectId) {
     return null;
   }
 
@@ -29,7 +43,9 @@ export async function registerPushToken() {
   }
 
   try {
-    const tokenResponse = await Notifications.getExpoPushTokenAsync();
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
     const token = tokenResponse.data;
 
     await api.notifications.registerDevice({

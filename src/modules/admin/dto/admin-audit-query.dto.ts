@@ -1,4 +1,12 @@
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class AdminAuditQueryDto {
   @IsOptional()
@@ -30,4 +38,21 @@ export class AdminAuditQueryDto {
   @IsOptional()
   @IsString()
   severity?: string;
+
+  @IsOptional()
+  @IsString()
+  targetId?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  impersonated?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @IsOptional()
+  @IsDateString()
+  to?: string;
 }

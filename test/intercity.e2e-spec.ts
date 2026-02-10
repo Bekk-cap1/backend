@@ -17,6 +17,7 @@ type ApiEnvelope<T> = { data: T };
 
 type AuthLoginPayload = { accessToken: string };
 type AuthMePayload = { user: { id?: string; sub?: string } };
+type AdminReauthPayload = { confirmToken: string; expiresAt: string };
 type TripSearchPayload = { items: Array<{ id: string }>; total?: number };
 type TripPayload = { id: string };
 type RequestPayload = { id: string };
@@ -142,6 +143,7 @@ describe('Intercity (e2e)', () => {
   const passengerUser = makeUniqueUser('passenger');
   const cancelPassengerUser = makeUniqueUser('cancel');
   const adminUser = makeUniqueUser('admin');
+  const managedUser = makeUniqueUser('managed');
   const bruteForceUser = makeUniqueUser('bruteforce');
   const apiPath = (path: string) => `${basePath}${path}`;
 
@@ -264,6 +266,8 @@ describe('Intercity (e2e)', () => {
     const register = await api.post(apiPath('/auth/register')).send({
       phone: passengerUser.phone,
       password: passengerUser.password,
+      fullName: passengerUser.fullName,
+      acceptTerms: true,
     });
     if (register.status !== 201) {
       throw new Error(
@@ -298,6 +302,8 @@ describe('Intercity (e2e)', () => {
     const register = await api.post(apiPath('/auth/register')).send({
       phone: driverUser.phone,
       password: driverUser.password,
+      fullName: driverUser.fullName,
+      acceptTerms: true,
     });
     if (register.status !== 201) {
       throw new Error(
@@ -350,6 +356,8 @@ describe('Intercity (e2e)', () => {
     const register = await api.post(apiPath('/auth/register')).send({
       phone: cancelPassengerUser.phone,
       password: cancelPassengerUser.password,
+      fullName: cancelPassengerUser.fullName,
+      acceptTerms: true,
     });
     if (register.status !== 201) {
       throw new Error(
@@ -371,10 +379,12 @@ describe('Intercity (e2e)', () => {
     cancelPassengerToken = loginData.accessToken;
   });
 
-  it('registers and logs in admin', async () => {
+  it('registers and logs in superadmin', async () => {
     const register = await api.post(apiPath('/auth/register')).send({
       phone: adminUser.phone,
       password: adminUser.password,
+      fullName: adminUser.fullName,
+      acceptTerms: true,
     });
     if (register.status !== 201) {
       throw new Error(
@@ -393,7 +403,7 @@ describe('Intercity (e2e)', () => {
 
     await prisma.user.update({
       where: { id: adminRecord.id },
-      data: { role: Role.admin },
+      data: { role: Role.superadmin },
     });
 
     const login = await api
@@ -411,6 +421,8 @@ describe('Intercity (e2e)', () => {
     await api.post(apiPath('/auth/register')).send({
       phone: bruteForceUser.phone,
       password: bruteForceUser.password,
+      fullName: bruteForceUser.fullName,
+      acceptTerms: true,
     });
 
     for (let attempt = 1; attempt <= 4; attempt += 1) {
@@ -821,6 +833,429 @@ describe('Intercity (e2e)', () => {
       tickets,
     );
     expect(ticketsData.items.some((t) => t.bookingId === bookingId)).toBe(true);
+  });
+
+  it('supports superadmin reauth, impersonation and dangerous delete with audit', async () => {
+    const registerManaged = await api.post(apiPath('/auth/register')).send({
+      phone: managedUser.phone,
+      password: managedUser.password,
+      fullName: managedUser.fullName,
+      acceptTerms: true,
+    });
+    if (registerManaged.status !== 201) {
+      throw new Error(
+        `register managed user failed: ${registerManaged.status} ${formatResponseBody(
+          registerManaged.body,
+        )}`,
+      );
+    }
+
+    const managedRecord = await prisma.user.findUnique({
+      where: { phone: managedUser.phone },
+      select: { id: true },
+    });
+    if (!managedRecord) throw new Error('Managed user not created');
+
+    await api
+      .delete(apiPath(`/v1/admin/users/${managedRecord.id}`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ reason: 'cleanup user for tests' })
+      .expect(403);
+
+    const reauthForImpersonation = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmImpersonation = getData<AdminReauthPayload>(
+      reauthForImpersonation,
+    ).confirmToken;
+
+    const impersonation = await api
+      .post(apiPath('/v1/admin/impersonate'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmImpersonation)
+      .send({
+        userId: managedRecord.id,
+        reason: 'support case simulation',
+      })
+      .expect(201);
+    const impersonatedAccessToken =
+      getData<AuthLoginPayload>(impersonation).accessToken;
+
+    const me = await api
+      .get(apiPath('/auth/me'))
+      .set('Authorization', `Bearer ${impersonatedAccessToken}`)
+      .expect(200);
+    const meData = getData<AuthMePayload>(me);
+    expect(meData.user.id ?? meData.user.sub).toBe(managedRecord.id);
+
+    const reauthForDelete = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmDelete =
+      getData<AdminReauthPayload>(reauthForDelete).confirmToken;
+
+    await api
+      .delete(apiPath(`/v1/admin/users/${managedRecord.id}`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmDelete)
+      .send({ reason: 'cleanup user for tests' })
+      .expect(200);
+
+    const impersonationAudit = await api
+      .get(apiPath('/v1/admin/audit'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .query({ action: 'impersonation.start', pageSize: 100 })
+      .expect(200);
+    const impersonationAuditData = getData<{
+      items: Array<{ entityId: string | null; action: string }>;
+    }>(impersonationAudit);
+    expect(
+      impersonationAuditData.items.some(
+        (item) =>
+          item.action === 'impersonation.start' &&
+          item.entityId === managedRecord.id,
+      ),
+    ).toBe(true);
+
+    const deleteAudit = await api
+      .get(apiPath('/v1/admin/audit'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .query({ action: 'user.delete', pageSize: 100 })
+      .expect(200);
+    const deleteAuditData = getData<{
+      items: Array<{ entityId: string | null; action: string }>;
+    }>(deleteAudit);
+    expect(
+      deleteAuditData.items.some(
+        (item) =>
+          item.action === 'user.delete' && item.entityId === managedRecord.id,
+      ),
+    ).toBe(true);
+  });
+
+  it('allows superadmin force-cancel for request and booking with audit', async () => {
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { userId: driverId },
+    });
+    if (!vehicle) throw new Error('Vehicle not found for superadmin flow');
+
+    const createTrip = await api
+      .post(apiPath('/trips'))
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        vehicleId: vehicle.id,
+        fromCityId,
+        toCityId,
+        departureAt: new Date(
+          Date.now() + 8 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+        seatsTotal: 3,
+        price: 120000,
+        currency: 'UZS',
+      })
+      .expect(201);
+    const disputeTripId = getData<TripPayload>(createTrip).id;
+
+    await api
+      .patch(apiPath(`/trips/${disputeTripId}/publish`))
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({ notes: 'Dispute trip' })
+      .expect(200);
+
+    const disputePassenger = makeUniqueUser('dispute');
+    await api.post(apiPath('/auth/register')).send({
+      phone: disputePassenger.phone,
+      password: disputePassenger.password,
+      fullName: disputePassenger.fullName,
+      acceptTerms: true,
+    });
+    const disputeLogin = await api.post(apiPath('/auth/login')).send({
+      phone: disputePassenger.phone,
+      password: disputePassenger.password,
+    });
+    const disputePassengerToken =
+      getData<AuthLoginPayload>(disputeLogin).accessToken;
+
+    const req = await api
+      .post(apiPath(`/trips/${disputeTripId}/requests`))
+      .set('Authorization', `Bearer ${disputePassengerToken}`)
+      .send({
+        seats: 1,
+        price: 100000,
+        currency: 'UZS',
+      })
+      .expect(201);
+    const disputeRequestId = getData<RequestPayload>(req).id;
+
+    const offer = await api
+      .post(apiPath(`/requests/${disputeRequestId}/offers`))
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        seats: 1,
+        price: 105000,
+        currency: 'UZS',
+      })
+      .expect(201);
+    const disputeOfferId = getData<{ id: string }>(offer).id;
+
+    await api
+      .post(apiPath(`/v1/admin/requests/${disputeRequestId}/cancel`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ reason: 'request cancellation for dispute' })
+      .expect(403);
+
+    const reauthForRequestCancel = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmTokenRequestCancel = getData<AdminReauthPayload>(
+      reauthForRequestCancel,
+    ).confirmToken;
+
+    await api
+      .post(apiPath(`/v1/admin/requests/${disputeRequestId}/cancel`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmTokenRequestCancel)
+      .send({ reason: 'request cancellation for dispute' })
+      .expect(201);
+
+    const requestAudit = await api
+      .get(apiPath('/v1/admin/audit'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .query({ action: 'request.force.cancel', pageSize: 100 })
+      .expect(200);
+    const requestAuditItems = getData<{
+      items: Array<{ entityId: string | null; action: string }>;
+    }>(requestAudit).items;
+    expect(
+      requestAuditItems.some(
+        (item) =>
+          item.action === 'request.force.cancel' &&
+          item.entityId === disputeRequestId,
+      ),
+    ).toBe(true);
+
+    const req2 = await api
+      .post(apiPath(`/trips/${disputeTripId}/requests`))
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({
+        seats: 1,
+        price: 100000,
+        currency: 'UZS',
+      })
+      .expect(201);
+    const bookingRequestId = getData<RequestPayload>(req2).id;
+
+    await api
+      .post(apiPath(`/requests/${bookingRequestId}/offers`))
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        seats: 1,
+        price: 100000,
+        currency: 'UZS',
+      })
+      .expect(201);
+
+    const reauthForOfferReject = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmTokenOfferReject =
+      getData<AdminReauthPayload>(reauthForOfferReject).confirmToken;
+
+    await api
+      .post(apiPath(`/v1/admin/offers/${disputeOfferId}/reject`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmTokenOfferReject)
+      .send({ reason: 'offer rejected by superadmin decision' })
+      .expect(201);
+
+    const acceptForBooking = await api
+      .post(
+        apiPath(`/trips/${disputeTripId}/requests/${bookingRequestId}/accept`),
+      )
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({})
+      .expect(201);
+    const disputeBookingId =
+      getData<{ booking?: { id?: string } }>(acceptForBooking).booking?.id ??
+      null;
+
+    const bookingIdForCancel =
+      disputeBookingId ??
+      (
+        await prisma.booking.findFirst({
+          where: { requestId: bookingRequestId },
+          select: { id: true },
+        })
+      )?.id;
+    if (!bookingIdForCancel) {
+      throw new Error('Booking not created for force-cancel flow');
+    }
+
+    const reauthForBookingCancel = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmTokenBookingCancel = getData<AdminReauthPayload>(
+      reauthForBookingCancel,
+    ).confirmToken;
+
+    await api
+      .post(apiPath(`/v1/admin/bookings/${bookingIdForCancel}/cancel`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmTokenBookingCancel)
+      .send({ reason: 'booking canceled by superadmin for dispute' })
+      .expect(201);
+
+    const reauthForTripCancel = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmTokenTripCancel =
+      getData<AdminReauthPayload>(reauthForTripCancel).confirmToken;
+
+    await api
+      .post(apiPath(`/v1/admin/trips/${disputeTripId}/cancel`))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmTokenTripCancel)
+      .send({ reason: 'trip canceled by superadmin for dispute' })
+      .expect(201);
+
+    const bookingAudit = await api
+      .get(apiPath('/v1/admin/audit'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .query({ action: 'booking.force.cancel', pageSize: 100 })
+      .expect(200);
+    const bookingAuditItems = getData<{
+      items: Array<{ entityId: string | null; action: string }>;
+    }>(bookingAudit).items;
+    expect(
+      bookingAuditItems.some(
+        (item) =>
+          item.action === 'booking.force.cancel' &&
+          item.entityId === bookingIdForCancel,
+      ),
+    ).toBe(true);
+  });
+
+  it('allows superadmin radar operations and broadcast notifications', async () => {
+    const reauth = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmToken = getData<AdminReauthPayload>(reauth).confirmToken;
+
+    await api
+      .post(apiPath('/v1/admin/notifications/broadcast'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        message: 'Maintenance test notification',
+        reason: 'broadcast for system maintenance',
+      })
+      .expect(403);
+
+    const createRadar = await api
+      .post(apiPath('/v1/admin/radars'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmToken)
+      .send({
+        name: 'Test Radar',
+        lat: 41.315,
+        lon: 69.278,
+        reason: 'radar setup for moderation tests',
+      })
+      .expect(201);
+    const radarId = getData<{ id: string }>(createRadar).id;
+
+    const exported = await api
+      .get(apiPath('/v1/admin/radars/export'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    const exportedData = getData<Array<{ id: string }>>(exported);
+    expect(exportedData.some((radar) => radar.id === radarId)).toBe(true);
+
+    const reauthForImport = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmTokenImport =
+      getData<AdminReauthPayload>(reauthForImport).confirmToken;
+
+    const imported = await api
+      .post(apiPath('/v1/admin/radars/import'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmTokenImport)
+      .send({
+        reason: 'bulk radar import for tests only',
+        items: [
+          {
+            name: 'Imported Radar',
+            lat: 41.32,
+            lon: 69.281,
+            type: 'speed_camera',
+          },
+        ],
+      })
+      .expect(201);
+    expect(getData<{ count: number }>(imported).count).toBeGreaterThan(0);
+
+    const reauthForBroadcast = await api
+      .post(apiPath('/v1/admin/reauth'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: adminUser.password })
+      .expect(201);
+    const confirmTokenBroadcast =
+      getData<AdminReauthPayload>(reauthForBroadcast).confirmToken;
+
+    const broadcast = await api
+      .post(apiPath('/v1/admin/notifications/broadcast'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Admin-Confirm', confirmTokenBroadcast)
+      .send({
+        message: 'Maintenance test notification',
+        reason: 'broadcast for system maintenance',
+      })
+      .expect(201);
+    expect(getData<{ count: number }>(broadcast).count).toBeGreaterThan(0);
+
+    const radarAudit = await api
+      .get(apiPath('/v1/admin/audit'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .query({ action: 'radar.create', pageSize: 100 })
+      .expect(200);
+    const radarAuditItems = getData<{
+      items: Array<{ action: string; entityId: string | null }>;
+    }>(radarAudit).items;
+    expect(
+      radarAuditItems.some(
+        (item) => item.action === 'radar.create' && item.entityId === radarId,
+      ),
+    ).toBe(true);
+
+    const notificationAudit = await api
+      .get(apiPath('/v1/admin/audit'))
+      .set('Authorization', `Bearer ${adminToken}`)
+      .query({ action: 'notification.broadcast', pageSize: 100 })
+      .expect(200);
+    const notificationAuditItems = getData<{
+      items: Array<{ action: string }>;
+    }>(notificationAudit).items;
+    expect(
+      notificationAuditItems.some(
+        (item) => item.action === 'notification.broadcast',
+      ),
+    ).toBe(true);
   });
 
   it('lists bookings via aliases', async () => {

@@ -1,0 +1,5 @@
+ALTER TABLE "City"
+  ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS "territoryRadiusKm" DOUBLE PRECISION NOT NULL DEFAULT 80;
+
+CREATE INDEX IF NOT EXISTS "City_isActive_name_idx" ON "City"("isActive", "name");

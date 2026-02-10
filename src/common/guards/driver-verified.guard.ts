@@ -7,6 +7,7 @@ import {
 import { DriverStatus, Role } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { hasKey, isRecord } from '../utils/type-guards';
+import { isSuperAdminRole } from '../auth/super-admin.util';
 
 @Injectable()
 export class DriverVerifiedGuard implements CanActivate {
@@ -26,6 +27,14 @@ export class DriverVerifiedGuard implements CanActivate {
     if (!userId) throw new ForbiddenException('Unauthorized');
 
     const role = typeof user?.role === 'string' ? user.role : undefined;
+    if (
+      role === Role.admin ||
+      role === Role.moderator ||
+      isSuperAdminRole(role as Role)
+    ) {
+      return true;
+    }
+
     if (role !== Role.driver) {
       throw new ForbiddenException('Driver role required');
     }
@@ -36,7 +45,10 @@ export class DriverVerifiedGuard implements CanActivate {
     });
 
     if (!profile || profile.status !== DriverStatus.verified) {
-      throw new ForbiddenException('Driver is not verified');
+      throw new ForbiddenException({
+        code: 'DRIVER_NOT_VERIFIED',
+        message: 'Driver profile is not verified yet',
+      });
     }
 
     return true;

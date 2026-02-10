@@ -37,6 +37,8 @@ export class MemoryTokenStore implements TokenStore {
     this.accessToken = tokens.accessToken;
     if (tokens.refreshToken) {
       this.refreshToken = tokens.refreshToken;
+    } else {
+      this.refreshToken = null;
     }
   }
 
@@ -70,6 +72,8 @@ export class StorageTokenStore implements TokenStore {
     await this.storage.setItem(this.accessKey, tokens.accessToken);
     if (tokens.refreshToken) {
       await this.storage.setItem(this.refreshKey, tokens.refreshToken);
+    } else {
+      await this.storage.removeItem(this.refreshKey);
     }
   }
 

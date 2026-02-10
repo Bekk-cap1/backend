@@ -2,7 +2,7 @@
 
 ## Metadata
 - Date: 2026-02-08
-- Base commit: `3aaf0ce` (plus working changes in this branch/worktree)
+- Base commit: `fe90c3c` (plus working changes in this branch/worktree)
 - Local Node: `v22.17.0`
 - Local npm: `11.4.2`
 - Local pnpm: `10.28.2`
@@ -61,7 +61,7 @@ E2E summary:
 ```text
 PASS test/intercity.e2e-spec.ts
 Test Suites: 1 passed, 1 total
-Tests:       22 passed, 22 total
+Tests:       23 passed, 23 total
 ```
 
 Security check covered by e2e:
@@ -87,3 +87,4 @@ Security check covered by e2e:
 ## Routing ETA and lockout verification
 - `GET /api/routing/trip/:tripId/eta` is covered by e2e test `updates and fetches driver location + eta` and returns `200`.
 - Login brute-force lockout is covered by e2e test `rate-limits repeated failed logins with 429`.
+- Superadmin safety flow is covered by e2e test `supports superadmin reauth, impersonation and dangerous delete with audit`.

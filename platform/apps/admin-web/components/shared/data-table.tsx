@@ -49,6 +49,8 @@ export function DataTable<TData extends object>({
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    // Keep current page after row updates (e.g. status mutations on page 2).
+    autoResetPageIndex: false,
     initialState: {
       pagination: {
         pageIndex: 0,

@@ -13,6 +13,7 @@ export const OutboxTopic = {
   RequestCanceled: 'request.canceled',
 
   // Drivers / Users
+  DriverSubmitted: 'driver.submitted',
   DriverVerified: 'driver.verified',
   DriverRejected: 'driver.rejected',
   UserRoleChanged: 'user.role.changed',

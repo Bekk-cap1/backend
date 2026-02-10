@@ -3,6 +3,7 @@ type UniqueUser = {
   password: string;
   email: string;
   username: string;
+  fullName: string;
 };
 
 let counter = 0;
@@ -26,5 +27,6 @@ export const makeUniqueUser = (prefix = 'user'): UniqueUser => {
     password: 'Password123!',
     email: `${handle}@example.test`,
     username: `${prefix}_${suffix}`,
+    fullName: `${prefix} user ${suffix}`,
   };
 };

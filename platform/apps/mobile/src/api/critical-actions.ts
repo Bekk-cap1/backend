@@ -15,6 +15,13 @@ export async function createRequestWithQueue(params: {
   price: number;
   currency: string;
   message?: string;
+  seatNumbers?: string[];
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  pickupLat?: number;
+  pickupLon?: number;
+  dropoffLat?: number;
+  dropoffLon?: number;
 }) {
   try {
     return {
@@ -24,6 +31,13 @@ export async function createRequestWithQueue(params: {
         price: params.price,
         currency: params.currency,
         message: params.message,
+        seatNumbers: params.seatNumbers,
+        pickupAddress: params.pickupAddress,
+        dropoffAddress: params.dropoffAddress,
+        pickupLat: params.pickupLat,
+        pickupLon: params.pickupLon,
+        dropoffLat: params.dropoffLat,
+        dropoffLon: params.dropoffLon,
       }),
     };
   } catch (error) {

@@ -1,6 +1,8 @@
 import {
   IsDateString,
   IsInt,
+  IsLatitude,
+  IsLongitude,
   IsOptional,
   IsString,
   IsUUID,
@@ -16,6 +18,22 @@ export class UpdateTripDto {
   @IsOptional()
   @IsUUID()
   toCityId?: string;
+
+  @IsOptional()
+  @IsLatitude()
+  fromLat?: number;
+
+  @IsOptional()
+  @IsLongitude()
+  fromLon?: number;
+
+  @IsOptional()
+  @IsLatitude()
+  toLat?: number;
+
+  @IsOptional()
+  @IsLongitude()
+  toLon?: number;
 
   @IsOptional()
   @IsUUID()

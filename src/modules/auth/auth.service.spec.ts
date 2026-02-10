@@ -23,6 +23,8 @@ describe('AuthService', () => {
   const userFindUniqueMock = jest.fn<Promise<UserRecord | null>, [unknown]>();
   const userCreateMock = jest.fn<Promise<UserCreateResult>, [unknown]>();
   const userUpdateManyMock = jest.fn<Promise<{ count: number }>, [unknown]>();
+  const userProfileUpsertMock = jest.fn<Promise<unknown>, [unknown]>();
+  const prismaTransactionMock = jest.fn();
 
   const otpCreateMock = jest.fn<Promise<unknown>, [unknown]>();
   const otpFindFirstMock = jest.fn<Promise<unknown>, [unknown]>();
@@ -43,6 +45,9 @@ describe('AuthService', () => {
       create: userCreateMock,
       updateMany: userUpdateManyMock,
     },
+    userProfile: {
+      upsert: userProfileUpsertMock,
+    },
     otpCode: {
       create: otpCreateMock,
       findFirst: otpFindFirstMock,
@@ -52,6 +57,7 @@ describe('AuthService', () => {
       findMany: userSessionFindManyMock,
       updateMany: userSessionUpdateManyMock,
     },
+    $transaction: prismaTransactionMock,
   } as unknown as PrismaService;
 
   const strategies = {
@@ -74,6 +80,13 @@ describe('AuthService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NODE_ENV = 'test';
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({
+          user: { create: userCreateMock },
+          userProfile: { upsert: userProfileUpsertMock },
+        }),
+    );
     service = new AuthService(prisma, strategies as never, redis);
   });
 
@@ -89,7 +102,13 @@ describe('AuthService', () => {
     });
 
     await expect(
-      service.register('+998900000000', 'Password123!'),
+      service.register({
+        phone: '+998900000000',
+        password: 'Password123!',
+        fullName: 'Test User',
+        language: 'ru',
+        acceptTerms: true,
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -102,7 +121,13 @@ describe('AuthService', () => {
       role: Role.passenger,
     });
 
-    const result = await service.register('+998900000000', 'Password123!');
+    const result = await service.register({
+      phone: '+998900000000',
+      password: 'Password123!',
+      fullName: 'Test User',
+      language: 'ru',
+      acceptTerms: true,
+    });
     const createArgs = userCreateMock.mock.calls[0]?.[0];
 
     if (!isRecord(createArgs) || !isRecord(createArgs.data)) {
@@ -122,8 +147,26 @@ describe('AuthService', () => {
       role: Role.passenger,
     });
 
-    await service.register('+998900000123', 'Password123!');
+    await service.register({
+      phone: '+998900000123',
+      password: 'Password123!',
+      fullName: 'Test User',
+      language: 'ru',
+      acceptTerms: true,
+    });
     expect(bcryptMock.hash).toHaveBeenCalledWith('Password123!', 10);
+  });
+
+  it('requires terms acceptance on register', async () => {
+    await expect(
+      service.register({
+        phone: '+998900000555',
+        password: 'Password123!',
+        fullName: 'Test User',
+        language: 'ru',
+        acceptTerms: false,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects invalid credentials on missing user', async () => {

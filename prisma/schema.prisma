@@ -14,6 +14,10 @@ enum Role {
   driver
   admin
   moderator
+  finance
+  support
+  ops
+  superadmin
 }
 
 enum DriverStatus {
@@ -169,6 +173,9 @@ model UserProfile {
   fullName  String?
   avatarUrl String?
   language  String? @default("ru")
+  cityId    String?
+  acceptTermsAt DateTime?
+  referralCode  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -233,6 +240,8 @@ model City {
   countryCode String  @default("UZ")
   region      String?
   timezone    String? // "Asia/Tashkent"
+  isActive    Boolean @default(true)
+  territoryRadiusKm Float @default(80)
 
   // координаты города (центр)
   location Unsupported("geography(Point,4326)")?
@@ -246,6 +255,7 @@ model City {
   @@unique([name, countryCode], name: "name_countryCode")
   @@index([name])
   @@index([countryCode])
+  @@index([isActive, name])
 }
 
 model Trip {
@@ -315,6 +325,13 @@ model TripRequest {
   currency String @default("UZS")
 
   message String?
+  seatNumbers String[] @default([])
+  pickupAddress String?
+  dropoffAddress String?
+  pickupPlaceId String?
+  dropoffPlaceId String?
+  pickupPoint Unsupported("geography(Point,4326)")?
+  dropoffPoint Unsupported("geography(Point,4326)")?
 
   status          RequestStatus @default(pending)
   respondedAt     DateTime?
@@ -366,6 +383,7 @@ model Booking {
   passenger   User   @relation("UserBookingsAsPassenger", fields: [passengerId], references: [id], onDelete: Cascade)
 
   seats    Int
+  seatNumbers String[] @default([])
   price    Int
   currency String @default("UZS")
 

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { tripsApi } from '@platform/api-client';
+import { adminApi } from '@platform/api-client';
 import { apiClient } from '../../../lib/api';
 import { unwrapData } from '../../../lib/unwrap';
 import { PageHeader } from '../../../components/shared/page-header';
@@ -23,7 +23,7 @@ export default function TripsPage() {
   const tripsQuery = useQuery({
     queryKey: ['admin-trips'],
     queryFn: async () => {
-      const response: unknown = await tripsApi(apiClient).list({ pageSize: 100 });
+      const response: unknown = await adminApi(apiClient).listTrips({ limit: 100 });
       const data = unwrapData<{ items?: Record<string, unknown>[] }>(response);
       return data.items ?? [];
     },

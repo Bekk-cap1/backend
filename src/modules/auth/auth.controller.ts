@@ -48,7 +48,15 @@ export class AuthController {
   @Public()
   @Post('register')
   async register(@Body() dto: RegisterDto) {
-    const user = await this.auth.register(dto.phone, dto.password);
+    const user = await this.auth.register({
+      phone: dto.phone,
+      password: dto.password,
+      fullName: dto.fullName,
+      language: dto.language,
+      cityId: dto.cityId,
+      referralCode: dto.referralCode,
+      acceptTerms: dto.acceptTerms,
+    });
     return { ok: true, data: { user } };
   }
 
@@ -110,7 +118,11 @@ export class AuthController {
     }
 
     await this.loginAttempts.onSuccess(lockContext);
-    if (user.role !== Role.admin && user.role !== Role.moderator) {
+    if (
+      user.role !== Role.admin &&
+      user.role !== Role.moderator &&
+      user.role !== Role.superadmin
+    ) {
       throw new ForbiddenException('Admin role required');
     }
 
@@ -119,6 +131,7 @@ export class AuthController {
     setWebAuthCookies(res, {
       refreshToken: tokens.refreshToken,
       csrfToken,
+      userRole: user.role,
     });
 
     return {
@@ -147,6 +160,7 @@ export class AuthController {
     setWebAuthCookies(res, {
       refreshToken: rotated.refreshToken,
       csrfToken,
+      userRole: rotated.user.role,
     });
 
     return {

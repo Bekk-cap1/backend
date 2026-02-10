@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = Number(process.env.ADMIN_E2E_PORT ?? 3001);
+const port = Number(process.env.ADMIN_E2E_PORT ?? 3011);
 
 export default defineConfig({
   testDir: './tests',
@@ -17,10 +17,10 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: `pnpm dev`,
+    command: `pnpm exec next dev -p ${port}`,
     url: `http://127.0.0.1:${port}`,
     timeout: 120_000,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
   },
   projects: [
     {

@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next build",
-    "start": "next start -p 3001",
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
     "lint": "tsc -p tsconfig.lint.json --noEmit",
     "lint:next": "next lint",
     "test": "node -e \"console.log('admin-web: add UI tests later')\"",

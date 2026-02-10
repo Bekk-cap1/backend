@@ -29,10 +29,8 @@ export const initialAuthState: AuthState = {
   refreshToken: null,
 };
 
-const blockedRoles = new Set<UserRole>(['admin', 'moderator', 'finance', 'support', 'ops', 'superadmin']);
-
 export function resolveStatusByRole(role: UserRole): AuthStatus {
-  return blockedRoles.has(role) ? 'blocked' : 'authenticated';
+  return role === 'passenger' || role === 'driver' ? 'authenticated' : 'blocked';
 }
 
 export function authReducer(state: AuthState, action: AuthAction): AuthState {

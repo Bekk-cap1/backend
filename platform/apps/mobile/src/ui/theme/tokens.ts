@@ -8,6 +8,7 @@ export type ThemePalette = {
   muted: string;
   primary: string;
   accent: string;
+  accent2: string;
   success: string;
   warning: string;
   danger: string;
@@ -49,6 +50,7 @@ export const darkTheme: ThemeTokens = {
     muted: '#93A4C7',
     primary: '#4F7CFF',
     accent: '#00D1FF',
+    accent2: '#FB7185',
     success: '#20C997',
     warning: '#FFB020',
     danger: '#FF4D4F',
@@ -67,6 +69,7 @@ export const lightTheme: ThemeTokens = {
     muted: '#667085',
     primary: '#4F7CFF',
     accent: '#00D1FF',
+    accent2: '#FB7185',
     success: '#20C997',
     warning: '#FFB020',
     danger: '#FF4D4F',

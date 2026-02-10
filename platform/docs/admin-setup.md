@@ -15,7 +15,7 @@ pnpm openapi:sync
 pnpm dev:admin
 ```
 
-App URL: `http://localhost:3001`
+App URL: `http://localhost:3100`
 
 ## Required env
 

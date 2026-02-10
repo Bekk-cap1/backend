@@ -40,9 +40,26 @@ export class RequestContextMiddleware implements NestMiddleware {
     const actorId = req.user?.sub ?? req.user?.id;
     const actorRole =
       typeof req.user?.role === 'string' ? req.user.role : undefined;
+    const impersonated =
+      typeof req.user?.impersonated === 'boolean'
+        ? req.user.impersonated
+        : false;
+    const impersonatedBy =
+      typeof req.user?.impersonatedBy === 'string'
+        ? req.user.impersonatedBy
+        : undefined;
 
-    requestContext.run({ requestId, ip, userAgent, actorId, actorRole }, () =>
-      next(),
+    requestContext.run(
+      {
+        requestId,
+        ip,
+        userAgent,
+        actorId,
+        actorRole,
+        impersonated,
+        impersonatedBy,
+      },
+      () => next(),
     );
   }
 }
