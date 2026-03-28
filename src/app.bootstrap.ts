@@ -171,8 +171,8 @@ export function bootstrapApp(
 
   const rateLimitEnabled = options.rateLimit?.enabled ?? true;
   const disableLocalRateLimit =
-    String(process.env.RATE_LIMIT_DISABLE_LOCAL ?? (!isProduction ? 'true' : 'false')) ===
-    'true';
+    !isProduction ||
+    String(process.env.RATE_LIMIT_DISABLE_LOCAL ?? 'false') === 'true';
   if (rateLimitEnabled && !disableLocalRateLimit) {
     const windowMs =
       options.rateLimit?.windowMs ??

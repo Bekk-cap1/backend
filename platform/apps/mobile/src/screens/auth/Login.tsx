@@ -28,7 +28,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
     setLoading(true);
     try {
       await login(normalizedPhone, password);
-      show({ title: 'Signed in', tone: 'success' });
+      show({ title: 'Вход выполнен', tone: 'success' });
     } catch (error) {
       show({ title: toErrorMessage(error), tone: 'danger' });
     } finally {
@@ -39,9 +39,9 @@ export function LoginScreen({ navigation }: { navigation: any }) {
   return (
     <Screen>
       <Card>
-        <Text style={{ fontSize: 24, fontWeight: '700' }}>Sign in</Text>
+        <Text style={{ fontSize: 24, fontWeight: '700' }}>Вход</Text>
         <Input
-          label="Phone"
+          label="Телефон"
           value={phone}
           onChangeText={(value) => {
             setPhone(sanitizePhoneInput(value));
@@ -52,10 +52,16 @@ export function LoginScreen({ navigation }: { navigation: any }) {
           keyboardType="phone-pad"
           autoComplete="tel"
         />
-        <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" />
-        <Button title="Sign in" loading={loading} onPress={onSubmit} />
-        <Button title="Forgot password?" variant="ghost" onPress={() => navigation.navigate('ResetPassword')} />
-        <Button title="Create account" variant="secondary" onPress={() => navigation.navigate('Register')} />
+        <Input
+          label="Пароль"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="Пароль"
+        />
+        <Button title="Войти" loading={loading} onPress={onSubmit} />
+        <Button title="Забыли пароль" variant="ghost" onPress={() => navigation.navigate('ResetPassword')} />
+        <Button title="Создать аккаунт" variant="secondary" onPress={() => navigation.navigate('Register')} />
       </Card>
     </Screen>
   );

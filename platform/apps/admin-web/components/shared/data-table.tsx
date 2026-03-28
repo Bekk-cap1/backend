@@ -2,6 +2,7 @@
 
 import {
   type ColumnDef,
+  type PaginationState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -10,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { EmptyState, ErrorState, Skeleton } from '../ui/states';
@@ -18,6 +19,7 @@ import { EmptyState, ErrorState, Skeleton } from '../ui/states';
 type DataTableProps<TData extends object> = {
   columns: Array<ColumnDef<TData>>;
   data: TData[];
+  tableKey?: string;
   title?: string;
   searchPlaceholder?: string;
   loading?: boolean;
@@ -28,6 +30,7 @@ type DataTableProps<TData extends object> = {
 export function DataTable<TData extends object>({
   columns,
   data,
+  tableKey,
   searchPlaceholder = 'Search...',
   loading,
   error,
@@ -35,28 +38,69 @@ export function DataTable<TData extends object>({
 }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = useState('');
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  useEffect(() => {
+    if (!tableKey || typeof window === 'undefined') return;
+    const raw = window.sessionStorage.getItem(`datatable:${tableKey}`);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as PaginationState;
+      if (
+        Number.isInteger(parsed.pageIndex) &&
+        Number.isInteger(parsed.pageSize) &&
+        parsed.pageSize > 0
+      ) {
+        setPagination(parsed);
+      }
+    } catch {
+      // no-op: ignore corrupted persisted state.
+    }
+  }, [tableKey]);
+
+  useEffect(() => {
+    if (!tableKey || typeof window === 'undefined') return;
+    window.sessionStorage.setItem(
+      `datatable:${tableKey}`,
+      JSON.stringify(pagination),
+    );
+  }, [pagination, tableKey]);
 
   const table = useReactTable({
     data,
     columns,
+    getRowId: (originalRow, index) => {
+      const candidate =
+        typeof originalRow === 'object' &&
+        originalRow !== null &&
+        'id' in originalRow
+          ? (originalRow as { id?: unknown }).id
+          : undefined;
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate;
+      }
+      if (typeof candidate === 'number') {
+        return String(candidate);
+      }
+      return String(index);
+    },
     state: {
       sorting,
       globalFilter,
+      pagination,
     },
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     // Keep current page after row updates (e.g. status mutations on page 2).
     autoResetPageIndex: false,
-    initialState: {
-      pagination: {
-        pageIndex: 0,
-        pageSize: 10,
-      },
-    },
   });
 
   if (loading) {

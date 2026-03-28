@@ -1,12 +1,22 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toErrorMessage } from '../../core/errors';
 
-export function useQuery<T>(queryFn: () => Promise<T>, deps: unknown[] = []) {
+type UseQueryOptions = {
+  enabled?: boolean;
+};
+
+export function useQuery<T>(queryFn: () => Promise<T>, deps: unknown[] = [], options?: UseQueryOptions) {
+  const enabled = options?.enabled ?? true;
   const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -17,11 +27,17 @@ export function useQuery<T>(queryFn: () => Promise<T>, deps: unknown[] = []) {
     } finally {
       setLoading(false);
     }
-  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     reload().catch(() => undefined);
-  }, [reload]);
+  }, [enabled, reload]);
 
   return { data, loading, error, reload };
 }

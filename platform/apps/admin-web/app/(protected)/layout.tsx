@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useIsFetching } from '@tanstack/react-query';
 import { ThemeToggle } from '../../components/shared/theme-toggle';
 import { Topbar } from '../../components/shared/topbar';
 import { cn } from '../../lib/cn';
@@ -63,6 +64,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const [role, setRole] = useState('');
   const [impersonatingUserId, setImpersonatingUserId] = useState('');
+  const [isRouteLoading, setIsRouteLoading] = useState(false);
+  const [pendingHref, setPendingHref] = useState('');
+  const isFetching = useIsFetching();
 
   useEffect(() => {
     const roleCookie = document.cookie
@@ -76,6 +80,44 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     setImpersonatingUserId(imp);
   }, []);
 
+  useEffect(() => {
+    if (!pendingHref) return;
+    const targetReached =
+      pathname === pendingHref || pathname.startsWith(`${pendingHref}/`);
+    if (!targetReached) return;
+    if (isFetching > 0) return;
+
+    const doneDelay = window.setTimeout(() => {
+      setIsRouteLoading(false);
+      setPendingHref('');
+    }, 120);
+    return () => window.clearTimeout(doneDelay);
+  }, [isFetching, pathname, pendingHref]);
+
+  useEffect(() => {
+    if (!isRouteLoading) return;
+    const timeout = window.setTimeout(() => {
+      setIsRouteLoading(false);
+      setPendingHref('');
+    }, 10000);
+    return () => window.clearTimeout(timeout);
+  }, [isRouteLoading]);
+
+  const startRouteLoading = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    const isCurrent = pathname === href || pathname.startsWith(`${href}/`);
+    if (isCurrent) return;
+    if (isRouteLoading) return;
+    if (event.defaultPrevented) return;
+    if (event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (event.currentTarget.target && event.currentTarget.target !== '_self') return;
+    if (!href.startsWith('/')) return;
+    event.preventDefault();
+    setIsRouteLoading(true);
+    setPendingHref(href);
+    router.push(href);
+  };
+
   const visibleGroups = useMemo(
     () =>
       navGroups
@@ -86,6 +128,14 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         .filter((group) => group.items.length > 0),
     [role],
   );
+
+  useEffect(() => {
+    visibleGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        router.prefetch(item.href);
+      });
+    });
+  }, [router, visibleGroups]);
 
   const logout = async () => {
     try {
@@ -102,9 +152,25 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-[260px_1fr]">
-        <aside className="flex flex-col rounded-lg border border-border bg-card p-4 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:[&::-webkit-scrollbar]:w-2 lg:[&::-webkit-scrollbar-thumb]:rounded-full lg:[&::-webkit-scrollbar-thumb]:bg-border">
+    <div className="h-screen overflow-hidden bg-background">
+      {isRouteLoading ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/85 backdrop-blur-[2px]">
+          <div className="flex min-w-[240px] items-center gap-3 rounded-xl border border-border bg-card/95 px-8 py-6 shadow-lg">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            <div className="text-sm font-medium text-foreground/90">Загрузка страницы...</div>
+          </div>
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          'pointer-events-none fixed inset-x-0 top-0 z-50 h-1 bg-transparent transition-opacity duration-150',
+          isRouteLoading ? 'opacity-100' : 'opacity-0',
+        )}
+      >
+        <div className="h-full w-1/3 animate-pulse rounded-r-full bg-primary" />
+      </div>
+      <div className="mx-auto grid h-full max-w-[1400px] min-h-0 grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-[260px_1fr]">
+        <aside className="flex min-h-0 flex-col rounded-lg border border-border bg-card p-4 lg:h-full lg:[&::-webkit-scrollbar]:w-2 lg:[&::-webkit-scrollbar-thumb]:rounded-full lg:[&::-webkit-scrollbar-thumb]:bg-border">
           <div className="mb-4 text-sm font-semibold text-muted-foreground">Intercity Admin</div>
           <nav className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 lg:[&::-webkit-scrollbar]:w-2 lg:[&::-webkit-scrollbar-thumb]:rounded-full lg:[&::-webkit-scrollbar-thumb]:bg-border">
             {visibleGroups.map((group) => (
@@ -112,18 +178,22 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
                 <div className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
                   {group.title}
                 </div>
-                <div className="space-y-1 transition-all trandution-duration-150 ease-in-out">
+                <div className="space-y-1 transition-all duration-150 ease-in-out">
                   {group.items.map(({ label, href }) => {
-                    const isActive =
-                      pathname === href || pathname.startsWith(`${href}/`);
+                    const isActive = pathname === href || pathname.startsWith(`${href}/`);
+                    const isPending = pendingHref === href && !isActive;
                     return (
                       <Link
                         key={href}
                         href={href}
+                        prefetch
+                        onClick={(event) => startRouteLoading(event, href)}
                         className={cn(
-                          'block rounded-md border px-3 py-2 text-sm transition-all transition-duration-150 ease-in-out',
+                          'block rounded-md border px-3 py-2 text-sm transition-all duration-150 ease-in-out',
                           isActive
-                            ? 'border-primary border-l-4 bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/30 transition-colors transition-duration-150 ease-in-out'
+                            ? 'border-primary border-l-4 bg-primary/15 text-foreground shadow-sm ring-1 ring-primary/40'
+                            : isPending
+                              ? 'border-primary/40 border-l-4 bg-primary/10 text-foreground/90'
                             : 'border-transparent hover:border-border hover:border-l-4 hover:bg-muted/80',
                         )}
                       >
@@ -147,7 +217,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         </aside>
-        <main className="rounded-lg border bg-card p-6">
+        <main className="min-h-0 overflow-y-auto rounded-lg border bg-card p-6">
           <Topbar />
           {children}
         </main>

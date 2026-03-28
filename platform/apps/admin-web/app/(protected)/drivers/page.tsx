@@ -10,6 +10,7 @@ import { apiClient } from '../../../lib/api';
 import { PageHeader } from '../../../components/shared/page-header';
 import { DataTable } from '../../../components/shared/data-table';
 import { StatusPill } from '../../../components/shared/status-pill';
+import { EntityLabel } from '../../../components/shared/entity-label';
 import { ConfirmDialog } from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
 import { appToast } from '../../../components/shared/toast';
@@ -80,7 +81,11 @@ export default function DriversPage() {
   );
 
   const columns: Array<ColumnDef<any>> = [
-    { accessorKey: 'name', header: 'Driver' },
+    {
+      accessorKey: 'name',
+      header: 'Driver',
+      cell: ({ row }) => <EntityLabel title={row.original.name} id={row.original.id} />,
+    },
     { accessorKey: 'submittedAt', header: 'SubmittedAt' },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusPill status={row.original.status} /> },
     {

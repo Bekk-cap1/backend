@@ -112,6 +112,28 @@ export class ApiClient {
   private readonly onUnauthorized?: () => Promise<void> | void;
   private readonly getCsrfToken?: () => Promise<string | null> | string | null;
   private readonly csrfHeaderName: string;
+  private preferredAdminPrefix: '/api/v1/admin/' | '/api/admin/' | null = null;
+
+  private rewriteAdminUrl(url: string): string {
+    if (!this.preferredAdminPrefix) return url;
+    if (this.preferredAdminPrefix === '/api/v1/admin/' && url.startsWith('/api/admin/')) {
+      return `/api/v1/admin/${url.slice('/api/admin/'.length)}`;
+    }
+    if (this.preferredAdminPrefix === '/api/admin/' && url.startsWith('/api/v1/admin/')) {
+      return `/api/admin/${url.slice('/api/v1/admin/'.length)}`;
+    }
+    return url;
+  }
+
+  private rememberAdminPrefix(url: string) {
+    if (url.startsWith('/api/v1/admin/')) {
+      this.preferredAdminPrefix = '/api/v1/admin/';
+      return;
+    }
+    if (url.startsWith('/api/admin/')) {
+      this.preferredAdminPrefix = '/api/admin/';
+    }
+  }
 
   constructor(config: ApiClientConfig) {
     this.tokenStore = config.tokenStore;
@@ -127,6 +149,9 @@ export class ApiClient {
     });
 
     this.http.interceptors.request.use(async (request) => {
+      if (typeof request.url === 'string') {
+        request.url = this.rewriteAdminUrl(request.url);
+      }
       const token = await this.tokenStore.getAccessToken();
       if (token && token !== 'undefined' && token !== 'null') {
         request.headers.Authorization = `Bearer ${token}`;
@@ -135,7 +160,14 @@ export class ApiClient {
     });
 
     this.http.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        const resolvedUrl =
+          typeof response.config?.url === 'string' ? response.config.url : null;
+        if (resolvedUrl && isAdminApiPath(resolvedUrl)) {
+          this.rememberAdminPrefix(resolvedUrl);
+        }
+        return response;
+      },
       async (error: AxiosError) => {
         const status = error.response?.status;
         const request = error.config as RequestConfigWithRetry;
@@ -144,10 +176,12 @@ export class ApiClient {
         const isSafeReadMethod = method === 'get' || method === 'head';
         const requestUrl =
           typeof request?.url === 'string' ? request.url : null;
-        // Do not fallback mutating requests (POST/PATCH/DELETE), otherwise
-        // the same action can be retried against another path and create
-        // duplicate writes or trigger rate limits.
-        const canFallback = requestUrl !== null && isSafeReadMethod;
+        // Admin endpoints historically existed under both /api/admin/*
+        // and /api/v1/admin/* in different deployments. If one returns 404,
+        // retry the alternate path and remember it for subsequent calls.
+        const canFallback =
+          requestUrl !== null &&
+          (isAdminApiPath(requestUrl) || isSafeReadMethod);
         if (status === 404 && requestUrl && canFallback) {
           const alreadyTried = new Set(request._fallbackTried ?? []);
           const fallbackUrl = buildFallbackUrls(requestUrl).find(
@@ -157,6 +191,9 @@ export class ApiClient {
           if (fallbackUrl) {
             request._fallbackTried = [...alreadyTried, fallbackUrl];
             request.url = fallbackUrl;
+            if (isAdminApiPath(fallbackUrl)) {
+              this.rememberAdminPrefix(fallbackUrl);
+            }
             return this.http.request(request);
           }
         }

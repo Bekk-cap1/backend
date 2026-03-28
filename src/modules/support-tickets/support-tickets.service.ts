@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { OutboxService } from '../../outbox/outbox.service';
 import { OutboxTopic } from '../../outbox/outbox.topics';
@@ -52,5 +52,15 @@ export class SupportTicketsService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async getMineById(userId: string, ticketId: string) {
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+    });
+    if (!ticket || ticket.userId !== userId) {
+      throw new NotFoundException('Ticket not found');
+    }
+    return ticket;
   }
 }

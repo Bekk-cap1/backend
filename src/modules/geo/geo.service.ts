@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -26,6 +27,24 @@ type LastLocation = {
   capturedAt: string;
 };
 
+type NominatimSearchRow = {
+  place_id: number | string;
+  lat: string;
+  lon: string;
+  display_name: string;
+  name?: string;
+  address?: Record<string, string | undefined>;
+};
+
+type NominatimReverseRow = {
+  place_id: number | string;
+  lat: string;
+  lon: string;
+  display_name: string;
+  name?: string;
+  address?: Record<string, string | undefined>;
+};
+
 @Injectable()
 export class GeoService {
   private readonly logger = new Logger(GeoService.name);
@@ -38,6 +57,121 @@ export class GeoService {
     private readonly radar: RadarAlertService,
     private readonly metrics: MetricsService,
   ) {}
+
+  async autocompletePlaces(params: {
+    q: string;
+    limit?: number;
+    lat?: number;
+    lon?: number;
+  }) {
+    const query = params.q.trim();
+    if (query.length < 2) return { items: [] };
+
+    const limit = Math.min(Math.max(params.limit ?? 6, 1), 10);
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('q', query);
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('limit', String(limit));
+
+    if (
+      Number.isFinite(params.lat) &&
+      Number.isFinite(params.lon)
+    ) {
+      // Bias search around current viewport center.
+      const lon = Number(params.lon);
+      const lat = Number(params.lat);
+      url.searchParams.set('viewbox', `${lon - 1},${lat + 1},${lon + 1},${lat - 1}`);
+      url.searchParams.set('bounded', '0');
+    }
+
+    let rows: NominatimSearchRow[] = [];
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'IntercityBackend/1.0 (support@intercity.local)',
+          'Accept-Language': 'ru,en',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Provider error: ${response.status}`);
+      }
+      rows = (await response.json()) as NominatimSearchRow[];
+    } catch {
+      throw new BadRequestException('Address autocomplete provider unavailable');
+    }
+
+    return {
+      items: rows
+        .map((row) => {
+          const lat = Number(row.lat);
+          const lon = Number(row.lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+          const subtitle =
+            row.address?.city ??
+            row.address?.town ??
+            row.address?.village ??
+            row.address?.state ??
+            row.address?.country ??
+            '';
+          return {
+            id: String(row.place_id),
+            title: row.name || row.display_name.split(',')[0]?.trim() || row.display_name,
+            subtitle: subtitle || undefined,
+            displayName: row.display_name,
+            lat,
+            lon,
+          };
+        })
+        .filter((value): value is NonNullable<typeof value> => value !== null),
+    };
+  }
+
+  async reverseGeocode(params: { lat: number; lon: number }) {
+    if (!Number.isFinite(params.lat) || !Number.isFinite(params.lon)) {
+      throw new BadRequestException('lat/lon must be valid numbers');
+    }
+
+    const url = new URL('https://nominatim.openstreetmap.org/reverse');
+    url.searchParams.set('lat', String(params.lat));
+    url.searchParams.set('lon', String(params.lon));
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('addressdetails', '1');
+
+    let row: NominatimReverseRow;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'IntercityBackend/1.0 (support@intercity.local)',
+          'Accept-Language': 'ru,en',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Provider error: ${response.status}`);
+      }
+      row = (await response.json()) as NominatimReverseRow;
+    } catch {
+      throw new BadRequestException('Address reverse geocode unavailable');
+    }
+
+    const lat = Number(row.lat);
+    const lon = Number(row.lon);
+
+    return {
+      id: String(row.place_id),
+      title: row.name || row.display_name.split(',')[0]?.trim() || row.display_name,
+      subtitle:
+        row.address?.city ??
+        row.address?.town ??
+        row.address?.village ??
+        row.address?.state ??
+        row.address?.country ??
+        undefined,
+      displayName: row.display_name,
+      lat: Number.isFinite(lat) ? lat : params.lat,
+      lon: Number.isFinite(lon) ? lon : params.lon,
+    };
+  }
 
   async updateDriverLocationByDriver(
     driverId: string,

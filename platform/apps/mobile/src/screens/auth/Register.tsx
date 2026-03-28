@@ -34,12 +34,12 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
     }
 
     if (!fullName.trim() || fullName.trim().length < 2) {
-      show({ title: 'Full name is required (min 2 chars).', tone: 'danger' });
+      show({ title: 'Введите имя (минимум 2 символа).', tone: 'danger' });
       return;
     }
 
     if (!acceptTerms) {
-      show({ title: 'Please accept Terms and Privacy policy.', tone: 'danger' });
+      show({ title: 'Подтвердите согласие с условиями.', tone: 'danger' });
       return;
     }
 
@@ -55,11 +55,11 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
 
       if (mode === 'driver') {
         show({
-          title: 'Account created. Complete driver KYC in profile to unlock driver mode.',
+          title: 'Аккаунт создан. Завершите KYC в профиле, чтобы открыть режим водителя.',
           tone: 'info',
         });
       } else {
-        show({ title: 'Account created', tone: 'success' });
+        show({ title: 'Аккаунт создан', tone: 'success' });
       }
     } catch (error) {
       show({ title: toErrorMessage(error), tone: 'danger' });
@@ -71,28 +71,23 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
   return (
     <Screen>
       <Card>
-        <Text style={{ fontSize: 24, fontWeight: '700' }}>Create account</Text>
+        <Text style={{ fontSize: 24, fontWeight: '700' }}>Регистрация</Text>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Button
-            title="Passenger"
+            title="Пассажир"
             variant={mode === 'passenger' ? 'primary' : 'secondary'}
             onPress={() => setMode('passenger')}
           />
           <Button
-            title="Driver"
+            title="Водитель"
             variant={mode === 'driver' ? 'primary' : 'secondary'}
             onPress={() => setMode('driver')}
           />
         </View>
 
+        <Input label="Полное имя" value={fullName} onChangeText={setFullName} placeholder="Ваше имя" />
         <Input
-          label="Full name"
-          value={fullName}
-          onChangeText={setFullName}
-          placeholder="John Doe"
-        />
-        <Input
-          label="Phone"
+          label="Телефон"
           value={phone}
           onChangeText={(value) => {
             setPhone(sanitizePhoneInput(value));
@@ -104,15 +99,15 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
           autoComplete="tel"
         />
         <Input
-          label="Password"
+          label="Пароль"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          placeholder="Minimum 6 chars"
+          placeholder="Минимум 6 символов"
         />
 
         <View style={{ gap: 8 }}>
-          <Text style={{ fontWeight: '600' }}>Language</Text>
+          <Text style={{ fontWeight: '600' }}>Язык</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {(['ru', 'uz', 'en'] as const).map((item) => (
               <Button
@@ -133,16 +128,12 @@ export function RegisterScreen({ navigation }: { navigation: any }) {
             marginTop: 4,
           }}
         >
-          <Text>I accept Terms and Privacy policy</Text>
+          <Text>Согласен с Terms и Privacy policy</Text>
           <Switch value={acceptTerms} onValueChange={setAcceptTerms} />
         </View>
 
-        <Button title="Create account" loading={loading} onPress={onSubmit} />
-        <Button
-          title="Already have account"
-          variant="ghost"
-          onPress={() => navigation.navigate('Login')}
-        />
+        <Button title="Создать аккаунт" loading={loading} onPress={onSubmit} />
+        <Button title="Уже есть аккаунт" variant="ghost" onPress={() => navigation.navigate('Login')} />
       </Card>
     </Screen>
   );

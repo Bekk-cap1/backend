@@ -90,6 +90,58 @@ export class RequestsService {
     return unique;
   }
 
+  private async assertSeatNumbersAvailable(
+    tx: Tx,
+    tripId: string,
+    seatNumbers: string[],
+    options?: { excludeRequestId?: string },
+  ) {
+    if (!seatNumbers.length) {
+      return;
+    }
+
+    const [requests, bookings] = await Promise.all([
+      tx.tripRequest.findMany({
+        where: {
+          tripId,
+          status: { in: [RequestStatus.pending, RequestStatus.accepted] },
+          ...(options?.excludeRequestId
+            ? { id: { not: options.excludeRequestId } }
+            : {}),
+        },
+        select: { seatNumbers: true },
+      }),
+      tx.booking.findMany({
+        where: {
+          tripId,
+          status: {
+            in: [BookingStatus.confirmed, BookingStatus.paid, BookingStatus.completed],
+          },
+        },
+        select: { seatNumbers: true },
+      }),
+    ]);
+
+    const occupiedSeats = new Set<string>();
+    for (const request of requests) {
+      for (const seat of request.seatNumbers) {
+        if (seat) occupiedSeats.add(seat.trim().toUpperCase());
+      }
+    }
+    for (const booking of bookings) {
+      for (const seat of booking.seatNumbers) {
+        if (seat) occupiedSeats.add(seat.trim().toUpperCase());
+      }
+    }
+
+    const conflicts = seatNumbers.filter((seat) => occupiedSeats.has(seat));
+    if (conflicts.length > 0) {
+      throw new BadRequestException(
+        `Selected seats are unavailable: ${conflicts.join(', ')}`,
+      );
+    }
+  }
+
   private async getCityTerritory(tx: Tx, cityId: string) {
     const rows = await tx.$queryRaw<CityTerritoryRow[]>`
       SELECT
@@ -396,6 +448,12 @@ export class RequestsService {
             );
           }
 
+          await this.assertSeatNumbersAvailable(
+            tx,
+            tripId,
+            normalizedSeatNumbers,
+          );
+
           const limits = this.getNegotiationLimits();
 
           const req = await tx.tripRequest.create({
@@ -553,6 +611,10 @@ export class RequestsService {
         seatNumbers,
         updatedReq.seats,
       );
+
+      await this.assertSeatNumbersAvailable(tx, tripId, normalizedSeatNumbers, {
+        excludeRequestId: updatedReq.id,
+      });
 
       const booking = await tx.booking.create({
         data: {

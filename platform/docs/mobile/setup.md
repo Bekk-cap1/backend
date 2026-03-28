@@ -92,6 +92,11 @@ eas build --platform ios --profile production
 4. Trigger offline mode and verify queued actions flush after reconnect.
 5. Verify admin role is blocked with `Use Admin Web` screen.
 
+## Additional Docs
+
+- UX journeys and screen responsibilities: `platform/docs/mobile/ux.md`
+- Development build workflow (EAS dev-client): `platform/docs/mobile/dev-build.md`
+
 ## Troubleshooting
 
 - `Cannot connect to server (10.0.2.2:3000)` on real phone:

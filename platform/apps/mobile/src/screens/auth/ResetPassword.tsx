@@ -4,14 +4,15 @@ import { Screen } from '../../ui/components/Screen';
 import { Card } from '../../ui/components/Card';
 import { Input } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
-import { useAuth } from '../../stores/auth/auth.context';
 import { useToast } from '../../ui/components/Toast';
+import { useAuth } from '../../stores/auth/auth.context';
 import { toErrorMessage } from '../../core/errors';
 import { getPhoneValidationError, normalizePhone, sanitizePhoneInput } from '../../core/validation/phone';
 
 export function ResetPasswordScreen() {
   const { requestPasswordReset, confirmPasswordReset } = useAuth();
   const { show } = useToast();
+
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -20,9 +21,9 @@ export function ResetPasswordScreen() {
   return (
     <Screen>
       <Card>
-        <Text style={{ fontSize: 24, fontWeight: '700' }}>Reset password</Text>
+        <Text style={{ fontSize: 24, fontWeight: '700' }}>Сброс пароля</Text>
         <Input
-          label="Phone"
+          label="Телефон"
           value={phone}
           onChangeText={(value) => {
             setPhone(sanitizePhoneInput(value));
@@ -31,12 +32,12 @@ export function ResetPasswordScreen() {
           error={phoneError}
           placeholder="+998901234567"
           keyboardType="phone-pad"
-          autoComplete="tel"
         />
-        <Input label="Code" value={code} onChangeText={setCode} placeholder="123456" />
-        <Input label="New password" value={password} onChangeText={setPassword} secureTextEntry />
+        <Input label="Код" value={code} onChangeText={setCode} placeholder="123456" />
+        <Input label="Новый пароль" value={password} onChangeText={setPassword} secureTextEntry />
+
         <Button
-          title="Request reset"
+          title="Запросить код"
           onPress={async () => {
             const normalizedPhone = normalizePhone(phone);
             const validationError = getPhoneValidationError(normalizedPhone);
@@ -47,14 +48,15 @@ export function ResetPasswordScreen() {
 
             try {
               await requestPasswordReset(normalizedPhone);
-              show({ title: 'Reset code sent', tone: 'success' });
+              show({ title: 'Код отправлен', tone: 'success' });
             } catch (error) {
               show({ title: toErrorMessage(error), tone: 'danger' });
             }
           }}
         />
+
         <Button
-          title="Confirm reset"
+          title="Обновить пароль"
           variant="secondary"
           onPress={async () => {
             const normalizedPhone = normalizePhone(phone);
@@ -66,7 +68,7 @@ export function ResetPasswordScreen() {
 
             try {
               await confirmPasswordReset(normalizedPhone, code.trim(), password);
-              show({ title: 'Password updated', tone: 'success' });
+              show({ title: 'Пароль обновлен', tone: 'success' });
             } catch (error) {
               show({ title: toErrorMessage(error), tone: 'danger' });
             }

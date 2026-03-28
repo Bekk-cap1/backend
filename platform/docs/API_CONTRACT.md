@@ -50,6 +50,7 @@ Generated from `../docs/openapi.json`.
 | GET | `/api/trips/search` | Trips | TripsController_searchAlias |
 | GET | `/api/trips/{id}` | Trips | TripsController_getById |
 | PATCH | `/api/trips/{id}` | Trips | TripsController_updateTrip |
+| GET | `/api/trips/{id}/seat-map` | Trips | TripsController_getSeatMap |
 | PATCH | `/api/trips/{id}/publish` | Trips | TripsController_publish |
 | POST | `/api/trips/{id}/publish` | Trips | TripsController_publishPost |
 | PATCH | `/api/trips/{id}/start` | Trips | TripsController_start |
@@ -196,6 +197,8 @@ Generated from `../docs/openapi.json`.
 | GET | `/health/ready` | Health | HealthController_ready |
 | GET | `/api/health` | Health | HealthController_health |
 | GET | `/api/ready` | Health | HealthController_readyAlias |
+| GET | `/api/geo/autocomplete` | Geo | GeoController_autocomplete |
+| GET | `/api/geo/reverse` | Geo | GeoController_reverse |
 | GET | `/api/geo/trips/{tripId}/location` | Geo | GeoController_getTripDriverLocation |
 | PATCH | `/api/geo/trips/{tripId}/location` | Geo | GeoController_updateTripDriverLocation |
 | GET | `/api/geo/trip/{tripId}/eta` | Geo | GeoController_getTripEta |
@@ -220,6 +223,7 @@ Generated from `../docs/openapi.json`.
 | POST | `/api/v1/admin/poi/reports/{id}/reject` | AdminPoi | AdminPoiController_reject[1] |
 | POST | `/api/support/tickets` | SupportTickets | SupportTicketsController_create |
 | GET | `/api/support/tickets/my` | SupportTickets | SupportTicketsController_listMine |
+| GET | `/api/support/tickets/{id}` | SupportTickets | SupportTicketsController_getMineById |
 | GET | `/api/cancellations/bookings/{bookingId}/quote` | Cancellation | CancellationController_quote |
 | POST | `/api/cancellations/bookings/{bookingId}/apply` | Cancellation | CancellationController_apply |
 | POST | `/api/storage/presign` | Storage | StorageController_presign |

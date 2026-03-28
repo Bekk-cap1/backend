@@ -10,6 +10,7 @@ import { unwrapData } from '../../../lib/unwrap';
 import { PageHeader } from '../../../components/shared/page-header';
 import { DataTable } from '../../../components/shared/data-table';
 import { StatusPill } from '../../../components/shared/status-pill';
+import { EntityLabel } from '../../../components/shared/entity-label';
 
 type BookingRow = {
   id: string;
@@ -33,8 +34,8 @@ export default function BookingsPage() {
     () =>
       (bookingsQuery.data ?? []).map((item) => ({
         id: String(item.id ?? ''),
-        tripId: String(item.tripId ?? '-'),
-        passengerId: String(item.passengerId ?? '-'),
+        tripId: String(item.tripId ?? ''),
+        passengerId: String(item.passengerId ?? ''),
         status: String(item.status ?? 'unknown'),
         seats: Number(item.seats ?? 0),
       })),
@@ -46,13 +47,42 @@ export default function BookingsPage() {
       accessorKey: 'id',
       header: 'Booking',
       cell: ({ row }) => (
-        <Link className="text-primary underline" href={`/bookings/${row.original.id}`}>
-          {row.original.id.slice(0, 8)}
+        <Link className="text-primary hover:opacity-90" href={`/bookings/${row.original.id}`}>
+          <EntityLabel
+            title={`Booking #${row.original.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`}
+            id={row.original.id}
+          />
         </Link>
       ),
     },
-    { accessorKey: 'tripId', header: 'Trip ID' },
-    { accessorKey: 'passengerId', header: 'Passenger ID' },
+    {
+      accessorKey: 'tripId',
+      header: 'Trip',
+      cell: ({ row }) => (
+        <EntityLabel
+          title={
+            row.original.tripId
+              ? `Trip #${row.original.tripId.replace(/-/g, '').slice(0, 8).toUpperCase()}`
+              : 'Trip -'
+          }
+          id={row.original.tripId || null}
+        />
+      ),
+    },
+    {
+      accessorKey: 'passengerId',
+      header: 'Passenger',
+      cell: ({ row }) => (
+        <EntityLabel
+          title={
+            row.original.passengerId
+              ? `User #${row.original.passengerId.replace(/-/g, '').slice(0, 8).toUpperCase()}`
+              : 'User -'
+          }
+          id={row.original.passengerId || null}
+        />
+      ),
+    },
     { accessorKey: 'seats', header: 'Seats' },
     {
       accessorKey: 'status',

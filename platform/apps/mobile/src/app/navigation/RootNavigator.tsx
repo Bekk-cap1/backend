@@ -1,4 +1,4 @@
-﻿import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthGate } from '../guards/AuthGate';
 import { useAuth } from '../../stores/auth/auth.context';
 import { AuthStack } from './AuthStack';
@@ -8,9 +8,11 @@ import { AdminBlockedScreen } from '../../screens/auth/AdminBlocked';
 import { SearchResultsScreen } from '../../screens/passenger/SearchResults';
 import { TripDetailsScreen } from '../../screens/passenger/TripDetails';
 import { CreateRequestScreen } from '../../screens/passenger/CreateRequest';
+import { LocationPickerScreen } from '../../screens/passenger/LocationPicker';
 import { PassengerNegotiationScreen } from '../../screens/passenger/Negotiation';
 import { BookingDetailsScreen } from '../../screens/passenger/BookingDetails';
 import { PaymentsScreen } from '../../screens/passenger/Payments';
+import { PassengerLiveTripScreen } from '../../screens/passenger/LiveTrip';
 import { DriverVerificationScreen } from '../../screens/driver/Verification';
 import { VehiclesScreen } from '../../screens/driver/Vehicles';
 import { CreateTripScreen } from '../../screens/driver/CreateTrip';
@@ -19,26 +21,14 @@ import { ActiveTripScreen } from '../../screens/driver/ActiveTrip';
 import { DriverBookingsScreen } from '../../screens/driver/DriverBookings';
 import { DriverSupportScreen } from '../../screens/driver/Support';
 import { BootstrappingScreen } from '../../screens/auth/Bootstrapping';
+import { resolveRoleAccess, resolveRootRoute } from './route-gate';
 
 const Stack = createNativeStackNavigator();
 
 export function RootNavigator() {
   const { state } = useAuth();
-  const isPassenger =
-    state.status === 'authenticated' && state.user?.role === 'passenger';
-  const isDriver =
-    state.status === 'authenticated' && state.user?.role === 'driver';
-  const isBlocked =
-    state.status === 'blocked' ||
-    (state.status === 'authenticated' && !isPassenger && !isDriver);
-
-  const rootRoute = (() => {
-    if (state.status === 'anonymous') return 'AuthStack' as const;
-    if (isBlocked) return 'AdminBlocked' as const;
-    if (isPassenger) return 'PassengerTabs' as const;
-    if (isDriver) return 'DriverTabs' as const;
-    return 'Bootstrapping' as const;
-  })();
+  const { isPassenger, isDriver, isBlocked } = resolveRoleAccess(state);
+  const rootRoute = resolveRootRoute(state);
 
   return (
     <AuthGate>
@@ -49,13 +39,9 @@ export function RootNavigator() {
       >
         <Stack.Screen name="Bootstrapping" component={BootstrappingScreen} />
 
-        {state.status === 'anonymous' ? (
-          <Stack.Screen name="AuthStack" component={AuthStack} />
-        ) : null}
+        {state.status === 'anonymous' ? <Stack.Screen name="AuthStack" component={AuthStack} /> : null}
 
-        {isBlocked ? (
-          <Stack.Screen name="AdminBlocked" component={AdminBlockedScreen} />
-        ) : null}
+        {isBlocked ? <Stack.Screen name="AdminBlocked" component={AdminBlockedScreen} /> : null}
 
         {isPassenger ? (
           <>
@@ -63,9 +49,11 @@ export function RootNavigator() {
             <Stack.Screen name="SearchResults" component={SearchResultsScreen} />
             <Stack.Screen name="TripDetails" component={TripDetailsScreen} />
             <Stack.Screen name="CreateRequest" component={CreateRequestScreen} />
+            <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
             <Stack.Screen name="PassengerNegotiation" component={PassengerNegotiationScreen} />
             <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
             <Stack.Screen name="Payments" component={PaymentsScreen} />
+            <Stack.Screen name="LiveTrip" component={PassengerLiveTripScreen} />
           </>
         ) : null}
 

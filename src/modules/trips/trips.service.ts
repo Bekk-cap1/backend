@@ -41,6 +41,8 @@ type CityTerritoryRow = {
   lon: number | null;
 };
 
+const seatColumns = ['A', 'B', 'C', 'D'] as const;
+
 @Injectable()
 export class TripsService {
   constructor(
@@ -150,6 +152,19 @@ export class TripsService {
       SET "toPoint" = ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography
       WHERE "id" = ${tripId}
     `;
+  }
+
+  private buildSeatLayout(seatsTotal: number) {
+    const normalized = Math.max(1, Math.min(16, seatsTotal));
+    const rows = Math.ceil(normalized / seatColumns.length);
+    const seats: string[] = [];
+    for (let row = 1; row <= rows; row += 1) {
+      for (const column of seatColumns) {
+        if (seats.length >= normalized) break;
+        seats.push(`${row}${column}`);
+      }
+    }
+    return seats;
   }
 
   private async assertVehicleOwnedByDriver(
@@ -620,6 +635,58 @@ export class TripsService {
     });
     if (!trip) throw new NotFoundException('Trip not found');
     return trip;
+  }
+
+  async getTripSeatMap(tripId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: {
+        id: true,
+        seatsTotal: true,
+        seatsAvailable: true,
+        requests: {
+          where: { status: { in: [RequestStatus.pending, RequestStatus.accepted] } },
+          select: { id: true, seatNumbers: true, status: true },
+        },
+        bookings: {
+          where: {
+            status: { in: [BookingStatus.confirmed, BookingStatus.paid, BookingStatus.completed] },
+          },
+          select: { id: true, seatNumbers: true, status: true },
+        },
+      },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    const heldByRequests = new Set<string>();
+    for (const request of trip.requests) {
+      for (const seat of request.seatNumbers) {
+        if (seat) heldByRequests.add(seat.trim().toUpperCase());
+      }
+    }
+
+    const takenByBookings = new Set<string>();
+    for (const booking of trip.bookings) {
+      for (const seat of booking.seatNumbers) {
+        if (seat) takenByBookings.add(seat.trim().toUpperCase());
+      }
+    }
+
+    const seatLayout = this.buildSeatLayout(trip.seatsTotal);
+    const unavailable = new Set<string>([...heldByRequests, ...takenByBookings]);
+
+    return {
+      tripId: trip.id,
+      seatsTotal: trip.seatsTotal,
+      seatsAvailable: trip.seatsAvailable,
+      seatLayout,
+      heldSeats: [...heldByRequests].sort(),
+      takenSeats: [...takenByBookings].sort(),
+      unavailableSeats: [...unavailable].sort(),
+    };
   }
 
   async updateTrip(driverId: string, tripId: string, dto: UpdateTripDto) {

@@ -1,5 +1,6 @@
-﻿import {
+import {
   ApiClient,
+  accountsApi,
   authApi,
   bookingsApi,
   cancellationsApi,
@@ -35,6 +36,7 @@ export const apiClient = new ApiClient({
 });
 
 export const api = {
+  accounts: accountsApi(apiClient),
   auth: authApi(apiClient),
   bookings: bookingsApi(apiClient),
   cancellations: cancellationsApi(apiClient),
@@ -52,3 +54,4 @@ export const api = {
   trips: tripsApi(apiClient),
   vehicles: vehiclesApi(apiClient),
 };
+

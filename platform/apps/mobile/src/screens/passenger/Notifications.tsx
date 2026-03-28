@@ -3,6 +3,8 @@ import { Screen } from '../../ui/components/Screen';
 import { Topbar } from '../../ui/components/Topbar';
 import { Card } from '../../ui/components/Card';
 import { Button } from '../../ui/components/Button';
+import { EmptyState } from '../../ui/components/EmptyState';
+import { Skeleton } from '../../ui/components/Skeleton';
 import { useQuery } from '../../api/hooks/useQuery';
 import { api } from '../../api/client';
 import { unwrapItems } from '../../api/mappers/dto';
@@ -12,19 +14,43 @@ export function PassengerNotificationsScreen() {
 
   return (
     <Screen>
-      <Topbar title="Alerts" />
+      <Topbar title="Уведомления" />
+
+      {query.loading ? (
+        <Card>
+          <Skeleton height={18} />
+          <Skeleton height={14} />
+          <Skeleton height={14} />
+        </Card>
+      ) : null}
+
+      {query.error ? (
+        <Card>
+          <EmptyState
+            title="Не удалось загрузить уведомления"
+            description={query.error}
+            actionLabel="Повторить"
+            onAction={() => query.reload()}
+          />
+        </Card>
+      ) : null}
+
       {(query.data ?? []).map((item) => (
         <Card key={String(item.id)}>
-          <Text style={{ fontWeight: '700' }}>{item.title ?? 'Notification'}</Text>
+          <Text style={{ fontWeight: '700' }}>{item.title ?? 'Уведомление'}</Text>
           <Text>{item.body ?? item.message ?? ''}</Text>
           {!item.readAt ? (
-            <Button title="Mark read" onPress={() => api.notifications.markRead(String(item.id)).then(() => query.reload())} />
+            <Button
+              title="Отметить как прочитанное"
+              onPress={() => api.notifications.markRead(String(item.id)).then(() => query.reload())}
+            />
           ) : null}
         </Card>
       ))}
-      {!query.loading && !(query.data ?? []).length ? (
+
+      {!query.loading && !query.error && !(query.data ?? []).length ? (
         <Card>
-          <Text>No notifications</Text>
+          <EmptyState title="Пока пусто" description="Новые уведомления появятся здесь." />
         </Card>
       ) : null}
     </Screen>

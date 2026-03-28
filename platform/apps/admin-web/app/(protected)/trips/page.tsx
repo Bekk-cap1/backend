@@ -10,6 +10,7 @@ import { unwrapData } from '../../../lib/unwrap';
 import { PageHeader } from '../../../components/shared/page-header';
 import { DataTable } from '../../../components/shared/data-table';
 import { StatusPill } from '../../../components/shared/status-pill';
+import { EntityLabel } from '../../../components/shared/entity-label';
 
 type TripRow = {
   id: string;
@@ -23,7 +24,10 @@ export default function TripsPage() {
   const tripsQuery = useQuery({
     queryKey: ['admin-trips'],
     queryFn: async () => {
-      const response: unknown = await adminApi(apiClient).listTrips({ limit: 100 });
+      const response: unknown = await adminApi(apiClient).listTrips({
+        page: 1,
+        pageSize: 100,
+      });
       const data = unwrapData<{ items?: Record<string, unknown>[] }>(response);
       return data.items ?? [];
     },
@@ -46,8 +50,8 @@ export default function TripsPage() {
       accessorKey: 'id',
       header: 'Trip ID',
       cell: ({ row }) => (
-        <Link className="text-primary underline" href={`/trips/${row.original.id}`}>
-          {row.original.id.slice(0, 8)}
+        <Link className="text-primary hover:opacity-90" href={`/trips/${row.original.id}`}>
+          <EntityLabel title={`Trip #${row.original.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`} id={row.original.id} />
         </Link>
       ),
     },

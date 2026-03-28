@@ -6,6 +6,7 @@ import { Card } from '../../ui/components/Card';
 import { Input } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
 import { Badge } from '../../ui/components/Badge';
+import { RequestStatusStrip } from '../../ui/components/RequestStatusStrip';
 import { api } from '../../api/client';
 import { unwrapItems, unwrapPayload } from '../../api/mappers/dto';
 import { useToast } from '../../ui/components/Toast';
@@ -51,6 +52,8 @@ export function DriverNegotiationScreen({ route }: { route: any }) {
   const [offers, setOffers] = useState<TimelineOffer[]>([]);
   const [turn, setTurn] = useState<'passenger' | 'driver' | null>(null);
   const [status, setStatus] = useState('pending');
+  const [movesLeftPassenger, setMovesLeftPassenger] = useState<number | null>(null);
+  const [movesLeftDriver, setMovesLeftDriver] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -67,6 +70,16 @@ export function DriverNegotiationScreen({ route }: { route: any }) {
     setOffers(normalizeOffers(unwrapItems<any>(offersResponse)));
     setTurn(normalizeTurn(negotiation));
     setStatus(nextStatus);
+    setMovesLeftPassenger(
+      Number.isFinite(Number(negotiation?.passengerMovesLeft))
+        ? Number(negotiation.passengerMovesLeft)
+        : null,
+    );
+    setMovesLeftDriver(
+      Number.isFinite(Number(negotiation?.driverMovesLeft))
+        ? Number(negotiation.driverMovesLeft)
+        : null,
+    );
 
     if (FINAL_STATUSES.has(nextStatus) && pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -121,7 +134,7 @@ export function DriverNegotiationScreen({ route }: { route: any }) {
       });
 
       if (result.queued) {
-        show({ title: 'Offline: offer queued.', tone: 'info' });
+        show({ title: 'Нет сети: оффер поставлен в очередь.', tone: 'info' });
       }
 
       await syncNegotiation();
@@ -135,11 +148,19 @@ export function DriverNegotiationScreen({ route }: { route: any }) {
 
   return (
     <Screen>
-      <Topbar title="Driver negotiation" right={<Badge label={status} />} />
+      <Topbar title="Торг водителя" right={<Badge label={status} />} />
       <Card>
-        <Text>{turn ? (turn === 'driver' ? 'Your turn' : 'Waiting for passenger') : 'Syncing turn...'}</Text>
-        <Input label="Counter-offer" value={price} onChangeText={setPrice} keyboardType="number-pad" />
-        <Button title="Send counter-offer" loading={busy} onPress={sendOffer} disabled={!canAct || busy} />
+        <RequestStatusStrip
+          status={status}
+          nextTurn={turn}
+          movesLeftPassenger={movesLeftPassenger}
+          movesLeftDriver={movesLeftDriver}
+        />
+        <Text>
+          {turn ? (turn === 'driver' ? 'Ваш ход' : 'Ожидаем ход пассажира') : 'Синхронизируем ход...'}
+        </Text>
+        <Input label="Контроффер" value={price} onChangeText={setPrice} keyboardType="number-pad" />
+        <Button title="Отправить контроффер" loading={busy} onPress={sendOffer} disabled={!canAct || busy} />
       </Card>
 
       <FlatList
@@ -148,13 +169,13 @@ export function DriverNegotiationScreen({ route }: { route: any }) {
         contentContainerStyle={{ gap: 8 }}
         renderItem={({ item }) => (
           <Card>
-            <Text style={{ fontWeight: '700' }}>{item.side === 'driver' ? 'You' : 'Passenger'}</Text>
-            <Text>Price: {item.price}</Text>
-            <Badge label={item.optimistic ? 'queued' : item.status} />
+            <Text style={{ fontWeight: '700' }}>{item.side === 'driver' ? 'Вы' : 'Пассажир'}</Text>
+            <Text>Цена: {item.price}</Text>
+            <Badge label={item.optimistic ? 'в очереди' : item.status} />
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button title="Accept" onPress={() => api.offers.accept(item.id).then(() => syncNegotiation())} />
-              <Button title="Reject" variant="secondary" onPress={() => api.offers.reject(item.id).then(() => syncNegotiation())} />
-              <Button title="Cancel" variant="destructive" onPress={() => api.offers.cancel(item.id).then(() => syncNegotiation())} />
+              <Button title="Принять" onPress={() => api.offers.accept(item.id).then(() => syncNegotiation())} />
+              <Button title="Отклонить" variant="secondary" onPress={() => api.offers.reject(item.id).then(() => syncNegotiation())} />
+              <Button title="Отменить" variant="destructive" onPress={() => api.offers.cancel(item.id).then(() => syncNegotiation())} />
             </View>
           </Card>
         )}

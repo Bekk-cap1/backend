@@ -1,13 +1,30 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/types/auth-user';
 import { GeoService } from './geo.service';
 import { UpdateDriverLocationDto } from './dto/update-driver-location.dto';
 import { DriverVerifiedGuard } from '../../common/guards/driver-verified.guard';
+import { PlaceAutocompleteDto } from './dto/place-autocomplete.dto';
+import { PlaceReverseDto } from './dto/place-reverse.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('geo')
 export class GeoController {
   constructor(private readonly geo: GeoService) {}
+
+  @Public()
+  @Get('autocomplete')
+  async autocomplete(@Query() dto: PlaceAutocompleteDto) {
+    const data = await this.geo.autocompletePlaces(dto);
+    return { ok: true, data };
+  }
+
+  @Public()
+  @Get('reverse')
+  async reverse(@Query() dto: PlaceReverseDto) {
+    const data = await this.geo.reverseGeocode(dto);
+    return { ok: true, data };
+  }
 
   @Patch('trips/:tripId/location')
   @UseGuards(DriverVerifiedGuard)

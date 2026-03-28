@@ -6,11 +6,13 @@ import { Card } from '../../ui/components/Card';
 import { Input } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
 import { Badge } from '../../ui/components/Badge';
+import { RequestStatusStrip } from '../../ui/components/RequestStatusStrip';
 import { api } from '../../api/client';
 import { unwrapItems, unwrapPayload } from '../../api/mappers/dto';
 import { useToast } from '../../ui/components/Toast';
 import { toErrorMessage } from '../../core/errors';
 import { sendOfferWithQueue } from '../../api/critical-actions';
+import { formatMoney } from '../../core/format';
 
 const FINAL_STATUSES = new Set(['accepted', 'rejected', 'canceled', 'expired']);
 
@@ -55,6 +57,8 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
   const [offers, setOffers] = useState<TimelineOffer[]>([]);
   const [turn, setTurn] = useState<'passenger' | 'driver' | null>(null);
   const [status, setStatus] = useState('pending');
+  const [movesLeftPassenger, setMovesLeftPassenger] = useState<number | null>(null);
+  const [movesLeftDriver, setMovesLeftDriver] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,10 +76,31 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
     setOffers(nextOffers);
     setTurn(normalizeTurn(negotiation));
     setStatus(nextStatus);
+    setMovesLeftPassenger(
+      Number.isFinite(Number(negotiation?.passengerMovesLeft))
+        ? Number(negotiation.passengerMovesLeft)
+        : null,
+    );
+    setMovesLeftDriver(
+      Number.isFinite(Number(negotiation?.driverMovesLeft))
+        ? Number(negotiation.driverMovesLeft)
+        : null,
+    );
 
     if (FINAL_STATUSES.has(nextStatus) && pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
+    }
+  };
+
+  const resolveBookingFromRequest = async () => {
+    const requestsResponse = await api.requests.listMine();
+    const requests = unwrapItems<any>(requestsResponse);
+    const current = requests.find((item) => String(item.id) === requestId);
+    const bookingId = String(current?.booking?.id ?? '');
+    const tripId = String(current?.tripId ?? current?.trip?.id ?? '');
+    if (bookingId) {
+      navigation.replace('BookingDetails', { bookingId, tripId });
     }
   };
 
@@ -115,7 +140,7 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
     if (busy) return;
 
     if (!canAct) {
-      show({ title: 'Waiting for other side response', tone: 'info' });
+      show({ title: 'Сейчас ход другой стороны', tone: 'info' });
       return;
     }
 
@@ -136,7 +161,7 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
       });
 
       if (result.queued) {
-        show({ title: 'Offline: offer queued.', tone: 'info' });
+        show({ title: 'Нет сети: оффер поставлен в очередь.', tone: 'info' });
       }
 
       await syncNegotiation();
@@ -152,11 +177,23 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
 
   return (
     <Screen>
-      <Topbar title="Negotiation" right={<Badge label={status} />} />
+      <Topbar title="Торг" right={<Badge label={status} />} />
 
       <Card>
-        <Text style={{ fontWeight: '700' }}>Request {requestId.slice(0, 8)}</Text>
-        <Text>{turn ? (turn === 'passenger' ? 'Your turn' : 'Waiting for driver') : 'Syncing turn...'}</Text>
+        <Text style={{ fontWeight: '700' }}>Переговоры по цене</Text>
+        <RequestStatusStrip
+          status={status}
+          nextTurn={turn}
+          movesLeftPassenger={movesLeftPassenger}
+          movesLeftDriver={movesLeftDriver}
+        />
+        <Text>
+          {turn
+            ? turn === 'passenger'
+              ? 'Ваш ход'
+              : 'Ожидаем ход водителя'
+            : 'Синхронизируем состояние...'}
+        </Text>
       </Card>
 
       <FlatList
@@ -165,32 +202,32 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
         contentContainerStyle={{ gap: 8 }}
         renderItem={({ item }) => (
           <Card>
-            <Text style={{ fontWeight: '700' }}>{item.side === 'passenger' ? 'You' : 'Driver'}</Text>
-            <Text>Price: {item.price}</Text>
-            <Badge label={item.optimistic ? 'queued' : item.status} />
+            <Text style={{ fontWeight: '700' }}>{item.side === 'passenger' ? 'Вы' : 'Водитель'}</Text>
+            <Text>Цена: {formatMoney(item.price, 'UZS')}</Text>
+            <Badge label={item.optimistic ? 'в очереди' : item.status} />
           </Card>
         )}
+        ListEmptyComponent={<Card><Text>Офферов пока нет.</Text></Card>}
       />
 
       <Card>
-        <Input label="Offer" value={price} onChangeText={setPrice} keyboardType="number-pad" />
+        <Input label="Ваш оффер" value={price} onChangeText={setPrice} keyboardType="number-pad" />
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Button title="-5%" variant="secondary" onPress={() => sendOffer(-5)} disabled={!canAct || busy} />
           <Button title="+5%" variant="secondary" onPress={() => sendOffer(5)} disabled={!canAct || busy} />
         </View>
-        <Button title="Send offer" loading={busy} onPress={() => sendOffer()} disabled={!canAct || busy} />
+        <Button title="Отправить оффер" loading={busy} onPress={() => sendOffer()} disabled={!canAct || busy} />
 
         <Button
-          title="Accept current"
+          title="Принять текущий"
           onPress={async () => {
             if (busy || !latestOffer) return;
             setBusy(true);
             try {
               await api.offers.accept(latestOffer.id);
               await syncNegotiation();
-              if (FINAL_STATUSES.has('accepted')) {
-                navigation.goBack();
-              }
+              show({ title: 'Оффер принят', tone: 'success' });
+              await resolveBookingFromRequest();
             } catch (error) {
               show({ title: toErrorMessage(error), tone: 'danger' });
             } finally {
@@ -200,7 +237,7 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
         />
 
         <Button
-          title="Cancel request"
+          title="Отменить заявку"
           variant="destructive"
           onPress={async () => {
             if (busy) return;
@@ -208,7 +245,7 @@ export function PassengerNegotiationScreen({ route, navigation }: { route: any; 
             try {
               await api.requests.cancelRequest(requestId);
               setStatus('canceled');
-              show({ title: 'Request canceled', tone: 'success' });
+              show({ title: 'Заявка отменена', tone: 'success' });
               navigation.goBack();
             } catch (error) {
               show({ title: toErrorMessage(error), tone: 'danger' });

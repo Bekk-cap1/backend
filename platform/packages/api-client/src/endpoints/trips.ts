@@ -5,6 +5,7 @@ export const tripsApi = (api: ApiClient) => ({
     api.request('get', '/api/trips/search', { params }),
   list: (params?: Record<string, unknown>) => api.request('get', '/api/trips', { params }),
   getById: (id: string) => api.client.get(`/api/trips/${id}`).then((r) => r.data),
+  getSeatMap: (id: string) => api.client.get(`/api/trips/${id}/seat-map`).then((r) => r.data),
   create: (body: Record<string, unknown>) =>
     api.request('post', '/api/trips', { body: body as never }),
   update: (id: string, body: Record<string, unknown>) =>

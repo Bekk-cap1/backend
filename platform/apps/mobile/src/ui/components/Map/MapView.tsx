@@ -1,7 +1,7 @@
-﻿import type { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import MapNativeView, { Marker, Polyline } from 'react-native-maps';
+import MapNativeView, { Marker, Polyline, type MapPressEvent } from 'react-native-maps';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { MapCoordinate, MapMarker } from './types';
 import { toLatLng } from '../../../core/location/polyline';
@@ -48,9 +48,11 @@ export function MapView({
   driver,
   poiMarkers = [],
   radarMarkers = [],
+  customMarkers = [],
   showPoi = true,
   showRadars = true,
   showRadarHeat = false,
+  onMapPress,
   children,
 }: {
   center?: MapCoordinate | null;
@@ -58,9 +60,11 @@ export function MapView({
   driver?: MapCoordinate | null;
   poiMarkers?: MapMarker[];
   radarMarkers?: MapMarker[];
+  customMarkers?: MapMarker[];
   showPoi?: boolean;
   showRadars?: boolean;
   showRadarHeat?: boolean;
+  onMapPress?: (point: MapCoordinate) => void;
   children?: ReactNode;
 }) {
   const { theme } = useTheme();
@@ -71,8 +75,9 @@ export function MapView({
     const points: MapMarker[] = [];
     if (showPoi) points.push(...poiMarkers);
     if (showRadars) points.push(...radarMarkers);
+    points.push(...customMarkers);
     return clusterMarkers(points);
-  }, [poiMarkers, radarMarkers, showPoi, showRadars]);
+  }, [customMarkers, poiMarkers, radarMarkers, showPoi, showRadars]);
 
   const initialRegion = useMemo(() => {
     const fallback = center ?? routeCoords?.[0] ?? driver ?? { lat: 41.3111, lon: 69.2797 };
@@ -123,6 +128,11 @@ export function MapView({
         }}
         style={{ flex: 1, minHeight: 280 }}
         initialRegion={initialRegion}
+        onPress={(event: MapPressEvent) => {
+          if (!onMapPress) return;
+          const { latitude, longitude } = event.nativeEvent.coordinate;
+          onMapPress({ lat: latitude, lon: longitude });
+        }}
       >
         {latLngRoute.length >= 2 ? (
           <Polyline coordinates={latLngRoute} strokeWidth={4} strokeColor={theme.colors.primary} />
@@ -132,8 +142,8 @@ export function MapView({
           <Marker
             coordinate={{ latitude: driver.lat, longitude: driver.lon }}
             pinColor={theme.colors.accent}
-            title="Driver"
-            description="Live location"
+            title="Водитель"
+            description="Текущее положение"
           />
         ) : null}
 
@@ -143,7 +153,15 @@ export function MapView({
           <Marker
             key={marker.id}
             coordinate={{ latitude: marker.lat, longitude: marker.lon }}
-            pinColor={marker.kind === 'radar' ? theme.colors.warning : theme.colors.success}
+            pinColor={
+              marker.kind === 'radar'
+                ? theme.colors.warning
+                : marker.kind === 'pickup'
+                  ? theme.colors.accent
+                  : marker.kind === 'dropoff'
+                    ? theme.colors.danger
+                    : theme.colors.success
+            }
             title={marker.title ?? marker.kind}
             description={marker.count ? `Cluster of ${marker.count}` : marker.description}
           />
@@ -167,7 +185,7 @@ export function MapView({
             borderColor: theme.colors.border,
           }}
         >
-          <Text style={{ color: theme.colors.text, fontSize: 12, fontWeight: '600' }}>Open in Maps</Text>
+          <Text style={{ color: theme.colors.text, fontSize: 12, fontWeight: '600' }}>Открыть в картах</Text>
         </Pressable>
       ) : null}
 

@@ -16,6 +16,7 @@ export { normalizeApiError } from './core/errors';
 export type { NormalizedApiError } from './core/errors';
 
 export { authApi } from './endpoints/auth';
+export { accountsApi } from './endpoints/accounts';
 export { adminApi } from './endpoints/admin';
 export { usersApi } from './endpoints/users';
 export { driversApi } from './endpoints/drivers';

@@ -91,6 +91,7 @@ export default function TicketsPage() {
     <div className="space-y-4">
       <PageHeader title="Tickets" description="Support queue with status transitions." />
       <DataTable
+        tableKey="tickets-admin"
         columns={columns}
         data={rows}
         loading={ticketsQuery.isLoading}

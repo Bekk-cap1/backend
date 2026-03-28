@@ -152,6 +152,8 @@ Generated from `platform/.cache/openapi.json`.
 | Bookings | /bookings | GET | `/api/driver/bookings` | DriverBookingsController_myDriver |
 | Cancellations | /cancellations | POST | `/api/cancellations/bookings/{bookingId}/apply` | CancellationController_apply |
 | Cancellations | /cancellations | GET | `/api/cancellations/bookings/{bookingId}/quote` | CancellationController_quote |
+| Geo | /live | GET | `/api/geo/autocomplete` | GeoController_autocomplete |
+| Geo | /live | GET | `/api/geo/reverse` | GeoController_reverse |
 | Geo | /live | GET | `/api/geo/trip/{tripId}/eta` | GeoController_getTripEta |
 | Geo | /live | GET | `/api/geo/trips/{tripId}/location` | GeoController_getTripDriverLocation |
 | Geo | /live | PATCH | `/api/geo/trips/{tripId}/location` | GeoController_updateTripDriverLocation |
@@ -195,6 +197,7 @@ Generated from `platform/.cache/openapi.json`.
 | Routing | /live | GET | `/api/routing/trip/{tripId}` | RoutingController_tripRoute[0] |
 | Routing | /live | GET | `/api/routing/trip/{tripId}/eta` | RoutingController_tripEta[0] |
 | Support Tickets | /tickets | POST | `/api/support/tickets` | SupportTicketsController_create |
+| Support Tickets | /tickets | GET | `/api/support/tickets/{id}` | SupportTicketsController_getMineById |
 | Support Tickets | /tickets | GET | `/api/support/tickets/my` | SupportTicketsController_listMine |
 | Trips | /trips | PATCH | `/api/offers/{offerId}/accept` | OffersController_accept |
 | Trips | /trips | PATCH | `/api/offers/{offerId}/cancel` | OffersController_cancel |
@@ -216,6 +219,7 @@ Generated from `platform/.cache/openapi.json`.
 | Trips | /trips | POST | `/api/trips/{id}/complete` | TripsController_completePost |
 | Trips | /trips | PATCH | `/api/trips/{id}/publish` | TripsController_publish |
 | Trips | /trips | POST | `/api/trips/{id}/publish` | TripsController_publishPost |
+| Trips | /trips | GET | `/api/trips/{id}/seat-map` | TripsController_getSeatMap |
 | Trips | /trips | PATCH | `/api/trips/{id}/start` | TripsController_start |
 | Trips | /trips | POST | `/api/trips/{id}/start` | TripsController_startPost |
 | Trips | /trips | POST | `/api/trips/{tripId}/requests` | RequestsController_create |

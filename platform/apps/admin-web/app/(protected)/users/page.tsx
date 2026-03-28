@@ -10,6 +10,7 @@ import { apiClient } from '../../../lib/api';
 import { DataTable } from '../../../components/shared/data-table';
 import { PageHeader } from '../../../components/shared/page-header';
 import { StatusPill } from '../../../components/shared/status-pill';
+import { EntityLabel } from '../../../components/shared/entity-label';
 import { ConfirmDialog } from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -182,7 +183,11 @@ export default function UsersPage() {
   };
 
   const columns: Array<ColumnDef<UserRow>> = [
-    { accessorKey: 'user', header: 'User' },
+    {
+      accessorKey: 'user',
+      header: 'User',
+      cell: ({ row }) => <EntityLabel title={row.original.user} id={row.original.id} />,
+    },
     { accessorKey: 'emailPhone', header: 'Email/Phone' },
     { accessorKey: 'role', header: 'Role' },
     {

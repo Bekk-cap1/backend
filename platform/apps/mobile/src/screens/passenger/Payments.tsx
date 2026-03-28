@@ -106,7 +106,13 @@ export function PaymentsScreen({ route }: { route: any }) {
       <Topbar title="Payments" />
 
       <Card>
-        <Text>Booking: {bookingId || 'n/a'}</Text>
+        <Text>Booking status: {String(bookingQuery.data?.status ?? 'unknown')}</Text>
+        <Text>
+          Route:{' '}
+          {bookingQuery.data?.trip?.fromCity?.name && bookingQuery.data?.trip?.toCity?.name
+            ? `${bookingQuery.data.trip.fromCity.name} -> ${bookingQuery.data.trip.toCity.name}`
+            : 'not available'}
+        </Text>
         <Text>Status: {String(bookingQuery.data?.status ?? 'unknown')}</Text>
         <Input label="Provider" value={provider} onChangeText={setProvider} placeholder="stripe/payme/click" />
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -130,7 +136,7 @@ export function PaymentsScreen({ route }: { route: any }) {
 
       {paymentItems.map((payment) => (
         <Card key={String(payment.id)}>
-          <Text style={{ fontWeight: '700' }}>Payment #{String(payment.id).slice(0, 8)}</Text>
+          <Text style={{ fontWeight: '700' }}>Payment record</Text>
           <Text>Amount: {payment.amount ?? 0}</Text>
           <Badge label={String(payment.status ?? 'unknown')} />
           {appConfig.enableMocks ? (
@@ -153,7 +159,7 @@ export function PaymentsScreen({ route }: { route: any }) {
 
       {latestPaymentId && !isPaid ? (
         <Card>
-          <Text>Latest payment: {latestPaymentId.slice(0, 8)}</Text>
+          <Text>Latest payment created</Text>
           <Button
             title="Refresh status"
             variant="secondary"

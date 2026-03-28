@@ -955,6 +955,29 @@
         ]
       }
     },
+    "/api/trips/{id}/seat-map": {
+      "get": {
+        "operationId": "TripsController_getSeatMap",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Trips"
+        ]
+      }
+    },
     "/api/trips/{id}/publish": {
       "patch": {
         "operationId": "TripsController_publish",
@@ -5716,6 +5739,34 @@
         ]
       }
     },
+    "/api/geo/autocomplete": {
+      "get": {
+        "operationId": "GeoController_autocomplete",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Geo"
+        ]
+      }
+    },
+    "/api/geo/reverse": {
+      "get": {
+        "operationId": "GeoController_reverse",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Geo"
+        ]
+      }
+    },
     "/api/geo/trips/{tripId}/location": {
       "patch": {
         "operationId": "GeoController_updateTripDriverLocation",
@@ -6337,6 +6388,29 @@
       "get": {
         "operationId": "SupportTicketsController_listMine",
         "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "SupportTickets"
+        ]
+      }
+    },
+    "/api/support/tickets/{id}": {
+      "get": {
+        "operationId": "SupportTicketsController_getMineById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""

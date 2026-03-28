@@ -3,7 +3,7 @@
   lon: number;
 };
 
-export type MapMarkerKind = 'driver' | 'poi' | 'radar';
+export type MapMarkerKind = 'driver' | 'poi' | 'radar' | 'pickup' | 'dropoff';
 
 export type MapMarker = {
   id: string;

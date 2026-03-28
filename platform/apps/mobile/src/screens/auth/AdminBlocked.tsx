@@ -1,4 +1,4 @@
-﻿import { Text } from 'react-native';
+import { Text } from 'react-native';
 import { Screen } from '../../ui/components/Screen';
 import { Card } from '../../ui/components/Card';
 import { Button } from '../../ui/components/Button';
@@ -10,9 +10,9 @@ export function AdminBlockedScreen() {
   return (
     <Screen>
       <Card>
-        <Text style={{ fontSize: 24, fontWeight: '700' }}>Use Admin Web</Text>
-        <Text>Admin, moderator and operations roles are available only in the web console.</Text>
-        <Button title="Logout" variant="destructive" onPress={() => logout()} />
+        <Text style={{ fontSize: 24, fontWeight: '700' }}>Режим админ-панели</Text>
+        <Text>Аккаунты admin/moderator/ops/support работают только в веб-админке.</Text>
+        <Button title="Выйти" variant="destructive" onPress={() => logout()} />
       </Card>
     </Screen>
   );

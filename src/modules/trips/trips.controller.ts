@@ -46,6 +46,12 @@ export class TripsController {
     return this.tripsService.getTripById(id);
   }
 
+  @Public()
+  @Get(':id/seat-map')
+  async getSeatMap(@Param('id') id: string) {
+    return this.tripsService.getTripSeatMap(id);
+  }
+
   @Roles('driver')
   @UseGuards(DriverVerifiedGuard)
   @Post()

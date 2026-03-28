@@ -1,5 +1,6 @@
-﻿import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { formatStatusLabel } from '../../core/format';
 
 const statusColors: Record<string, string> = {
   pending: '#FFB020',
@@ -24,7 +25,9 @@ export function Badge({ label }: { label: string }) {
 
   return (
     <View style={[styles.badge, { backgroundColor: `${color}33`, borderColor: `${color}66` }]}>
-      <Text style={{ color: theme.colors.text, fontSize: 11, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ color: theme.colors.text, fontSize: 11, fontWeight: '600' }}>
+        {formatStatusLabel(label)}
+      </Text>
     </View>
   );
 }

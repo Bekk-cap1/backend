@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/types/auth-user';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -16,5 +16,10 @@ export class SupportTicketsController {
   @Get('my')
   async listMine(@CurrentUser() user: AuthUser) {
     return { ok: true, data: await this.tickets.listMine(user.sub) };
+  }
+
+  @Get(':id')
+  async getMineById(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return { ok: true, data: await this.tickets.getMineById(user.sub, id) };
   }
 }
