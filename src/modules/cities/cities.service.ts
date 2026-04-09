@@ -120,7 +120,7 @@ export class CitiesService {
     };
 
     let items: Array<
-      Prisma.CityGetPayload<{}>
+      Prisma.CityGetPayload<object>
     > = [];
     let total = 0;
 
