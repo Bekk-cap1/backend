@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find platform/apps/admin-web -name \"page-header.tsx\" -exec cat {} \\\\;)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest',{}\\), indent=2\\)\\)\")",
+      "Bash(node -e \"const d=require\\('./package.json'\\); console.log\\(JSON.stringify\\(d.jest, null, 2\\)\\)\")",
+      "Bash(ls *.json)",
+      "Bash(mkdir -p \"d:/bekka/Asadbek/vault/.obsidian\")",
+      "Bash(mkdir -p \"d:/bekka/Asadbek/vault/01 - Сделано\")",
+      "Bash(mkdir -p \"d:/bekka/Asadbek/vault/02 - В процессе\")",
+      "Bash(mkdir -p \"d:/bekka/Asadbek/vault/03 - Бэкенд\")",
+      "Bash(mkdir -p \"d:/bekka/Asadbek/vault/04 - CI_CD\")"
+    ]
+  }
+}

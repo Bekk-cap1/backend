@@ -90,3 +90,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # runtime uploads/cache
 uploads/
 .cache/
+
+# temp files
+*.tmp_cookies.txt
+.tmp_cookies.txt
