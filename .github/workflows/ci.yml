@@ -71,6 +71,7 @@ jobs:
       SENTRY_DSN: "https://public@example.ingest.sentry.io/1"
 
       METRICS_ENABLED: "true"
+      LOGIN_LOCK_DISABLE_LOCAL: "false"
 
     steps:
       - uses: actions/checkout@v4
