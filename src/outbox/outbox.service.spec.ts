@@ -1,3 +1,4 @@
+import { OutboxStatus } from '@prisma/client';
 import { OutboxService } from './outbox.service';
 import { OutboxTopic } from './outbox.topics';
 
@@ -25,6 +26,31 @@ describe('OutboxService', () => {
         payload: { hello: 'world' },
         nextRetryAt: null,
         status: 'NEW',
+      },
+    });
+  });
+
+  it('enqueue uses prisma directly', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 'evt-3' });
+    const prisma = { outboxEvent: { create } } as never;
+    const service = new OutboxService(prisma);
+
+    await service.enqueue({
+      topic: OutboxTopic.TripCreated,
+      aggregateType: 'trip',
+      aggregateId: 'trip-1',
+      payload: { x: 1 },
+    });
+
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        idempotencyKey: null,
+        topic: OutboxTopic.TripCreated,
+        aggregateType: 'trip',
+        aggregateId: 'trip-1',
+        payload: { x: 1 },
+        nextRetryAt: null,
+        status: OutboxStatus.NEW,
       },
     });
   });

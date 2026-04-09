@@ -55,7 +55,7 @@ describe('LoginAttemptsService', () => {
   it('blocks login after max attempts', async () => {
     const redis = createMemoryRedis();
     const service = new LoginAttemptsService(redis as never);
-    const context = { phone: '+998900000001', ip: '127.0.0.1' };
+    const context = { phone: '+998900000001', ip: '203.0.113.1' };
 
     for (let i = 0; i < 4; i += 1) {
       await expect(
